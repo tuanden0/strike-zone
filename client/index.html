@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strike Zone</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="hud" hidden>
+  <div id="hud-top"><span id="score-a" class="team-a">0</span><span id="timer">--:--</span><span id="score-b" class="team-b">0</span></div>
+  <div id="hud-info"><span id="fps"></span> <span id="ping"></span></div>
+  <div id="killfeed"></div>
+  <div id="crosshair"></div>
+  <div id="hitmarker"></div>
+  <div id="damage"></div>
+  <div id="banner"></div>
+  <div id="hud-bl"><div id="hp-label">HP</div><div id="hp-bar"><div id="hp-fill"></div></div><div id="hp-num">100</div></div>
+  <div id="hud-br"><div id="weapon-name"></div><div id="ammo"></div><div id="weapon-slots"></div></div>
+  <div id="practice-stats" hidden></div>
+  <div id="scoreboard" hidden></div>
+</div>
+
+<section id="screen-title" class="screen">
+  <div class="panel">
+    <h1>STRIKE <span>ZONE</span></h1>
+    <p class="sub">LAN tactical shooter</p>
+    <label for="nick">Nickname</label>
+    <input id="nick" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Player">
+    <div class="row">
+      <button id="btn-online" class="primary">Play online</button>
+      <button id="btn-practice">Practice range</button>
+    </div>
+    <p id="title-status" class="status"></p>
+    <p class="hint">WASD move · Mouse aim · Space jump · Shift walk · R reload · 1/2/3 weapons · Tab scoreboard</p>
+  </div>
+</section>
+
+<section id="screen-lobby" class="screen" hidden>
+  <div class="panel wide">
+    <div class="row space">
+      <h2>Rooms</h2>
+      <div><span id="lobby-nick"></span> <button id="btn-lobby-back">Back</button></div>
+    </div>
+    <p id="lobby-status" class="status"></p>
+    <table id="room-table">
+      <thead><tr><th>Name</th><th>Players</th><th>Limits</th><th>State</th><th></th></tr></thead>
+      <tbody id="room-body"></tbody>
+    </table>
+    <p id="room-empty" class="hint" hidden>No rooms yet. Create one below.</p>
+    <div class="row">
+      <label for="pref-team">Team</label>
+      <select id="pref-team"><option value="auto">Auto</option><option value="A">Cobalt</option><option value="B">Ember</option></select>
+    </div>
+    <h3>Create room</h3>
+    <form id="create-form" class="grid">
+      <label for="c-name">Name</label><input id="c-name" maxlength="24" autocomplete="off" value="Room 1">
+      <label for="c-pass">Password</label><input id="c-pass" type="password" maxlength="32" autocomplete="off" placeholder="optional">
+      <label for="c-max">Max players</label><select id="c-max"></select>
+      <label for="c-time">Time limit (min)</label><input id="c-time" type="number" min="1" max="30" value="10">
+      <label for="c-score">Score limit</label><input id="c-score" type="number" min="5" max="100" value="30">
+      <span></span><button class="primary" type="submit">Create &amp; join</button>
+    </form>
+  </div>
+</section>
+
+<section id="screen-pause" class="screen" hidden>
+  <div class="panel">
+    <h2 id="pause-title">Paused</h2>
+    <p class="hint">Click Resume to capture the mouse.</p>
+    <div class="row"><button id="btn-resume" class="primary">Resume</button><button id="btn-leave">Leave</button></div>
+    <div id="pause-team" class="row" hidden>
+      <button id="btn-team-a" class="team-a-btn">Join Cobalt</button><button id="btn-team-b" class="team-b-btn">Join Ember</button>
+    </div>
+    <label for="sens">Mouse sensitivity</label>
+    <input id="sens" type="range" min="3" max="80" value="22">
+    <label for="vol">Volume</label>
+    <input id="vol" type="range" min="0" max="100" value="70">
+    <p id="pause-status" class="status"></p>
+  </div>
+</section>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

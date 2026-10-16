@@ -1,0 +1,44 @@
+{
+  "tickRate": 30,
+  "player": {
+    "halfWidth": 0.3,
+    "height": 1.8,
+    "eyeHeight": 1.62,
+    "runSpeed": 5.5,
+    "walkSpeed": 2.8,
+    "jumpSpeed": 6.5,
+    "gravity": 20,
+    "maxHealth": 100,
+    "body": { "halfWidth": 0.3, "y0": 0.0, "y1": 1.45 },
+    "head": { "halfWidth": 0.18, "y0": 1.45, "y1": 1.8 }
+  },
+  "match": {
+    "respawnSeconds": 3,
+    "spawnProtectSeconds": 1.5,
+    "intermissionSeconds": 10,
+    "defaultTimeLimit": 600,
+    "defaultScoreLimit": 30,
+    "minTimeLimit": 60,
+    "maxTimeLimit": 1800,
+    "minScoreLimit": 5,
+    "maxScoreLimit": 100,
+    "maxPlayers": 10
+  },
+  "weapons": [
+    {
+      "id": "rifle", "name": "AR-7 Rifle", "damage": 30, "headMult": 4, "range": 150,
+      "intervalTicks": 3, "auto": true, "magSize": 30, "reserve": 90, "reloadTicks": 66,
+      "spread": 0.006, "moveSpread": 0.02, "recoilPitch": 0.011, "recoilYaw": 0.004, "melee": false
+    },
+    {
+      "id": "pistol", "name": "P-9 Pistol", "damage": 25, "headMult": 4, "range": 100,
+      "intervalTicks": 5, "auto": false, "magSize": 12, "reserve": 48, "reloadTicks": 45,
+      "spread": 0.004, "moveSpread": 0.012, "recoilPitch": 0.03, "recoilYaw": 0.005, "melee": false
+    },
+    {
+      "id": "knife", "name": "Combat Knife", "damage": 40, "headMult": 1, "range": 2.2,
+      "intervalTicks": 14, "auto": true, "magSize": 0, "reserve": 0, "reloadTicks": 0,
+      "spread": 0, "moveSpread": 0, "recoilPitch": 0, "recoilYaw": 0, "melee": true
+    }
+  ]
+}
