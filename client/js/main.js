@@ -19,6 +19,7 @@ async function fetchJson(url) {
 
 const state = { spec: null, map: null, game: null, net: null, lobby: null, nick: '', online: false };
 const sfx = new Sfx();
+state.sfx = sfx;
 const canvas = $('view');
 const input = new Input(canvas);
 const hud = new Hud();

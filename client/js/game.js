@@ -140,11 +140,11 @@ export class Game {
       model.scale.setScalar(0.7);
       g.add(model);
       const arm = new THREE.Mesh(
-        new THREE.BoxGeometry(0.09, 0.09, 0.45),
+        new THREE.BoxGeometry(0.07, 0.07, 0.3),
         new THREE.MeshLambertMaterial({ color: 0x3a4a63 }),
       );
-      arm.position.set(0.02, -0.07, w.melee ? 0.12 : 0.2);
-      arm.rotation.x = 0.25;
+      arm.position.set(0.0, -0.1, w.melee ? 0.1 : 0.16);
+      arm.rotation.x = 0.4;
       g.add(arm);
       g.visible = false;
       this.viewScene.add(g);
@@ -433,13 +433,13 @@ export class Game {
       rotY -= s * 0.9;
       rotX -= s * 0.6;
     }
-    const base = this.loadout.weapon.melee ? [0.2, -0.2, -0.42] : cur === 1 ? [0.17, -0.16, -0.4] : [0.18, -0.17, -0.5];
+    const base = this.loadout.weapon.melee ? [0.16, -0.13, -0.4] : cur === 1 ? [0.15, -0.14, -0.42] : [0.16, -0.15, -0.5];
     g.position.set(
       base[0] + Math.sin(this.bob) * 0.008,
       base[1] - drop + Math.abs(Math.cos(this.bob)) * 0.006,
       base[2] + this.kick * 0.05,
     );
-    g.rotation.set(rotX, rotY, rotZ);
+    g.rotation.set(rotX + (this.loadout.weapon.melee ? 0.35 : 0), rotY, rotZ);
 
     this.flashT -= dt;
     this.vmFlash.visible = this.alive && this.flashT > 0;

@@ -2,6 +2,7 @@
 // Run: node scripts/gen-golden.mjs   (the Go test then proves Go == JS)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { stepMove, createKin, prepareMap } from '../client/js/physics.js';
+import { Loadout } from '../client/js/weapons.js';
 
 const spec = JSON.parse(readFileSync(new URL('../client/shared/spec.json', import.meta.url)));
 const map = prepareMap(JSON.parse(readFileSync(new URL('../client/shared/map.json', import.meta.url))));
@@ -37,3 +38,31 @@ const scenarios = [
 ];
 writeFileSync(new URL('../server/internal/game/testdata/golden_move.json', import.meta.url), JSON.stringify(scenarios));
 for (const sc of scenarios) console.log('scenario steps', sc.inputs.length, 'final', JSON.stringify(sc.expect.at(-1)));
+
+// ---- weapons: random fire/reload/switch sequence, state after every tick ------------------------
+{
+  const lo = new Loadout(spec);
+  const inputs = [];
+  const expect = [];
+  let held = false;
+  for (let tick = 1; tick <= 1500; tick++) {
+    if (rnd() < 0.15) held = !held;
+    const inp = {
+      fire: held || rnd() < 0.05,
+      reload: rnd() < 0.03,
+      weapon: rnd() < 0.04 ? Math.floor(rnd() * 3) : -1,
+    };
+    inputs.push(inp);
+    lo.step(inp, tick);
+    expect.push({
+      cur: lo.cur,
+      mag: [...lo.mag],
+      res: [...lo.res],
+      cd: Math.max(0, lo.nextFire - tick),
+      rl: lo.reloadDone > 0 ? lo.reloadDone - tick : 0,
+      pf: lo.prevFire,
+    });
+  }
+  writeFileSync(new URL('../server/internal/game/testdata/golden_weapons.json', import.meta.url), JSON.stringify({ inputs, expect }));
+  console.log('weapons steps', inputs.length, 'final', JSON.stringify(expect.at(-1)));
+}

@@ -101,6 +101,7 @@ func clientIP(r *http.Request) string {
 // ServeHTTP upgrades /ws requests.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !CheckOrigin(r.Header.Get("Origin"), r.Host, s.cfg.AllowedOrigins) {
+		log.Printf("ws: rejected origin %q (request host %q) from %s; add it to ALLOWED_ORIGINS if legitimate", r.Header.Get("Origin"), r.Host, clientIP(r))
 		http.Error(w, "origin not allowed", http.StatusForbidden)
 		return
 	}
@@ -117,7 +118,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		CompressionMode:    websocket.CompressionDisabled,
 	})
 	if err != nil {
-		return // Accept already replied
+		log.Printf("ws: handshake from %s failed: %v", ip, err) // Accept already replied
+		return
 	}
 	s.wg.Add(1)
 	defer s.wg.Done()

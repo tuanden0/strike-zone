@@ -24,6 +24,33 @@ try {
   const ammo1 = await page.evaluate(() => window.__sz.game.loadout.mag[0]);
   check('firing consumes ammo', ammo1 < ammo0, `${ammo0} -> ${ammo1}`);
 
+  // WebAudio works on plain http (no secure context needed) and every synthesized sound plays without throwing.
+  const audio = await page.evaluate(() => {
+    const sfx = window.__sz.sfx;
+    const names = ['rifle', 'pistol', 'knife', 'reload', 'empty', 'hit', 'headshot', 'hurt', 'kill', 'death', 'spawn', 'step', 'land', 'jump', 'switch', 'impact', 'end'];
+    try {
+      for (const n of names) {
+        sfx.play(n);
+        sfx.play(n, [3, 1, -4], { x: 0, y: 1.6, z: 0, yaw: 0.5 });
+      }
+    } catch (e) {
+      return { ok: false, err: String(e) };
+    }
+    return { ok: true, state: sfx.ctx && sfx.ctx.state, secure: window.isSecureContext, n: names.length };
+  });
+  check('all sounds synthesize (AudioContext running)', audio.ok && audio.state === 'running', JSON.stringify(audio));
+
+  // Weapon switching: keys 1/2/3 select rifle/pistol/knife.
+  for (const [key, idx] of [['Digit2', 1], ['Digit3', 2], ['Digit1', 0]]) {
+    await page.keyboard.press(key);
+    const ok = await page.waitForFunction((i) => window.__sz.game.loadout.cur === i, idx, { timeout: 3000 }).then(() => true, () => false);
+    check(`key ${key} selects weapon ${idx}`, ok);
+  }
+  await page.waitForTimeout(600); // weapon switch delay (0.3 s) blocks reload
+  await page.keyboard.press('KeyR');
+  const reloading = await page.waitForFunction(() => window.__sz.game.loadout.reloading, null, { timeout: 3000 }).then(() => true, () => false);
+  check('R starts reload when mag not full', reloading);
+
   // Walk forward 1s: position changes.
   const z0 = await page.evaluate(() => window.__sz.game.kin.z);
   await page.keyboard.down('KeyW');

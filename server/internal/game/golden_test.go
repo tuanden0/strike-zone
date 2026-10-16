@@ -144,3 +144,56 @@ func TestRayBox(t *testing.T) {
 		t.Fatal("ray pointing away hit")
 	}
 }
+
+// Client-side ammo/cooldown prediction (client/js/weapons.js) must equal the server state machine.
+func TestWeaponsMatchJSGolden(t *testing.T) {
+	raw, err := os.ReadFile("testdata/golden_weapons.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var g struct {
+		Inputs []struct {
+			Fire, Reload bool
+			Weapon       int
+		}
+		Expect []struct {
+			Cur      int
+			Mag, Res []int
+			Cd, Rl   int
+			Pf       bool
+		}
+	}
+	if err := json.Unmarshal(raw, &g); err != nil {
+		t.Fatal(err)
+	}
+	spec, m := mustLoad(t)
+	w := NewWorld(spec, m, MatchConfig{TimeLimitSec: 100000, ScoreLimit: 1000}, 1)
+	p := add(t, w, 1, TeamA)
+	fired := 0
+	for i, in := range g.Inputs {
+		if err := w.QueueInput(1, Input{Seq: uint32(i + 1), Fire: in.Fire, Reload: in.Reload, Weapon: in.Weapon, Yaw: 0}); err != nil {
+			t.Fatal(err)
+		}
+		w.Step()
+		fired += len(eventsOf(w, EvShot))
+		e := g.Expect[i]
+		cd, rl := max(0, p.NextFire-w.Tick), 0
+		if p.ReloadDone > 0 {
+			rl = p.ReloadDone - w.Tick
+		}
+		same := func(a, b []int) bool {
+			for k := range a {
+				if a[k] != b[k] {
+					return false
+				}
+			}
+			return len(a) == len(b)
+		}
+		if p.Cur != e.Cur || !same(p.Mag, e.Mag) || !same(p.Res, e.Res) || cd != e.Cd || rl != e.Rl || p.PrevFire != e.Pf {
+			t.Fatalf("tick %d: go cur=%d mag=%v res=%v cd=%d rl=%d pf=%v; js %+v", i+1, p.Cur, p.Mag, p.Res, cd, rl, p.PrevFire, e)
+		}
+	}
+	if fired < 50 {
+		t.Fatalf("golden sequence barely exercises firing (%d shots)", fired)
+	}
+}
