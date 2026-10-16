@@ -22,6 +22,7 @@ export class Online {
     this.hudT = 0;
     this.offs = [];
     this.me = null;
+    this.maxCorr = 0;
   }
 
   onStart(game) {
@@ -143,12 +144,16 @@ export class Online {
         tAck = game.tickNo;
       }
       const k = game.kin;
+      const px = k.x;
+      const py = k.y;
+      const pz = k.z;
       k.x = you.x;
       k.y = you.y;
       k.z = you.z;
       k.vy = you.vy;
       k.onGround = you.g;
       for (const p of this.pending) stepMove(this.spec, game.map, k, p.cmd);
+      this.maxCorr = Math.max(this.maxCorr, Math.hypot(k.x - px, k.y - py, k.z - pz)); // prediction error, for diagnostics
       game.loadout.sync(you, tAck);
       for (const p of this.pending) game.loadout.step(p.cmd, p.tick);
     } else {

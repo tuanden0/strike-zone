@@ -28,6 +28,11 @@ func New(cfg config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	return NewWith(cfg, spec, gmap), nil
+}
+
+// NewWith builds the app with explicit game data (tests use custom maps/specs).
+func NewWith(cfg config.Config, spec *game.Spec, gmap *game.Map) *App {
 	hub := lobby.NewHub(spec, gmap)
 	ws := wsserver.New(hub, wsserver.Config{AllowedOrigins: cfg.AllowedOrigins, MaxConnPerIP: cfg.MaxConnPerIP})
 
@@ -39,7 +44,7 @@ func New(cfg config.Config) (*App, error) {
 	mux.Handle("GET /ws", ws)
 	mux.HandleFunc("GET /admin/stats", adminStats(cfg.AdminToken, hub))
 	mux.Handle("GET /", http.FileServerFS(client.FS))
-	return &App{Handler: secure(mux), ws: ws}, nil
+	return &App{Handler: secure(mux), ws: ws}
 }
 
 // Run drives the game loop until ctx is done.

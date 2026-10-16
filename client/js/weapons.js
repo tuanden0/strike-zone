@@ -50,7 +50,7 @@ export class Loadout {
       this.cur = inp.weapon;
       w = this.weapon;
       this.reloadDone = 0;
-      this.nextFire = Math.max(this.nextFire, tick + 9);
+      this.nextFire = Math.max(this.nextFire, tick + this.spec.switchTicks);
       out.switched = true;
     }
     if (inp.reload && this.canReload(w) && tick >= this.nextFire) {

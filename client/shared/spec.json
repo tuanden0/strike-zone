@@ -1,5 +1,6 @@
 {
   "tickRate": 30,
+  "switchTicks": 9,
   "player": {
     "halfWidth": 0.3,
     "height": 1.8,

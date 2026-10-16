@@ -11,10 +11,11 @@ import (
 
 // Spec mirrors client/shared/spec.json, the single source of truth for client and server.
 type Spec struct {
-	TickRate int          `json:"tickRate"`
-	Player   PlayerSpec   `json:"player"`
-	Match    MatchSpec    `json:"match"`
-	Weapons  []WeaponSpec `json:"weapons"`
+	TickRate    int          `json:"tickRate"`
+	SwitchTicks int          `json:"switchTicks"`
+	Player      PlayerSpec   `json:"player"`
+	Match       MatchSpec    `json:"match"`
+	Weapons     []WeaponSpec `json:"weapons"`
 }
 
 type BoxSpec struct {
@@ -127,6 +128,8 @@ func validate(s *Spec, m *Map) error {
 	switch {
 	case s.TickRate < 1 || s.TickRate > 120:
 		return fmt.Errorf("spec: tickRate %d out of range", s.TickRate)
+	case s.SwitchTicks < 0:
+		return fmt.Errorf("spec: switchTicks must be >= 0")
 	case p.HalfWidth <= 0 || p.Height <= 0 || p.EyeHeight <= 0 || p.EyeHeight > p.Height || p.MaxHealth <= 0:
 		return fmt.Errorf("spec: bad player dimensions")
 	case p.RunSpeed <= 0 || p.WalkSpeed <= 0 || p.JumpSpeed <= 0 || p.Gravity <= 0:

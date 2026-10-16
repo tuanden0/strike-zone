@@ -116,6 +116,7 @@ type World struct {
 	players map[int]*Player
 	order   []int
 	events  []Event
+	shots   []*Player // shooters queued this tick, resolved after all movement
 	rng     *rand.Rand
 	spawnN  int
 	// Dirty is set when roster-visible data (score, kills, teams) changed; owner clears it.
@@ -207,7 +208,9 @@ func (w *World) SetTeam(id int, team string) error {
 		return nil
 	}
 	p.Team = team
-	w.respawn(p)
+	if p.Alive { // a dead player keeps waiting for the respawn timer (no instant-respawn trick)
+		w.respawn(p)
+	}
 	w.Dirty = true
 	return nil
 }
@@ -310,6 +313,7 @@ func (w *World) Step() {
 			p.queue = p.queue[n:]
 		}
 	}
+	w.resolveShots()
 	if w.State == StatePlaying && w.Tick >= w.endsAt {
 		w.endMatch()
 	}

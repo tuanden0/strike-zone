@@ -56,6 +56,18 @@ try {
 
   const posA = await a.evaluate(() => ({ z: window.__sz.game.kin.z }));
   check('Alice predicted position moved', Math.abs(posA.z - 20) > 1 || Math.abs(posA.z + 20) > 1);
+  const corr = await a.evaluate(() => window.__sz.game.mode.maxCorr);
+  check('prediction matches server (max correction < 5 cm)', corr < 0.05, `max ${corr.toFixed(4)} m`);
+
+  // Client reaction to server events (synthetic events through the real handler).
+  await b.evaluate(() => {
+    const m = window.__sz.game.mode;
+    m.onEvent({ e: 'hit', by: m.myId, v: 99, w: 0, dmg: 120, head: true });
+    m.onEvent({ e: 'kill', by: m.myId, v: [...m.roster.keys()].find((k) => k !== m.myId), w: 0, head: true });
+  });
+  check('hitmarker shown on hit event', await b.evaluate(() => document.getElementById('hitmarker').classList.contains('on')));
+  const feed = await b.textContent('#killfeed');
+  check('killfeed shows killer, weapon, headshot and victim', feed.includes('Bob') && feed.includes('Alice') && feed.includes('HS'), feed);
   check('HUD shows ping', (await a.textContent('#ping')).includes('ping'));
   check('no JS errors', errors.length === 0, errors.join(' | '));
 } catch (e) {
