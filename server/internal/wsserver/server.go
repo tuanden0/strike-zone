@@ -27,15 +27,24 @@ const (
 	TickInterval = time.Second / 30
 )
 
+// Hub is what the network layer needs from the lobby (an interface so tests can inject faults).
+type Hub interface {
+	Register(c lobby.Conn) (*lobby.Session, error)
+	Unregister(s *lobby.Session)
+	Handle(s *lobby.Session, raw []byte) error
+	Tick()
+}
+
 // Config is the subset of server config the network layer needs.
 type Config struct {
 	AllowedOrigins []string
 	MaxConnPerIP   int
+	IdleTimeout    time.Duration // 0 = default (IdleTimeout const)
 }
 
 // Server serves /ws.
 type Server struct {
-	hub  *lobby.Hub
+	hub  Hub
 	cfg  Config
 	ips  *IPLimiter
 	base context.Context
@@ -44,7 +53,10 @@ type Server struct {
 }
 
 // New creates a Server bound to hub.
-func New(hub *lobby.Hub, cfg Config) *Server {
+func New(hub Hub, cfg Config) *Server {
+	if cfg.IdleTimeout == 0 {
+		cfg.IdleTimeout = IdleTimeout
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Server{hub: hub, cfg: cfg, ips: NewIPLimiter(cfg.MaxConnPerIP), base: ctx, stop: cancel}
 }
@@ -58,7 +70,7 @@ func (s *Server) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			s.hub.Tick()
+			s.tick()
 		}
 	}
 }
@@ -185,7 +197,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	drops := 0
 loop:
 	for {
-		rctx, rcancel := context.WithTimeout(ctx, IdleTimeout)
+		rctx, rcancel := context.WithTimeout(ctx, s.cfg.IdleTimeout)
 		typ, data, err := c.Read(rctx)
 		rcancel()
 		if err != nil {
@@ -219,4 +231,14 @@ loop:
 	} else {
 		_ = c.Close(closeCode, closeReason)
 	}
+}
+
+// tick runs one simulation step; a panic is logged and the loop keeps going.
+func (s *Server) tick() {
+	defer func() {
+		if e := recover(); e != nil {
+			log.Printf("panic in game tick: %v", e)
+		}
+	}()
+	s.hub.Tick()
 }

@@ -56,6 +56,22 @@ try {
 
   const posA = await a.evaluate(() => ({ z: window.__sz.game.kin.z }));
   check('Alice predicted position moved', Math.abs(posA.z - 20) > 1 || Math.abs(posA.z + 20) > 1);
+  // Harder movement: strafe + jump + walk toggles, then compare prediction against the server.
+  await a.keyboard.down('KeyD');
+  await a.keyboard.down('Space');
+  await a.keyboard.down('KeyW');
+  await a.waitForTimeout(1200);
+  await a.keyboard.down('ShiftLeft');
+  await a.waitForTimeout(600);
+  await a.keyboard.up('ShiftLeft');
+  for (const k of ['KeyD', 'Space', 'KeyW']) await a.keyboard.up(k);
+  // Firing: client-predicted ammo must settle to the server's count.
+  await a.mouse.down();
+  await a.waitForTimeout(500);
+  await a.mouse.up();
+  await a.waitForTimeout(800);
+  const ammo = await a.evaluate(() => ({ local: window.__sz.game.loadout.mag[0], server: window.__sz.game.mode.me.mag[0] }));
+  check('predicted ammo equals server ammo after firing', ammo.local === ammo.server && ammo.server < 30, JSON.stringify(ammo));
   const corr = await a.evaluate(() => window.__sz.game.mode.maxCorr);
   check('prediction matches server (max correction < 5 cm)', corr < 0.05, `max ${corr.toFixed(4)} m`);
 
