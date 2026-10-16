@@ -98,6 +98,7 @@ export class Input {
 
   // Called once per fixed tick. Consumes one-shot flags.
   sample() {
+    this.yaw -= Math.PI * 2 * Math.round(this.yaw / (Math.PI * 2)); // keep within [-pi, pi]
     const k = this.keys;
     const live = this.locked && this.enabled;
     const cmd = {

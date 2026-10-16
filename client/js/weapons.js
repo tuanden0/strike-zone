@@ -24,12 +24,15 @@ export class Loadout {
     return this.reloadDone > 0;
   }
 
-  // Overwrite from authoritative server state (tick = local tick counter).
-  sync(you, tick) {
+  // Overwrite from authoritative server state as of local tick `tAck` (the acked input's tick).
+  // Caller then replays unacknowledged inputs through step().
+  sync(you, tAck) {
     this.cur = you.w;
-    this.mag[you.w] = you.mag;
-    this.res[you.w] = you.res;
-    this.reloadDone = you.rl > 0 ? tick + you.rl : 0;
+    this.mag = you.mag.slice();
+    this.res = you.res.slice();
+    this.nextFire = tAck + you.cd;
+    this.reloadDone = you.rl > 0 ? tAck + you.rl : 0;
+    this.prevFire = you.pf;
   }
 
   // One fixed tick. Returns {fired, empty, reloadStarted, reloadDone, switched}.

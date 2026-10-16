@@ -1,0 +1,66 @@
+// Two real browsers join one room through the lobby UI and see each other. Needs a running server.
+import { launch, watchErrors, check, done } from './lib.mjs';
+
+const BASE = process.env.BASE_URL || 'http://localhost:8080';
+const browser = await launch();
+const errors = [];
+const gameReady = () => window.__sz && window.__sz.game && window.__sz.game.running;
+
+async function open(nick) {
+  const ctx = await browser.newContext({ viewport: { width: 1024, height: 600 } });
+  const page = await ctx.newPage();
+  watchErrors(page, errors);
+  await page.goto(BASE);
+  await page.waitForFunction(() => window.__sz && window.__sz.map);
+  await page.fill('#nick', nick);
+  await page.click('#btn-online');
+  await page.waitForSelector('#screen-lobby:not([hidden])');
+  return page;
+}
+
+try {
+  const a = await open('Alice');
+  const b = await open('Bob');
+  check('lobby visible', await a.isVisible('#screen-lobby'));
+
+  await a.fill('#c-name', 'E2E Room');
+  await a.selectOption('#pref-team', 'A');
+  await a.click('#create-form button[type=submit]');
+  await a.waitForFunction(gameReady);
+  check('creator entered the game', true);
+
+  await b.selectOption('#pref-team', 'B');
+  await b.waitForSelector('#room-body tr');
+  check('room listed for second client', (await b.textContent('#room-body')).includes('E2E Room'));
+  await b.click('#room-body button');
+  await b.waitForFunction(gameReady);
+  check('joiner entered the game', true);
+
+  for (const p of [a, b]) {
+    await p.click('#btn-resume');
+    await p.waitForFunction(() => document.pointerLockElement && document.pointerLockElement.id === 'view');
+  }
+  await a.waitForFunction(() => window.__sz.game.remotes.size === 1, null, { timeout: 8000 });
+  check('each client renders the other player', true);
+  check('opposite teams', (await a.evaluate(() => window.__sz.game.myTeam)) !== (await b.evaluate(() => window.__sz.game.myTeam)));
+
+  // Alice walks; Bob must see Alice's remote view move (server-synced).
+  const bobSees = () => b.evaluate(() => { const r = [...window.__sz.game.remotes.values()][0]; return r ? r.group.position.z : null; });
+  const z0 = await bobSees();
+  await a.keyboard.down('KeyW');
+  await a.waitForTimeout(1200);
+  await a.keyboard.up('KeyW');
+  await b.waitForTimeout(400);
+  const z1 = await bobSees();
+  check('Bob sees Alice move', z0 !== null && z1 !== null && Math.abs(z1 - z0) > 1, `z ${z0} -> ${z1}`);
+
+  const posA = await a.evaluate(() => ({ z: window.__sz.game.kin.z }));
+  check('Alice predicted position moved', Math.abs(posA.z - 20) > 1 || Math.abs(posA.z + 20) > 1);
+  check('HUD shows ping', (await a.textContent('#ping')).includes('ping'));
+  check('no JS errors', errors.length === 0, errors.join(' | '));
+} catch (e) {
+  check('online run', false, String(e));
+} finally {
+  await browser.close();
+}
+done();

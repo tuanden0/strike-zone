@@ -229,6 +229,7 @@ export class Game {
     this.running = false;
     this.input.enabled = false;
     cancelAnimationFrame(this._raf);
+    if (this.mode && this.mode.stop) this.mode.stop();
     for (const r of this.remotes.values()) r.dispose();
     this.remotes.clear();
     this.hud.show(false);
@@ -304,7 +305,7 @@ export class Game {
     const cmd = this.input.sample();
     cmd.yaw = this.input.yaw;
     cmd.pitch = this.input.pitch;
-    if (!this.alive) {
+    if (!this.alive || (this.mode && this.mode.frozen)) {
       Object.assign(cmd, { f: 0, s: 0, jump: false, fire: false, reload: false, weapon: -1 });
     }
     this.prev = { ...this.kin };

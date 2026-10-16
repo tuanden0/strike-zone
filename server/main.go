@@ -37,8 +37,12 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	a, err := app.New(cfg)
+	if err != nil {
+		return fmt.Errorf("init: %w", err)
+	}
 	srv := &http.Server{
-		Handler:           app.NewHandler(),
+		Handler:           a.Handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -55,6 +59,7 @@ func run() error {
 		log.Printf("  open: %s", u)
 	}
 
+	go a.Run(ctx)
 	errc := make(chan error, 1)
 	go func() { errc <- srv.Serve(ln) }()
 
@@ -64,6 +69,7 @@ func run() error {
 	case <-ctx.Done():
 		log.Printf("shutting down")
 	}
+	a.Close() // closes WebSocket clients (http.Server.Shutdown does not track hijacked conns)
 	sctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(sctx); err != nil && !errors.Is(err, context.DeadlineExceeded) {
