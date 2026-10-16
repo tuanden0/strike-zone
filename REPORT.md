@@ -25,7 +25,7 @@ ok  strikezone/server/internal/game      1.261s
 ok  strikezone/server/internal/lobby     4.665s
 ok  strikezone/server/internal/netutil   1.018s
 ok  strikezone/server/internal/wsserver  3.105s
-gitleaks: no leaks found (working tree and 5 commits of history)
+gitleaks: no leaks found (working tree and all 6 commits of history, re-run after the final commit)
 govulncheck: SKIPPED  <- see Known issues
 ```
 
@@ -52,7 +52,7 @@ spawn → shots blocked by spawn protection → headshot kills (120 dmg) → kil
 3. **Not tested on real hardware / real LAN**: no human playtest, no second physical machine, no GPU (software rendering ≈ 11–13 fps in the sandbox, so real frame rate is unmeasured). Audio was verified to synthesize without errors but never listened to. Weapon spread/recoil/damage numbers and the single map are untuned first guesses.
 4. **Not executed**: `scripts/run.ps1` (no PowerShell here), the Windows/macOS binaries (only cross-compiled, file type checked), the firewall commands in the README (written from documentation, not run).
 5. **Design limits** (see DECISIONS.md): no lag compensation (shots test current positions; fine on LAN), no player-vs-player collision, no spectator mode, no chat, room passwords travel in clear text over HTTP/WS, no identity/kick, cannot prevent aim-assist cheats. Details in SECURITY.md.
-6. Pre-existing nothing to flag; the only "dead" bits are the `Net.on()` return values used for unsubscribing and `Game.dispose()` (unused by the UI).
+6. Small leftovers: `Game.dispose()` is never called by the UI (page lifetime = game lifetime).
 
 ## Next steps
 

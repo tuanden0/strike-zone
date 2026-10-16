@@ -8,7 +8,7 @@ Autonomous run (no human to ask). Ambiguities resolved with the simplest safe op
 | 2 | Go version | `go 1.24` (toolchain installed in the sandbox: 1.24.7) | "Latest stable" = what is installable offline-ish here. Nothing 1.25-specific is used. |
 | 3 | three.js | r170 `three.module.min.js` copied to `client/vendor/` (+ MIT license) | No CDN: must work on LAN without internet. Only the core module is needed (no loaders/controls). |
 | 4 | Shared spec | `client/shared/spec.json` (hitboxes, movement, weapons, match rules) and `client/shared/map.json` are the single source for client **and** server. Server reads them through the same `go:embed` FS. | Spec said hitbox dims must live in one place; same for map collision. |
-| 5 | Empty remote | `tuanden0/strike-zone` was empty (no `main`). Work lives on `feature/fps-mvp`. | A PR needs a base branch; see REPORT.md for how that was handled. Instructions forbid pushing `main`. |
+| 5 | Empty remote | `tuanden0/strike-zone` was empty (no `main`). Work lives on `feature/fps-mvp`. | A PR needs an existing base branch; creating `main` would violate the "never push main" rule, so the PR was not opened and REPORT.md gives the one-line fix. |
 | 6 | `.env` | Server reads only real env vars. `.env.example` is reference; `scripts/run.*` source `.env` if present. | No dotenv dependency (YAGNI). |
 | 7 | CSP | Strict CSP header (`'self'` only, `ws:`/`wss:` for connect). No inline script/style. | Cheap defence-in-depth; client has no inline code. |
 | 8 | Practice mode | Offline range (dummies) kept as a permanent lobby button, not just a milestone-1 stub. | Cheap, useful for smoke tests, no server needed. |
@@ -24,3 +24,5 @@ Autonomous run (no human to ask). Ambiguities resolved with the simplest safe op
 | 18 | Knife | Same ray code, range 2.2 m, 40 dmg, head multiplier 1. | Reuses hit code; keeps knife from one-shotting on head. |
 | 19 | Team switch while dead | Changes team but does not respawn early. | Prevents instant-respawn exploit. |
 | 20 | Ammo prediction | Client mirrors the weapon state machine (`weapons.js` == `weapons.go`); snapshot carries ammo/cooldown/reload and client replays unacked inputs through it. | Avoids ammo-counter flicker without trusting the client. |
+| 21 | Process | Every commit was preceded by `scripts/check.sh` (gofmt, vet, `go test -race`, gitleaks tree+history). One gitleaks false positive (dummy token in a test) was fixed by constructing the value at runtime instead of allow-listing. | Spec: fix findings before committing. |
+| 22 | e2e browser flags | Chromium is launched with `--no-proxy-server`. | The sandbox's egress proxy otherwise intercepts WebSocket traffic to non-localhost IPs; real LAN browsers do not have this. |
