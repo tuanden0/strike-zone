@@ -37,20 +37,24 @@ type Self struct {
 	BX   int     `json:"bx"`   // ticks until the burst expires (0 = already expired)
 	Resp int     `json:"resp"` // ticks until respawn (0 = alive)
 	Prot bool    `json:"prot"`
+	GN   []int   `json:"gn"` // grenades left per type
+	FL   int     `json:"fl"` // ticks of flashbang blindness left
 	Seq  uint32  `json:"ack"`
 }
 
 // Snapshot is the per-tick broadcast; You is filled per recipient by the network layer.
 type Snapshot struct {
-	T       string        `json:"t"`
-	Tick    int           `json:"k"`
-	State   string        `json:"st"`
-	Winner  string        `json:"win,omitempty"`
-	Left    int           `json:"tl"`
-	Score   [2]int        `json:"sc"`
-	Players []PlayerState `json:"ps"`
-	You     *Self         `json:"you,omitempty"`
-	Events  []Event       `json:"ev,omitempty"`
+	T       string         `json:"t"`
+	Tick    int            `json:"k"`
+	State   string         `json:"st"`
+	Winner  string         `json:"win,omitempty"`
+	Left    int            `json:"tl"`
+	Score   [2]int         `json:"sc"`
+	Players []PlayerState  `json:"ps"`
+	You     *Self          `json:"you,omitempty"`
+	Events  []Event        `json:"ev,omitempty"`
+	Nades   []GrenadeState `json:"gr,omitempty"` // grenades in flight
+	Smokes  []SmokeState   `json:"sm,omitempty"` // standing smoke clouds
 }
 
 // Snapshot builds the shared part of this tick's broadcast.
@@ -66,6 +70,12 @@ func (w *World) Snapshot() Snapshot {
 			ID: p.ID, X: r3(p.Kin.X), Y: r3(p.Kin.Y), Z: r3(p.Kin.Z),
 			Yaw: r3(p.Yaw), Pitch: r3(p.Pitch), Alive: p.Alive, W: p.Cur,
 		})
+	}
+	for _, g := range w.grenades {
+		s.Nades = append(s.Nades, GrenadeState{ID: g.ID, G: g.G, X: r3(g.Pos[0]), Y: r3(g.Pos[1]), Z: r3(g.Pos[2])})
+	}
+	for _, c := range w.smokes {
+		s.Smokes = append(s.Smokes, SmokeState{G: c.G, X: r3(c.Pos[0]), Y: r3(c.Pos[1]), Z: r3(c.Pos[2]), Left: c.Until - w.Tick})
 	}
 	return s
 }
@@ -89,6 +99,10 @@ func (w *World) SelfFor(id int) *Self {
 		s.CD = p.NextFire - w.Tick
 	}
 	s.PF = p.PrevFire
+	s.GN = append([]int(nil), p.Nades...)
+	if p.FlashUntil > w.Tick {
+		s.FL = p.FlashUntil - w.Tick
+	}
 	s.BU = p.Burst
 	if p.BurstUntil > w.Tick {
 		s.BX = p.BurstUntil - w.Tick

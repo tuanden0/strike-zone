@@ -2,9 +2,11 @@ package game
 
 // Event types.
 const (
-	EvShot = "shot" // someone fired (or swung the knife)
-	EvHit  = "hit"  // a shot damaged a player
-	EvKill = "kill"
+	EvShot  = "shot" // someone fired (or swung the knife)
+	EvHit   = "hit"  // a shot damaged a player
+	EvKill  = "kill"
+	EvThrow = "throw" // someone threw a grenade (sound)
+	EvBoom  = "boom"  // a grenade went off at At
 )
 
 // Hit kinds on a shot event.
@@ -26,6 +28,8 @@ type Event struct {
 	Hit  string      `json:"hit,omitempty"`
 	From *[3]float64 `json:"from,omitempty"`
 	To   *[3]float64 `json:"to,omitempty"`
+	G    int         `json:"g,omitempty"`  // grenade index (throw/boom)
+	At   *[3]float64 `json:"at,omitempty"` // boom position
 }
 
 // Events returns the events produced by the last Step (valid until the next Step).

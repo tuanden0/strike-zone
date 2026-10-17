@@ -68,7 +68,7 @@ func (w *World) shoot(p *Player) {
 	victim.HP -= dmg
 	w.events = append(w.events, Event{E: EvHit, By: p.ID, V: victim.ID, W: p.Cur, Dmg: dmg, Head: head})
 	if victim.HP <= 0 {
-		w.kill(p, victim, head)
+		w.kill(p, victim, head, p.Cur, p.ID)
 	}
 }
 
@@ -89,21 +89,26 @@ func (w *World) rayPlayer(o, d [3]float64, maxT float64, v *Player) (float64, bo
 	}
 }
 
-func (w *World) kill(killer, victim *Player, head bool) {
+// kill ends a victim. killer may be nil (its player left); a self-kill (own grenade) scores nothing. wIdx is the weapon index
+// shown in the kill feed, by the id of whoever gets the credit.
+func (w *World) kill(killer, victim *Player, head bool, wIdx, by int) {
 	victim.Alive = false
 	victim.HP = 0
 	victim.Deaths++
 	victim.RespawnAt = w.Tick + w.ticks(w.Spec.Match.RespawnSeconds)
 	victim.queue = nil
 	victim.LastSeq = victim.lastQueued
+	w.Dirty = true
+	w.events = append(w.events, Event{E: EvKill, By: by, V: victim.ID, W: wIdx, Head: head})
+	if killer == nil || killer == victim {
+		return
+	}
 	killer.Kills++
 	idx := 0
 	if killer.Team == TeamB {
 		idx = 1
 	}
 	w.Score[idx]++
-	w.Dirty = true
-	w.events = append(w.events, Event{E: EvKill, By: killer.ID, V: victim.ID, W: killer.Cur, Head: head})
 	if w.State == StatePlaying && w.Score[idx] >= w.Cfg.ScoreLimit {
 		w.endMatch()
 	}

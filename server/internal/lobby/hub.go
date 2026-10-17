@@ -188,6 +188,34 @@ func (h *Hub) Handle(s *Session, raw []byte) error {
 			return nil
 		}
 		h.broadcastRoster(s.room)
+	case "addbot":
+		var m addBotMsg
+		if err := json.Unmarshal(raw, &m); err != nil {
+			return h.violation(s, CodeBadRequest, "bad addbot")
+		}
+		if s.room == nil {
+			return h.violation(s, CodeNotInRoom, "not in a room")
+		}
+		if m.Skill == "" {
+			m.Skill = game.SkillNormal
+		}
+		if !game.ValidSkill(m.Skill) {
+			return h.violation(s, CodeBadRequest, "skill must be easy, normal or hard")
+		}
+		if _, err := h.addBot(s.room, m.Team, m.Skill); err != nil {
+			h.sendErr(s, joinCode(err), err.Error())
+			return nil
+		}
+		h.broadcastRoster(s.room)
+	case "rmbot":
+		if s.room == nil {
+			return h.violation(s, CodeNotInRoom, "not in a room")
+		}
+		if !s.room.RemoveBot() {
+			h.sendErr(s, CodeNoBots, "no bots in this room")
+			return nil
+		}
+		h.broadcastRoster(s.room)
 	case "leave":
 		if s.room == nil {
 			return h.violation(s, CodeNotInRoom, "not in a room")
@@ -247,6 +275,14 @@ func (h *Hub) create(s *Session, m createMsg) error {
 		return h.violation(s, CodeBadRequest, fmt.Sprintf("time limit must be %d..%d seconds", ms.MinTimeLimit, ms.MaxTimeLimit))
 	case m.ScoreLimit < ms.MinScoreLimit || m.ScoreLimit > ms.MaxScoreLimit:
 		return h.violation(s, CodeBadRequest, fmt.Sprintf("score limit must be %d..%d", ms.MinScoreLimit, ms.MaxScoreLimit))
+	case m.Bots < 0 || m.Bots > m.Max-1:
+		return h.violation(s, CodeBadRequest, fmt.Sprintf("bots must be 0..%d (one slot stays free for you)", m.Max-1))
+	}
+	if m.Skill == "" {
+		m.Skill = game.SkillNormal
+	}
+	if !game.ValidSkill(m.Skill) {
+		return h.violation(s, CodeBadRequest, "skill must be easy, normal or hard")
 	}
 	if len(h.rooms) >= MaxRooms {
 		h.sendErr(s, CodeTooManyRoom, "too many rooms")
@@ -276,8 +312,26 @@ func (h *Hub) create(s *Session, m createMsg) error {
 	h.nextRoom++
 	h.rooms[r.ID] = r
 	s.room = r
+	for i := 0; i < m.Bots; i++ {
+		if _, err := h.addBot(r, "auto", m.Skill); err != nil {
+			log.Printf("create room: bot %d: %v", i, err)
+			break
+		}
+	}
 	h.afterJoin(s, r, team)
 	return nil
+}
+
+var botNames = [...]string{"Rex", "Nova", "Viper", "Mako", "Echo", "Blaze", "Onyx", "Zed", "Kilo", "Jett"}
+
+// addBot allocates an id from the shared counter (so it never collides with a session) and adds the bot.
+func (h *Hub) addBot(r *Room, team, skill string) (string, error) {
+	id := h.nextID
+	t, err := r.AddBot(id, "[BOT] "+botNames[id%len(botNames)], team, skill)
+	if err == nil {
+		h.nextID++
+	}
+	return t, err
 }
 
 func (h *Hub) join(s *Session, m joinMsg) error {

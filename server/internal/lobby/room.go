@@ -29,6 +29,7 @@ type Room struct {
 	salt    [16]byte
 	pwHash  [32]byte
 	members map[int]*Session
+	bots    []int // bot player ids in the order they were added (humans are in members)
 }
 
 func hashPassword(salt [16]byte, pw string) [32]byte {
@@ -63,19 +64,19 @@ func (r *Room) Join(s *Session, password, team string) (string, error) {
 	if !r.CheckPassword(password) {
 		return "", ErrBadPassword
 	}
+	team, err := r.pickTeam(team)
+	if err != nil {
+		return "", err
+	}
+	// a human takes a bot's place when the chosen team, or the whole room, is full of bots
+	if r.World.TeamCount(team) >= r.teamCap() {
+		r.removeBot(team)
+	}
+	if r.World.Len() >= r.Max {
+		r.removeBot("")
+	}
 	if r.World.Len() >= r.Max {
 		return "", ErrRoomFull
-	}
-	switch team {
-	case "", "auto":
-		a, b := r.World.TeamCount(game.TeamA), r.World.TeamCount(game.TeamB)
-		team = game.TeamA
-		if b < a {
-			team = game.TeamB
-		}
-	case game.TeamA, game.TeamB:
-	default:
-		return "", ErrBadTeam
 	}
 	if r.World.TeamCount(team) >= r.teamCap() {
 		return "", ErrTeamFull
@@ -86,6 +87,54 @@ func (r *Room) Join(s *Session, password, team string) (string, error) {
 	r.members[s.ID] = s
 	return team, nil
 }
+
+func (r *Room) pickTeam(team string) (string, error) {
+	switch team {
+	case "", "auto":
+		a, b := r.World.TeamCount(game.TeamA), r.World.TeamCount(game.TeamB)
+		if b < a {
+			return game.TeamB, nil
+		}
+		return game.TeamA, nil
+	case game.TeamA, game.TeamB:
+		return team, nil
+	}
+	return "", ErrBadTeam
+}
+
+// AddBot adds an AI player on team ("A", "B" or auto) and returns the assigned team.
+func (r *Room) AddBot(id int, nick, team, skill string) (string, error) {
+	if r.World.Len() >= r.Max {
+		return "", ErrRoomFull
+	}
+	team, err := r.pickTeam(team)
+	if err != nil {
+		return "", err
+	}
+	if r.World.TeamCount(team) >= r.teamCap() {
+		return "", ErrTeamFull
+	}
+	if _, err := r.World.AddBot(id, nick, team, skill); err != nil {
+		return "", err
+	}
+	r.bots = append(r.bots, id)
+	return team, nil
+}
+
+// removeBot removes the most recently added bot (of team, or of any team when team is empty). Reports whether one was removed.
+func (r *Room) removeBot(team string) bool {
+	for i := len(r.bots) - 1; i >= 0; i-- {
+		if p := r.World.Player(r.bots[i]); p != nil && (team == "" || p.Team == team) {
+			r.World.RemovePlayer(r.bots[i])
+			r.bots = append(r.bots[:i], r.bots[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+// RemoveBot removes the most recently added bot.
+func (r *Room) RemoveBot() bool { return r.removeBot("") }
 
 // SetTeam switches a member's team if the target team has room.
 func (r *Room) SetTeam(id int, team string) error {
@@ -113,7 +162,7 @@ func (r *Room) Leave(id int) (empty bool) {
 func (r *Room) Info() RoomInfo {
 	return RoomInfo{
 		ID: r.ID, Name: r.Name, Players: r.World.Len(), Max: r.Max, Locked: r.locked,
-		TimeLimit: r.World.Cfg.TimeLimitSec, ScoreLimit: r.World.Cfg.ScoreLimit, State: r.World.State, Map: r.MapID,
+		TimeLimit: r.World.Cfg.TimeLimitSec, ScoreLimit: r.World.Cfg.ScoreLimit, State: r.World.State, Map: r.MapID, Bots: len(r.bots),
 	}
 }
 
@@ -122,7 +171,7 @@ func (r *Room) Roster() []RosterEntry {
 	ps := r.World.Players()
 	out := make([]RosterEntry, 0, len(ps))
 	for _, p := range ps {
-		out = append(out, RosterEntry{ID: p.ID, Nick: p.Nick, Team: p.Team, Kills: p.Kills, Deaths: p.Deaths})
+		out = append(out, RosterEntry{ID: p.ID, Nick: p.Nick, Team: p.Team, Kills: p.Kills, Deaths: p.Deaths, Bot: p.IsBot})
 	}
 	return out
 }

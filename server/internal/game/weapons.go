@@ -13,6 +13,11 @@ func (w *World) resetLoadout(p *Player) {
 	}
 	p.NextFire, p.ReloadDone, p.PrevFire, p.Scoped = 0, 0, false, false
 	p.Burst, p.BurstUntil = 0, 0
+	p.Nades = make([]int, len(w.Spec.Grenades))
+	for i, g := range w.Spec.Grenades {
+		p.Nades[i] = g.Count
+	}
+	p.NextThrow, p.FlashUntil = 0, 0
 }
 
 func canReload(p *Player, ws *WeaponSpec) bool {
@@ -30,6 +35,9 @@ func (w *World) weapons(p *Player, in Input) {
 		w.dropWeapon(p)
 	} else if use {
 		w.usePickup(p)
+	}
+	if in.Nade > 0 {
+		w.throwNade(p, in.Nade-1)
 	}
 	ws := &w.Spec.Weapons[p.Cur]
 	if p.ReloadDone > 0 && w.Tick >= p.ReloadDone {

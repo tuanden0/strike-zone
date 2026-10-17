@@ -11,13 +11,38 @@ import (
 
 // Spec mirrors client/shared/spec.json, the single source of truth for client and server.
 type Spec struct {
-	TickRate    int          `json:"tickRate"`
-	SwitchTicks int          `json:"switchTicks"`
-	Player      PlayerSpec   `json:"player"`
-	Match       MatchSpec    `json:"match"`
-	Weapons     []WeaponSpec `json:"weapons"`
-	Pickups     PickupSpec   `json:"pickups"`
-	Recoil      RecoilSpec   `json:"recoil"`
+	TickRate    int           `json:"tickRate"`
+	SwitchTicks int           `json:"switchTicks"`
+	Player      PlayerSpec    `json:"player"`
+	Match       MatchSpec     `json:"match"`
+	Weapons     []WeaponSpec  `json:"weapons"`
+	Pickups     PickupSpec    `json:"pickups"`
+	Recoil      RecoilSpec    `json:"recoil"`
+	Nades       NadeSpec      `json:"nades"`
+	Grenades    []GrenadeSpec `json:"grenades"`
+}
+
+// NadeSpec is the shared grenade physics.
+type NadeSpec struct {
+	CooldownTicks int     `json:"cooldownTicks"` // between two throws by one player
+	Gravity       float64 `json:"gravity"`
+	Restitution   float64 `json:"restitution"` // bounce energy kept
+	Radius        float64 `json:"radius"`      // collision sphere
+}
+
+// GrenadeSpec describes one throwable (Kind: frag | smoke | flash). Radius is the damage radius (frag), cloud radius (smoke) or
+// blind range (flash); Damage is the damage at the centre (frag); Duration is seconds of smoke or maximum blindness.
+type GrenadeSpec struct {
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	Kind      string  `json:"kind"`
+	FuseTicks int     `json:"fuseTicks"`
+	Speed     float64 `json:"speed"`
+	UpBias    float64 `json:"upBias"` // extra upward m/s so a flat aim lobs
+	Radius    float64 `json:"radius"`
+	Damage    float64 `json:"damage"`
+	Duration  float64 `json:"duration"`
+	Count     int     `json:"count"` // carried at spawn
 }
 
 // RecoilSpec derives recoil from damage: one shot kicks the view PerDamage*Damage*RecoilScale radians (so a harder-hitting
@@ -271,6 +296,25 @@ func validateSpec(s *Spec) error {
 		if w.IntervalTicks < 1 || w.Range <= 0 || w.Damage <= 0 || w.HeadMult <= 0 || w.MagSize < 0 || w.Reserve < 0 || w.ReloadTicks < 0 ||
 			w.ScopeFov < 0 || (w.ScopeFov > 0 && (w.ScopeFov < 2 || w.ScopeFov > 60)) || w.ScopedSpread < 0 || (w.ScopeFov > 0 && w.Melee) || w.RecoilScale < 0 || w.BloomScale < 0 {
 			return fmt.Errorf("spec: bad weapon %q", w.ID)
+		}
+	}
+	n := s.Nades
+	if n.CooldownTicks < 1 || n.CooldownTicks > 600 || n.Gravity < 0 || n.Gravity > 100 || n.Restitution < 0 || n.Restitution > 1 || n.Radius < 0.02 || n.Radius > 0.5 {
+		return fmt.Errorf("spec: bad nades section")
+	}
+	if len(s.Grenades) > 6 {
+		return fmt.Errorf("spec: at most 6 grenade types")
+	}
+	for _, g := range s.Grenades {
+		switch {
+		case g.Kind != KindFrag && g.Kind != KindSmoke && g.Kind != KindFlash:
+			return fmt.Errorf("spec: grenade %q has unknown kind %q", g.ID, g.Kind)
+		case g.FuseTicks < 1 || g.FuseTicks > 300 || g.Speed < 1 || g.Speed > 40 || g.UpBias < 0 || g.UpBias > 20 || g.Radius <= 0 || g.Radius > 60 || g.Count < 0 || g.Count > 9:
+			return fmt.Errorf("spec: bad grenade %q", g.ID)
+		case g.Kind == KindFrag && g.Damage <= 0:
+			return fmt.Errorf("spec: frag grenade %q needs damage", g.ID)
+		case g.Kind != KindFrag && (g.Duration <= 0 || g.Duration > 60):
+			return fmt.Errorf("spec: grenade %q needs a duration 0..60 s", g.ID)
 		}
 	}
 	r := s.Recoil

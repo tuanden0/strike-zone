@@ -26,6 +26,12 @@
     "maxPlayers": 10
   },
   "recoil": { "perDamage": 0.00045, "yawRatio": 0.35, "bloomRatio": 0.25, "rampPerShot": 0.08, "maxShots": 12, "graceTicks": 6 },
+  "nades": { "cooldownTicks": 30, "gravity": 18, "restitution": 0.35, "radius": 0.12 },
+  "grenades": [
+    { "id": "frag", "name": "HE Grenade", "kind": "frag", "fuseTicks": 60, "speed": 14, "upBias": 3, "radius": 7, "damage": 120, "duration": 0, "count": 1 },
+    { "id": "smoke", "name": "Smoke Grenade", "kind": "smoke", "fuseTicks": 54, "speed": 14, "upBias": 3, "radius": 3.6, "damage": 0, "duration": 14, "count": 1 },
+    { "id": "flash", "name": "Flashbang", "kind": "flash", "fuseTicks": 45, "speed": 14, "upBias": 3, "radius": 30, "damage": 0, "duration": 4, "count": 1 }
+  ],
   "pickups": { "radius": 1.6, "respawnSeconds": 20, "dropLifetimeSeconds": 60, "dropForward": 0.9 },
   "weapons": [
     {

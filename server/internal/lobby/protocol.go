@@ -51,7 +51,14 @@ type createMsg struct {
 	TimeLimit  int    `json:"timeLimit"` // seconds
 	ScoreLimit int    `json:"scoreLimit"`
 	Team       string `json:"team"`
-	Map        string `json:"map"` // map id from shared/maps.json; empty = default
+	Map        string `json:"map"`   // map id from shared/maps.json; empty = default
+	Bots       int    `json:"bots"`  // AI players to add at creation (0..max-1)
+	Skill      string `json:"skill"` // easy | normal | hard (default normal)
+}
+
+type addBotMsg struct {
+	Team  string `json:"team"`
+	Skill string `json:"skill"`
 }
 
 type joinMsg struct {
@@ -88,6 +95,7 @@ type RoomInfo struct {
 	ScoreLimit int    `json:"scoreLimit"`
 	State      string `json:"st"`
 	Map        string `json:"map"`
+	Bots       int    `json:"bots"`
 }
 
 type roomsMsg struct {
@@ -109,6 +117,7 @@ type RosterEntry struct {
 	Team   string `json:"team"`
 	Kills  int    `json:"kills"`
 	Deaths int    `json:"deaths"`
+	Bot    bool   `json:"bot,omitempty"`
 }
 
 type rosterMsg struct {
@@ -150,4 +159,5 @@ const (
 	CodeNotInRoom   = "not_in_room"
 	CodeTooManyRoom = "too_many_rooms"
 	CodeServerFull  = "server_full"
+	CodeNoBots      = "no_bots"
 )

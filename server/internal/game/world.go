@@ -46,6 +46,7 @@ type Input struct {
 	Reload bool    `json:"reload"`
 	Weapon int     `json:"weapon"` // -1 = keep current; decode into Input{Weapon: -1}
 	Drop   bool    `json:"drop"`   // edge-detected server side: drop the current weapon
+	Nade   int     `json:"nade"`   // throw grenade type Nade-1 (0 = none); cooldown + inventory enforced server side
 	Use    bool    `json:"use"`    // edge-detected server side: pick up the nearest weapon
 	Scope  bool    `json:"scope"`  // zoom held; only has an effect with a scoped weapon (see WeaponSpec.ScopeFov)
 }
@@ -89,9 +90,14 @@ type Player struct {
 	Has        []bool // weapon slots the player owns (drop/pickup change this)
 	PrevDrop   bool
 	PrevUse    bool
-	Burst      int  // consecutive shots in the current burst (0 = none); drives spread bloom, mirrored in client/js/weapons.js
-	BurstUntil int  // last tick at which the next shot still continues the burst
-	Scoped     bool // scope held with a scoped weapon and not reloading, as of the last input
+	Burst      int // consecutive shots in the current burst (0 = none); drives spread bloom, mirrored in client/js/weapons.js
+	BurstUntil int // last tick at which the next shot still continues the burst
+	IsBot      bool
+	bot        *Bot
+	Nades      []int // grenades left per spec.Grenades index
+	NextThrow  int   // tick when the next grenade may be thrown
+	FlashUntil int   // blinded until this tick
+	Scoped     bool  // scope held with a scoped weapon and not reloading, as of the last input
 	Mag, Res   []int
 	NextFire   int
 	ReloadDone int // tick when reload completes; 0 = not reloading
@@ -128,6 +134,9 @@ type World struct {
 	pickups    map[int]*Pickup
 	respawns   []pickupRespawn
 	nextPickup int
+	grenades   []*Grenade
+	smokes     []Smoke
+	nextNade   int
 	shots      []*Player // shooters queued this tick, resolved after all movement
 	rng        *rand.Rand
 	spawnN     int
@@ -240,6 +249,9 @@ func (w *World) QueueInput(id int, in Input) error {
 	if err := in.Validate(len(w.Spec.Weapons)); err != nil {
 		return err
 	}
+	if in.Nade < 0 || in.Nade > len(w.Spec.Grenades) {
+		return fmt.Errorf("%w: grenade index", ErrBadInput)
+	}
 	if in.Seq <= p.lastQueued {
 		return ErrStaleInput
 	}
@@ -311,6 +323,9 @@ func (w *World) Step() {
 			}
 			continue
 		}
+		if p.bot != nil { // the AI plays through the same input path as a client
+			p.queue = append(p.queue[:0], p.bot.Think(w, p))
+		}
 		if p.budget < maxBudget {
 			p.budget++
 		}
@@ -330,6 +345,7 @@ func (w *World) Step() {
 		}
 	}
 	w.resolveShots()
+	w.stepGrenades()
 	w.stepPickups()
 	if w.State == StatePlaying && w.Tick >= w.endsAt {
 		w.endMatch()
@@ -363,6 +379,7 @@ func (w *World) restart() {
 	w.Score = [2]int{}
 	w.endsAt = w.Tick + w.ticks(float64(w.Cfg.TimeLimitSec))
 	w.resetPickups()
+	w.clearGrenades()
 	for _, id := range w.order {
 		p := w.players[id]
 		p.Kills, p.Deaths = 0, 0
