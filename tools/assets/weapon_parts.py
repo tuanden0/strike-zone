@@ -154,7 +154,10 @@ def pistol(detail="high"):
     for sx in (-1, 1):
         body.add(box((0.004, 0.04, 0.085), (sx * 0.0165, -0.015, -0.028), (-12, 0, 0), bevel=0.0015, segs=1), "rubber", (10, 10))
     body.add(box((0.032, 0.054, 0.012), (0, -0.04, -0.082), (-12, 0, 0), bevel=0.003, segs=1), d, (6, 6))  # base plate
+    body.add(box((0.03, 0.03, 0.016), (0, -0.04, 0.062), (10, 0, 0), bevel=0.004, segs=1), p, (6, 6))  # beavertail
+    body.add(box((0.026, 0.012, 0.05), (0, 0.012, -0.012), (-12, 0, 0), bevel=0.003, segs=1), p, (6, 6))  # front strap under the trigger guard
     if hi:
+        body.add(box((0.008, 0.014, 0.018), (0, -0.045, 0.093), (-20, 0, 0), bevel=0.002, segs=1), d, (6, 6))  # hammer
         body.add(box((0.012, 0.02, 0.012), (-0.017, 0.04, 0.045), bevel=0.002, segs=1), d, (6, 6))  # slide stop
         body.add(box((0.01, 0.014, 0.01), (0.017, 0.008, 0.03), bevel=0.002, segs=1), d, (6, 6))  # mag release
         for i in range(4):  # rail slots

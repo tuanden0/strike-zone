@@ -31,8 +31,8 @@ def lin(c):
 TEAMS = {"a": (0.86, 0.16, 0.14), "b": (0.15, 0.42, 0.92)}  # team A red #DB2924 (HUD #ef4444) / team B blue #266BEB (HUD #3b82f6)
 # Outfits (sRGB, lifted so they read under the map lighting): A = dark navy tactical police, B = arctic white/grey with a knit cap.
 OUTFIT = {
-    "a": dict(uniform=(0.15, 0.19, 0.29), trousers=(0.12, 0.15, 0.23), vest=(0.07, 0.08, 0.10), pouch=(0.11, 0.12, 0.15), webbing=(0.09, 0.10, 0.12),
-              helmet=(0.07, 0.08, 0.10), gaiter=(0.05, 0.05, 0.06), lens=(0.10, 0.12, 0.16)),
+    "a": dict(uniform=(0.27, 0.32, 0.42), trousers=(0.21, 0.25, 0.34), vest=(0.10, 0.12, 0.17), pouch=(0.16, 0.18, 0.24), webbing=(0.14, 0.16, 0.21),
+              helmet=(0.13, 0.16, 0.22), gaiter=(0.08, 0.09, 0.11), lens=(0.10, 0.12, 0.16)),
     "b": dict(uniform=(0.80, 0.82, 0.85), trousers=(0.62, 0.65, 0.69), vest=(0.52, 0.55, 0.58), pouch=(0.42, 0.45, 0.46), webbing=(0.48, 0.50, 0.52),
               helmet=(0.30, 0.33, 0.36), gaiter=(0.86, 0.87, 0.89), lens=(0.55, 0.32, 0.08)),
 }
@@ -180,6 +180,8 @@ def materials(team):
     material("trousers_team_" + team, tex="fabric_camo", color=(tro[0] * 0.9, tro[1] * 0.9, tro[2] * 0.9, 1), normal_strength=1.6)
     material("webbing", tex="nylon", tex_kwargs={"color": o["webbing"]}, size=256)
     material("patch_" + team, color=(col[0], col[1], col[2], 1), roughness=0.8)
+    hv = lin((0.96, 0.78, 0.08))
+    material("hivis", color=(hv[0], hv[1], hv[2], 1), roughness=0.6)  # police ID bands (team A), readable in dark corners
     material("vest", tex="nylon", tex_kwargs=dict(color=o["vest"]), size=256)
     material("pouch", tex="nylon", tex_kwargs=dict(color=o["pouch"]), size=256)
     material("helmet", tex="polymer", tex_kwargs=dict(color=o["helmet"]), size=256)
@@ -210,6 +212,7 @@ def torso_ring(z, w, d, cx=0.0, cy=0.0):
 
 def build_body(team):
     b = Builder("body_mesh")
+    ID = "hivis" if team == "a" else "patch_" + team  # chest/back/helmet ID bands; the armband and shoulder tabs keep the team colour
     U, T = "uniform_team_" + team, "trousers_team_" + team
     # --- head (bone head) -------------------------------------------------------------------------
     b.add(sphere(0.5, (0.17, 0.205, 0.22), (0, 0.0, 1.655), segs=10, rings=7), "skin", (3, 3), bone="head")
@@ -230,10 +233,10 @@ def build_body(team):
         for sx in (-1, 1):
             b.add(box((0.012, 0.09, 0.03), (sx * 0.123, 0.0, 1.735), bevel=0.003, segs=1), "gunmetal", (6, 6), bone="head")  # side rails
             b.add(box((0.03, 0.09, 0.09), (sx * 0.1, -0.01, 1.64), bevel=0.01, segs=1), "helmet", (3, 3), bone="head")  # ear guards
-        b.add(box((0.02, 0.012, 0.05), (0, 0.136, 1.73), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="head")  # front team stripe
+        b.add(box((0.02, 0.012, 0.05), (0, 0.136, 1.73), bevel=0.003, segs=1), ID, (1, 1), bone="head")  # front team stripe
         for sx in (-1, 1):
-            b.add(box((0.012, 0.03, 0.03), (sx * 0.123, -0.07, 1.735), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="head")  # helmet side tabs
-        b.add(box((0.05, 0.012, 0.03), (0, -0.138, 1.735), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="head")  # rear tab
+            b.add(box((0.012, 0.03, 0.03), (sx * 0.123, -0.07, 1.735), bevel=0.003, segs=1), ID, (1, 1), bone="head")  # helmet side tabs
+        b.add(box((0.05, 0.012, 0.03), (0, -0.138, 1.735), bevel=0.003, segs=1), ID, (1, 1), bone="head")  # rear tab
     # --- neck (bone neck) -----------------------------------------------------------------------
     b.add(cyl(0.05, 0.056, 0.14, (0, 0.005, 1.5), (0, 0, 0), 8), "gaiter", (3, 3), bone="neck")
     # --- torso ---------------------------------------------------------------------------------
@@ -252,8 +255,8 @@ def build_body(team):
         b.add(box((0.085, 0.24, 0.04), (sx * 0.11, 0.0, 1.427), (0, 0, 0), bevel=0.008, segs=1), "vest", (3, 3), bone="chest")  # shoulder straps
         b.add(box((0.06, 0.07, 0.11), (sx * 0.215, 0.05, 1.22), bevel=0.01, segs=1), "pouch", (4, 4), bone="chest")  # side pouch
     b.add(box((0.07, 0.04, 0.1), (-0.14, 0.17, 1.40), bevel=0.008, segs=1), "gunmetal", (4, 4), bone="chest")  # radio
-    b.add(box((0.2, 0.012, 0.05), (0, 0.181, 1.4), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="chest")  # chest ID strip
-    b.add(box((0.2, 0.012, 0.05), (0, -0.2, 1.4), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="chest")  # back ID strip
+    b.add(box((0.24, 0.012, 0.075), (0, 0.181, 1.4), bevel=0.003, segs=1), ID, (1, 1), bone="chest")  # chest ID strip
+    b.add(box((0.24, 0.012, 0.075), (0, -0.2, 1.4), bevel=0.003, segs=1), ID, (1, 1), bone="chest")  # back ID strip
     b.add(box((0.1, 0.035, 0.07), (0.1, 0.19, 1.39), bevel=0.008, segs=1), "pouch", (4, 4), bone="chest")  # admin pouch
     for z in (1.17, 1.215, 1.26, 1.305, 1.35):  # MOLLE webbing rows across the front plate and cummerbund
         b.add(box((0.3, 0.012, 0.012), (0, 0.183, z), bevel=0.003, segs=1), "webbing", (4, 4), bone="chest")
