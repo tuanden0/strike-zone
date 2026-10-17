@@ -18,7 +18,7 @@ const SPOTS_BY_MAP = {
     { x: 0, z: 19, mx: 4, sp: 1.6 }, { x: 0, z: -18, mx: 3, sp: 2.2 },
   ],
   canyon: [
-    { x: 0, z: 16 }, { x: -14, z: 18 }, { x: 14, z: 18 }, { x: 0, z: 6 },
+    { x: 0, z: 16 }, { x: -12, z: 18 }, { x: 14, z: 18 }, { x: 0, z: 6 }, // not at x -14: the side ledge (x -22..-14) ends there
     { x: -14, z: 12 }, { x: 16, z: 12 },
     { x: 0, z: 19.5, mx: 5, sp: 1.6 }, { x: 0, z: -4 },
   ],

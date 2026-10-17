@@ -32,9 +32,9 @@ try {
   check('creator entered the game', true);
 
   await b.selectOption('#pref-team', 'B');
-  await b.waitForSelector('#room-body tr');
+  await b.waitForFunction(() => document.getElementById('room-body').textContent.includes('E2E Room')); // stale rooms of earlier runs can be listed first
   check('room listed for second client', (await b.textContent('#room-body')).includes('E2E Room'));
-  await b.click('#room-body button');
+  await b.locator('#room-body tr', { hasText: 'E2E Room' }).locator('button').click();
   await b.waitForFunction(gameReady);
   check('joiner entered the game', true);
 
