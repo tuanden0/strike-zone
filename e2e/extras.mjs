@@ -62,19 +62,20 @@ try {
   await p.waitForFunction(() => window.__sz.game.loadout.cur === 3 && window.__sz.game.switchT === 0);
   check('key 4 selects the sniper', true);
   await snap(p, 'fp_sniper');
-  await p.mouse.down({ button: 'right' });
+  await p.mouse.click(480, 270, { button: 'right' });
   await p.waitForFunction(() => window.__sz.game.scoped && window.__sz.game.camera.fov < 14.5);
   const sc = await p.evaluate(() => { const g = window.__sz.game; return { fov: g.camera.fov, sens: g.input.sensScale, overlay: !document.getElementById('scope').hidden, cross: getComputedStyle(document.getElementById('crosshair')).display, vm: g.vm[3].visible }; });
-  check('right mouse zooms: fov narrows, overlay shown, crosshair + viewmodel hidden', sc.fov < 20 && sc.overlay && sc.cross === 'none' && !sc.vm, JSON.stringify(sc));
+  check('right click zooms: fov narrows, overlay shown, crosshair + viewmodel hidden', sc.fov < 20 && sc.overlay && sc.cross === 'none' && !sc.vm, JSON.stringify(sc));
   check('look sensitivity drops while zoomed', sc.sens < 0.3, `x${sc.sens.toFixed(3)}`);
   await snap(p, 'scope_view');
+  check('scope stays on without holding the button (toggle)', await p.evaluate(() => window.__sz.input.scopeHeld === true && window.__sz.game.scoped));
   const ammo = await p.evaluate(() => window.__sz.game.loadout.mag[3]);
   await p.mouse.click(480, 270, { button: 'left' });
   await p.waitForFunction((a) => window.__sz.game.loadout.mag[3] < a, ammo);
   check('scoped shot fires', true);
-  await p.mouse.up({ button: 'right' });
+  await p.mouse.click(480, 270, { button: 'right' }); // second right click leaves the scope
   await p.waitForFunction(() => !window.__sz.game.scoped && Math.abs(window.__sz.game.camera.fov - 78) < 0.5);
-  check('releasing right mouse restores the view', await p.evaluate(() => document.getElementById('scope').hidden && window.__sz.input.sensScale > 0.99));
+  check('second right click restores the view', await p.evaluate(() => document.getElementById('scope').hidden && window.__sz.input.sensScale > 0.99));
   // third person: a dummy holding the sniper (attached to the rifle's hand slot; must look held, not floating)
   await p.evaluate(() => { const g = window.__sz.game; const t = g.mode.targets[5]; t.alive = true; t.mx = 0; g.debugCam = { pos: [t.px + 1.6, 1.5, t.pz + 2.2], look: [t.px, 1.1, t.pz] }; });
   await snap(p, 'tp_sniper');

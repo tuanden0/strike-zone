@@ -63,11 +63,11 @@ Copy **one file** to the host machine (the client is embedded) and run it:
 
 ### Controls
 
-`W A S D` move · mouse aim · `Space` jump · `Shift` walk (quiet) · `R` reload · `1` rifle `2` pistol `3` knife · left mouse fire/slash · `Tab` scoreboard · `E` pick up weapon · `G` drop weapon · `4` sniper (once picked up) · hold right mouse to scope
+`W A S D` move · mouse aim · `Space` jump · `Shift` walk (quiet) · `R` reload · `1` rifle `2` pistol `3` knife · left mouse fire/slash · `Tab` scoreboard · `E` pick up weapon · `G` drop weapon · `4` sniper (once picked up) · right click to scope in/out
 
 **Phones/tablets:** open the same URL in the mobile browser (landscape). Left thumb = move stick, right thumb = look, buttons: FIRE · JUMP · R (reload) · USE (pick up) · DROP · tap `1 2 3` to switch weapon, `TAB` scoreboard, `II` pause menu. Touch devices default to Graphics = Low; no Pointer Lock or HTTPS is needed. iOS Safari has no fullscreen API for pages, so add the page to the home screen for a full-screen view.
 
-**Weapons:** AR-7 rifle (auto), P-9 pistol, combat knife and the **SR-9 sniper** (bolt-action, one shot kills at any range on a body or head hit, 5 rounds, 1.4 s between shots). The sniper is *not* in the spawn loadout: pick one up from the purple-ringed spawn points (yard: two side lanes; crossroads: both ends of the cross street). Hold **right mouse** (touch: **SCOPE** button) to zoom ~5.5x: look sensitivity drops with the zoom and shots are perfectly accurate while standing still; moving or hip-firing spreads them wide. Reloading drops the scope. Dying loses the sniper. Practice range gives you the sniper from the start.
+**Weapons:** AR-7 rifle (auto), P-9 pistol, combat knife and the **SR-9 sniper** (bolt-action, one shot kills at any range on a body or head hit, 5 rounds, 1.4 s between shots). The sniper is *not* in the spawn loadout: pick one up from the purple-ringed spawn points (yard: two side lanes; crossroads: both ends of the cross street). **Right click** (touch: **SCOPE** button) toggles the zoom (~5.5x); click again to leave: look sensitivity drops with the zoom and shots are perfectly accurate while standing still; moving or hip-firing spreads them wide. Reloading, switching weapon, pausing or dying leaves the scope. Dying loses the sniper. Practice range gives you the sniper from the start.
 
 **Maps:** *Yard* (cover-rich arena) and *Crossroads* (empty four-way intersection with a building on each corner, inspired by classic crossroads maps). Choose it when creating a room or in Practice. Weapons lie at spawn points on each map and respawn 20 s after pick-up; dropped weapons vanish after 60 s.
 

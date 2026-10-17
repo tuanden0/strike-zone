@@ -626,12 +626,12 @@ export class Game {
     return this.scopeT > 0.5;
   }
 
-  // Scope zoom: hold right mouse (touch: SCOPE toggle) with a scoped weapon. Blends the camera FOV, scales look
+  // Scope zoom: right click toggles it (touch: SCOPE button) with a scoped weapon. Blends the camera FOV, scales look
   // sensitivity with the zoom and drives the overlay. The server applies the accuracy bonus from the `scope` input.
   updateScope(dt) {
     const w = this.loadout.weapon;
     const can = this.alive && w.scopeFov > 0 && !this.loadout.reloading;
-    if (this.input.touch && !can) this.input.scopeHeld = false; // toggle button: drop it when the scope stops being usable
+    if (!can) this.input.scopeHeld = false; // toggled state ends when the scope stops being usable (reload, switch, death)
     const want = can && this.input.scopeHeld;
     if (w.scopeFov > 0) this.scopeFov = w.scopeFov;
     this.scopeT = Math.max(0, Math.min(1, this.scopeT + (want ? 1 : -1) * dt * 7));

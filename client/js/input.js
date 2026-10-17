@@ -38,28 +38,30 @@ export class Input {
     this.touch = isTouch;
     this.touchLocked = false;
     this.mv = { f: 0, s: 0 }; // touch stick axes
-    this.scopeHeld = false; // right mouse held (touch: SCOPE toggled)
+    this.scopeHeld = false; // scope toggled on (right click / touch SCOPE button)
     this.sensScale = 1; // < 1 while zoomed (set by Game.updateScope)
     if (this.touch) {
       document.body.classList.add('touch');
       this.touchUi = new TouchControls(this);
     }
 
-    document.addEventListener('pointerlockchange', () => this.onLockChange(this.locked));
+    document.addEventListener('pointerlockchange', () => {
+      if (!this.locked) this.scopeHeld = false; // pause / Esc leaves the scope
+      this.onLockChange(this.locked);
+    });
     document.addEventListener('mousemove', (e) => {
       if (!this.locked || this.touch) return;
       this.turn(e.movementX, e.movementY);
     });
     document.addEventListener('mousedown', (e) => {
       if (!this.locked || this.touch) return; // touch: synthesized mouse events would double-fire
-      if (e.button === 2) this.scopeHeld = true;
+      if (e.button === 2 && !e.repeat) this.scopeHeld = !this.scopeHeld; // toggle: click to scope in, click again to leave
       if (e.button !== 0) return;
       this.mouseDown = true;
       this.tap = true;
     });
     document.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouseDown = false;
-      if (e.button === 2) this.scopeHeld = false;
     });
     document.addEventListener('contextmenu', (e) => {
       if (this.enabled) e.preventDefault();
@@ -67,7 +69,7 @@ export class Input {
     window.addEventListener('blur', () => {
       this.keys.clear();
       this.mouseDown = false;
-      if (!this.touch) this.scopeHeld = false;
+      this.scopeHeld = false;
     });
     document.addEventListener('keydown', (e) => {
       if (!this.enabled || !this.locked) return;
