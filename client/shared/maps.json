@@ -10,5 +10,35 @@
   "label": "Crossroads",
   "file": "map_crossroads.json",
   "model": "map_crossroads.glb"
+ },
+ {
+  "id": "piazza",
+  "label": "Piazza",
+  "file": "map_piazza.json",
+  "model": "map_piazza.glb"
+ },
+ {
+  "id": "pyramid",
+  "label": "Sandstone Pyramid",
+  "file": "map_pyramid.json",
+  "model": "map_pyramid.glb"
+ },
+ {
+  "id": "canyon",
+  "label": "Canyon Run",
+  "file": "map_canyon.json",
+  "model": "map_canyon.glb"
+ },
+ {
+  "id": "harbor",
+  "label": "Harbor",
+  "file": "map_harbor.json",
+  "model": "map_harbor.glb"
+ },
+ {
+  "id": "bunker",
+  "label": "Bunker",
+  "file": "map_bunker.json",
+  "model": "map_bunker.glb"
  }
 ]
