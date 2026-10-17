@@ -21,6 +21,7 @@ type goldenScenario struct {
 	Expect []struct {
 		X, Y, Z, Vy float64
 		G, C        bool
+		I           float64
 	}
 }
 
@@ -44,10 +45,10 @@ func TestMoveMatchesJSGolden(t *testing.T) {
 	if err := json.Unmarshal(raw, &sc); err != nil {
 		t.Fatal(err)
 	}
-	if len(sc) < 6 {
-		t.Fatalf("expected >=6 scenarios, got %d", len(sc))
+	if len(sc) < 8 {
+		t.Fatalf("expected >=8 scenarios, got %d", len(sc))
 	}
-	crouched := 0
+	crouched, landings := 0, 0
 	const eps = 1e-9
 	for si, s := range sc {
 		k := Kin{X: s.Start[0], Y: s.Start[1], Z: s.Start[2]}
@@ -62,11 +63,17 @@ func TestMoveMatchesJSGolden(t *testing.T) {
 			if k.Crouch {
 				crouched++
 			}
+			if k.Impact > 0 {
+				landings++
+			}
 			e := s.Expect[i]
-			if math.Abs(k.X-e.X) > eps || math.Abs(k.Y-e.Y) > eps || math.Abs(k.Z-e.Z) > eps || math.Abs(k.Vy-e.Vy) > eps || k.OnGround != e.G || k.Crouch != e.C {
+			if math.Abs(k.X-e.X) > eps || math.Abs(k.Y-e.Y) > eps || math.Abs(k.Z-e.Z) > eps || math.Abs(k.Vy-e.Vy) > eps || k.OnGround != e.G || k.Crouch != e.C || math.Abs(k.Impact-e.I) > eps {
 				t.Fatalf("scenario %d step %d: go=%+v js=%+v", si, i, k, e)
 			}
 		}
+	}
+	if landings < 3 {
+		t.Fatalf("golden scenarios barely exercise landings (%d)", landings)
 	}
 	if crouched < 100 {
 		t.Fatalf("golden scenarios barely exercise crouching (%d ticks)", crouched)

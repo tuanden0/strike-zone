@@ -27,7 +27,9 @@ export function spread(spec, w, scoped, moveFrac, burst) {
 // Name shown in the kill feed: real weapons come first, grenades follow them (server event convention).
 export function weaponName(spec, w) {
   if (w < spec.weapons.length) return spec.weapons[w].name;
-  const g = spec.grenades && spec.grenades[w - spec.weapons.length];
+  const gi = w - spec.weapons.length;
+  if (gi === (spec.grenades || []).length) return 'Fall'; // fall damage comes after the grenades
+  const g = spec.grenades && spec.grenades[gi];
   return g ? g.name : 'Grenade';
 }
 

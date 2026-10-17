@@ -242,3 +242,22 @@ func (w *World) clearGrenades() {
 	w.grenades = w.grenades[:0]
 	w.smokes = w.smokes[:0]
 }
+
+// fallIndex is the weapon index reported in hit/kill events for fall damage (after the weapons and the grenades).
+func (w *World) fallIndex() int { return len(w.Spec.Weapons) + len(w.Spec.Grenades) }
+
+// fallDamage hurts a player who landed at `impact` m/s. Spawn protection applies; dying this way scores for nobody.
+func (w *World) fallDamage(p *Player, impact float64) {
+	if !p.Alive || w.Tick < p.ProtectUntil {
+		return
+	}
+	n := int(math.Round((impact - w.Spec.Player.Fall.SafeSpeed) * w.Spec.Player.Fall.DamagePerSpeed))
+	if n <= 0 {
+		return
+	}
+	p.HP -= n
+	w.events = append(w.events, Event{E: EvHit, By: p.ID, V: p.ID, W: w.fallIndex(), Dmg: n})
+	if p.HP <= 0 {
+		w.kill(nil, p, false, w.fallIndex(), p.ID)
+	}
+}

@@ -22,7 +22,13 @@ LEGEND = {
     "c": L("crate", 1.0),
     "C": L("crate", 2.0),
     "r": L("rock", 6.0, y0=3.5),   # natural rock bridge over the corridor
+    "Y": L("rock", 0.9),           # the overlook ledge
+    "u": L("rock", 0.3),           # stair steps (0.3 m risers, below the 0.45 m step height)
+    "v": L("rock", 0.6),
 }
+# ramp of 8 steps of 0.1125 m (a slope the player walks up: the physics steps up anything <= 0.45 m)
+for _i in range(1, 9):
+    LEGEND[str(_i)] = L("rock", round(0.1125 * _i, 4))
 
 
 def draw():
@@ -78,6 +84,13 @@ def draw():
     cv.fill(5, 8, 16, 18, "b")
     cv.fill(-1, 1, 18, 19, "l")
     cv.put(-18, 18, "P")
+    # --- overlook ledge (0.9 m) in the west plaza, reached by a long 8-step ramp from the east
+    cv.fill(-22, -14, 14, 18, "Y")
+    for i in range(8):
+        cv.fill(-7 - i, -6 - i, 14, 17, str(i + 1))
+    # --- stairs (0.3 m risers) up onto the low ruined wall of the east lane
+    cv.fill(17, 18, 15, 18, "u")
+    cv.fill(18, 19, 15, 18, "v")
     return cv
 
 

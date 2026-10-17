@@ -72,17 +72,25 @@ type BoxSpec struct {
 }
 
 type PlayerSpec struct {
-	HalfWidth float64    `json:"halfWidth"`
-	Height    float64    `json:"height"`
-	EyeHeight float64    `json:"eyeHeight"`
-	RunSpeed  float64    `json:"runSpeed"`
-	WalkSpeed float64    `json:"walkSpeed"`
-	JumpSpeed float64    `json:"jumpSpeed"`
-	Gravity   float64    `json:"gravity"`
-	MaxHealth int        `json:"maxHealth"`
-	Body      BoxSpec    `json:"body"`
-	Head      BoxSpec    `json:"head"`
-	Crouch    CrouchSpec `json:"crouch"`
+	HalfWidth  float64    `json:"halfWidth"`
+	Height     float64    `json:"height"`
+	EyeHeight  float64    `json:"eyeHeight"`
+	RunSpeed   float64    `json:"runSpeed"`
+	WalkSpeed  float64    `json:"walkSpeed"`
+	JumpSpeed  float64    `json:"jumpSpeed"`
+	Gravity    float64    `json:"gravity"`
+	MaxHealth  int        `json:"maxHealth"`
+	Body       BoxSpec    `json:"body"`
+	Head       BoxSpec    `json:"head"`
+	StepHeight float64    `json:"stepHeight"` // obstacles up to this high are walked onto without jumping
+	Fall       FallSpec   `json:"fall"`
+	Crouch     CrouchSpec `json:"crouch"`
+}
+
+// FallSpec: landing faster than SafeSpeed (m/s, about a 2 m drop) hurts by DamagePerSpeed HP per m/s over it.
+type FallSpec struct {
+	SafeSpeed      float64 `json:"safeSpeed"`
+	DamagePerSpeed float64 `json:"damagePerSpeed"`
 }
 
 // CrouchSpec is the lowered stance (Shift): smaller body and hitboxes, slower, no jumping. Standing up needs headroom.
@@ -321,6 +329,8 @@ func validateSpec(s *Spec) error {
 		return fmt.Errorf("spec: bad player dimensions")
 	case p.RunSpeed <= 0 || p.WalkSpeed <= 0 || p.JumpSpeed <= 0 || p.Gravity <= 0:
 		return fmt.Errorf("spec: bad player motion")
+	case p.StepHeight < 0 || p.StepHeight > 0.8 || p.Fall.SafeSpeed < 3 || p.Fall.SafeSpeed > 30 || p.Fall.DamagePerSpeed < 0 || p.Fall.DamagePerSpeed > 100:
+		return fmt.Errorf("spec: bad stepHeight/fall section")
 	case p.Crouch.Height <= 0 || p.Crouch.Height >= p.Height || p.Crouch.EyeHeight <= 0 || p.Crouch.EyeHeight > p.Crouch.Height || p.Crouch.Speed <= 0 || p.Crouch.Speed > p.WalkSpeed ||
 		p.Crouch.Body.Y1 <= p.Crouch.Body.Y0 || p.Crouch.Head.Y1 <= p.Crouch.Head.Y0 || p.Crouch.Head.Y1 > p.Crouch.Height+1e-9 || p.Crouch.Body.HalfWidth > p.HalfWidth+1e-9:
 		return fmt.Errorf("spec: bad crouch stance")

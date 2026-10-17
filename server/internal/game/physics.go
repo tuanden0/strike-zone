@@ -7,7 +7,8 @@ type Kin struct {
 	X, Y, Z  float64
 	Vy       float64
 	OnGround bool
-	Crouch   bool // lowered stance; persists until there is room to stand
+	Crouch   bool    // lowered stance; persists until there is room to stand
+	Impact   float64 // downward speed (m/s) of the landing that happened this tick, else 0 (fall damage reads it)
 }
 
 // MoveCmd is the movement part of an input.
@@ -48,6 +49,7 @@ func Step(s *Spec, m *Map, k *Kin, c MoveCmd) float64 {
 		}
 	}
 	height := s.HeightOf(k)
+	wasGround := k.OnGround
 	speed := p.RunSpeed
 	switch {
 	case k.Crouch:
@@ -74,9 +76,25 @@ func Step(s *Spec, m *Map, k *Kin, c MoveCmd) float64 {
 	hit := func(o *[6]float64) bool {
 		return k.X+hw > o[0] && k.X-hw < o[3] && k.Y+height > o[1] && k.Y < o[4] && k.Z+hw > o[2] && k.Z-hw < o[5]
 	}
+	// step-up: a grounded player walks onto an obstacle whose top is at most StepHeight above the feet (stairs, kerbs, ramps made of
+	// small steps) when there is headroom there; anything higher blocks as before (jump instead)
+	stepUp := func(o *[6]float64) bool {
+		if !wasGround || o[4] <= k.Y || o[4]-k.Y > p.StepHeight {
+			return false
+		}
+		old := k.Y
+		k.Y = o[4]
+		for j := range b {
+			if hit(&b[j]) {
+				k.Y = old
+				return false
+			}
+		}
+		return true
+	}
 	k.X += vx * dt
 	for i := range b {
-		if hit(&b[i]) {
+		if hit(&b[i]) && !stepUp(&b[i]) {
 			if vx > 0 {
 				k.X = b[i][0] - hw
 			} else {
@@ -86,7 +104,7 @@ func Step(s *Spec, m *Map, k *Kin, c MoveCmd) float64 {
 	}
 	k.Z += vz * dt
 	for i := range b {
-		if hit(&b[i]) {
+		if hit(&b[i]) && !stepUp(&b[i]) {
 			if vz > 0 {
 				k.Z = b[i][2] - hw
 			} else {
@@ -96,9 +114,13 @@ func Step(s *Spec, m *Map, k *Kin, c MoveCmd) float64 {
 	}
 	k.Y += k.Vy * dt
 	k.OnGround = false
+	impact := 0.0
 	if k.Y <= 0 {
 		k.Y = 0
 		if k.Vy < 0 {
+			if !wasGround {
+				impact = -k.Vy
+			}
 			k.Vy = 0
 		}
 		k.OnGround = true
@@ -109,12 +131,16 @@ func Step(s *Spec, m *Map, k *Kin, c MoveCmd) float64 {
 				k.Y = b[i][1] - height
 				k.Vy = 0
 			} else {
+				if !wasGround && -k.Vy > impact {
+					impact = -k.Vy
+				}
 				k.Y = b[i][4]
 				k.Vy = 0
 				k.OnGround = true
 			}
 		}
 	}
+	k.Impact = impact
 	bd := &m.Bounds
 	k.X = math.Min(math.Max(k.X, bd.MinX+hw), bd.MaxX-hw)
 	k.Z = math.Min(math.Max(k.Z, bd.MinZ+hw), bd.MaxZ-hw)

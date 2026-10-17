@@ -342,7 +342,7 @@ func (w *World) Step() {
 			w.apply(p, p.queue[i])
 		}
 		if n > 0 {
-			p.queue = p.queue[n:]
+			p.queue = p.queue[min(n, len(p.queue)):] // a fall death inside the loop already cleared the queue
 		}
 	}
 	w.resolveShots()
@@ -357,6 +357,9 @@ func (w *World) apply(p *Player, in Input) {
 	p.Yaw, p.Pitch = in.Yaw, in.Pitch
 	p.Speed = Step(w.Spec, w.Map, &p.Kin, MoveCmd{F: in.F, S: in.S, Yaw: in.Yaw, Jump: in.Jump, Walk: in.Walk, Crouch: in.Crouch})
 	p.LastSeq = in.Seq
+	if p.Kin.Impact > w.Spec.Player.Fall.SafeSpeed {
+		w.fallDamage(p, p.Kin.Impact)
+	}
 	w.weapons(p, in)
 }
 

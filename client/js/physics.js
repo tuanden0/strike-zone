@@ -12,7 +12,7 @@ export function prepareMap(json) {
 }
 
 export function createKin(x = 0, y = 0, z = 0) {
-  return { x, y, z, vy: 0, onGround: false, crouch: false };
+  return { x, y, z, vy: 0, onGround: false, crouch: false, impact: 0 }; // impact: landing speed (m/s) of this tick, else 0
 }
 
 export function heightOf(spec, k) {
@@ -46,6 +46,7 @@ export function stepMove(spec, map, k, cmd) {
     if (!overlaps(spec, map, { x: k.x, y: k.y, z: k.z, crouch: false })) k.crouch = false;
   }
   const height = heightOf(spec, k);
+  const wasGround = k.onGround;
   const speed = k.crouch ? p.crouch.speed : cmd.walk ? p.walkSpeed : p.runSpeed;
   const sy = Math.sin(cmd.yaw);
   const cy = Math.cos(cmd.yaw);
@@ -66,43 +67,60 @@ export function stepMove(spec, map, k, cmd) {
   k.vy -= p.gravity * dt;
 
   const b = map.boxes;
+  const hit = (o) => k.x + hw > o[0] && k.x - hw < o[3] && k.y + height > o[1] && k.y < o[4] && k.z + hw > o[2] && k.z - hw < o[5];
+  // step-up: a grounded player walks onto an obstacle whose top is at most stepHeight above the feet (stairs, kerbs, ramps made of
+  // small steps) when there is headroom there; anything higher blocks as before (jump instead)
+  const stepUp = (o) => {
+    if (!wasGround || o[4] <= k.y || o[4] - k.y > p.stepHeight) return false;
+    const old = k.y;
+    k.y = o[4];
+    for (let j = 0; j < b.length; j++) {
+      if (hit(b[j])) {
+        k.y = old;
+        return false;
+      }
+    }
+    return true;
+  };
   // X
   k.x += vx * dt;
   for (let i = 0; i < b.length; i++) {
     const o = b[i];
-    if (k.x + hw > o[0] && k.x - hw < o[3] && k.y + height > o[1] && k.y < o[4] && k.z + hw > o[2] && k.z - hw < o[5]) {
-      k.x = vx > 0 ? o[0] - hw : o[3] + hw;
-    }
+    if (hit(o) && !stepUp(o)) k.x = vx > 0 ? o[0] - hw : o[3] + hw;
   }
   // Z
   k.z += vz * dt;
   for (let i = 0; i < b.length; i++) {
     const o = b[i];
-    if (k.x + hw > o[0] && k.x - hw < o[3] && k.y + height > o[1] && k.y < o[4] && k.z + hw > o[2] && k.z - hw < o[5]) {
-      k.z = vz > 0 ? o[2] - hw : o[5] + hw;
-    }
+    if (hit(o) && !stepUp(o)) k.z = vz > 0 ? o[2] - hw : o[5] + hw;
   }
   // Y
   k.y += k.vy * dt;
   k.onGround = false;
+  let impact = 0;
   if (k.y <= 0) {
     k.y = 0;
-    if (k.vy < 0) k.vy = 0;
+    if (k.vy < 0) {
+      if (!wasGround) impact = -k.vy;
+      k.vy = 0;
+    }
     k.onGround = true;
   }
   for (let i = 0; i < b.length; i++) {
     const o = b[i];
-    if (k.x + hw > o[0] && k.x - hw < o[3] && k.y + height > o[1] && k.y < o[4] && k.z + hw > o[2] && k.z - hw < o[5]) {
+    if (hit(o)) {
       if (k.vy > 0) {
         k.y = o[1] - height;
         k.vy = 0;
       } else {
+        if (!wasGround && -k.vy > impact) impact = -k.vy;
         k.y = o[4];
         k.vy = 0;
         k.onGround = true;
       }
     }
   }
+  k.impact = impact;
   const bd = map.bounds;
   k.x = Math.min(Math.max(k.x, bd.minX + hw), bd.maxX - hw);
   k.z = Math.min(Math.max(k.z, bd.minZ + hw), bd.maxZ - hw);

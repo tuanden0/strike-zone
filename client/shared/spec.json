@@ -12,6 +12,8 @@
     "maxHealth": 100,
     "body": { "halfWidth": 0.3, "y0": 0.0, "y1": 1.45 },
     "head": { "halfWidth": 0.18, "y0": 1.45, "y1": 1.8 },
+    "stepHeight": 0.45,
+    "fall": { "safeSpeed": 9.0, "damagePerSpeed": 11.0 },
     "crouch": {
       "height": 1.15, "eyeHeight": 0.98, "speed": 2.2,
       "body": { "halfWidth": 0.3, "y0": 0.0, "y1": 0.8 },

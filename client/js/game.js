@@ -543,7 +543,11 @@ export class Game {
     const k = this.kin;
     // the camera glides between standing and crouched eye height (the simulation switches instantly)
     this.eyeOff += (eyeOf(this.spec, k) - this.eyeOff) * (1 - Math.exp(-dt * 16));
-    let ey = lerp(p.y, k.y, alpha) + this.eyeOff;
+    // walking up/down steps moves the feet instantly; glide the camera over small height changes (jumps and falls follow exactly)
+    const rawY = lerp(p.y, k.y, alpha);
+    if (this.camY === undefined || !k.onGround || Math.abs(rawY - this.camY) > 0.6) this.camY = rawY;
+    else this.camY += (rawY - this.camY) * (1 - Math.exp(-dt * 18));
+    let ey = this.camY + this.eyeOff;
     if (!this.alive) {
       this.deadT = Math.min(1, this.deadT + dt * 2);
       ey = lerp(ey, k.y + 0.3, this.deadT);

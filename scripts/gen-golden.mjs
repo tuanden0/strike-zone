@@ -18,7 +18,7 @@ function run(start, gen, n, extraBoxes = null) {
     const c = gen(i);
     inputs.push(c);
     stepMove(spec, m, k, c);
-    expect.push({ x: k.x, y: k.y, z: k.z, vy: k.vy, g: k.onGround, c: k.crouch });
+    expect.push({ x: k.x, y: k.y, z: k.z, vy: k.vy, g: k.onGround, c: k.crouch, i: k.impact });
   }
   return { start, inputs, expect, boxes: extraBoxes };
 }
@@ -40,6 +40,13 @@ const scenarios = [
   run([0, 0, 12], (i) => ({ f: i < 100 ? 1 : 0.4, s: 0, yaw: 0, jump: i % 25 === 0, walk: false, crouch: i < 70 }), 140, [[-3, 1.3, 5, 3, 2.2, 7]]),
   // crouch-jump is impossible, crouch in the air does not start, landing then crouching works
   run([0, 0, 15], (i) => ({ f: 0.5, s: 0, yaw: 0.3, jump: i === 5, walk: false, crouch: i > 8 && i < 40 }), 60),
+  // stairs (0.2 m risers, 0.5 m treads) walked up and down, then a 0.6 m block that must NOT be stepped onto (a jump is needed)
+  run([0, 0, 20], (i) => ({ f: i < 90 ? 1 : i < 150 ? 0 : -1, s: 0, yaw: 0, jump: false, walk: false, crouch: i % 70 > 60 }), 260, [
+    ...Array.from({ length: 6 }, (_, n) => [-1, 0, 18 - n * 0.5, 1, 0.2 * (n + 1), 17.5 - n * 0.5]),
+    [-1, 0, 12, 1, 0.6, 11],
+  ]),
+  // walk off a 3 m platform: the landing speed (impact) is part of the golden data, then a short hop (no impact)
+  run([0, 3, 14.5], (i) => ({ f: i < 40 ? 1 : 0, s: 0, yaw: 0, jump: i === 90, walk: false }), 140, [[-3, 0, 14, 3, 3, 16]]),
 ];
 writeFileSync(new URL('../server/internal/game/testdata/golden_move.json', import.meta.url), JSON.stringify(scenarios));
 for (const sc of scenarios) console.log('scenario steps', sc.inputs.length, 'final', JSON.stringify(sc.expect.at(-1)));
