@@ -1,4 +1,5 @@
 // Loads the generated .glb models (see tools/assets/). Everything is local; no network beyond this server.
+import { TextureLoader } from '../vendor/three.module.js';
 import { GLTFLoader } from '../vendor/GLTFLoader.js';
 
 const BASE = 'assets/models/';
@@ -20,8 +21,17 @@ function loadOne(loader, name, onBytes) {
 }
 
 // files: subset of MODEL_FILES to load (the game needs the first six; tests load all).
-export async function loadAssets(files = MODEL_FILES.slice(0, 6), onProgress = () => {}) {
+//
+// safeImages: decode embedded textures through <img> elements instead of createImageBitmap/fetch(blob:). GLTFLoader picks
+// ImageBitmapLoader on modern Firefox/Chrome; some browsers/extensions block that path, so main.js retries with this.
+export async function loadAssets(files = MODEL_FILES.slice(0, 6), onProgress = () => {}, { safeImages = false } = {}) {
   const loader = new GLTFLoader();
+  if (safeImages) {
+    loader.register((parser) => {
+      parser.textureLoader = new TextureLoader(parser.options.manager);
+      return { name: 'sz_safe_images' };
+    });
+  }
   const loaded = {};
   const total = {};
   const report = (name, l, t) => {

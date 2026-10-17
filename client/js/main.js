@@ -175,7 +175,15 @@ try {
     state.spec = spec;
     state.map = prepareMap(mapJson);
     stage = 'models';
-    state.assets = await loadAssets(undefined, (p) => setStatus('title-status', `Loading models… ${Math.round(p * 100)}%`, true));
+    const progress = (p) => setStatus('title-status', `Loading models… ${Math.round(p * 100)}%`, true);
+    const forceSafe = new URLSearchParams(location.search).has('safeimg'); // test hook
+    try {
+      state.assets = await loadAssets(undefined, progress, { safeImages: forceSafe });
+    } catch (e) {
+      if (forceSafe) throw e;
+      console.warn('model load failed, retrying with <img> texture decoding:', e);
+      state.assets = await loadAssets(undefined, progress, { safeImages: true });
+    }
     stage = 'renderer (WebGL)';
     setStatus('title-status', 'Preparing graphics…', true);
     const game = ensureGame();
