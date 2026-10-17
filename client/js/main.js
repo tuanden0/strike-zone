@@ -177,8 +177,8 @@ $('btn-practice').addEventListener('click', async () => {
   }
 });
 if (isTouch) {
-  $('pause-hint').textContent = 'Tap Resume to play. Left stick: move · right stick: aim (hold the thumb down and steer; the pause menu can switch it to swipe) · buttons: fire (right and left), jump, duck, reload, use, drop.';
-  $('controls-hint').textContent = 'Touch: left stick moves, right stick aims (change to swipe-aim in the pause menu); a second FIRE sits under the left thumb · FIRE / JUMP / R reload · USE pick up · DROP · NADE throws the chosen grenade (tap HE to change) · SCOPE (sniper) · tap the weapon list to switch';
+  $('pause-hint').textContent = 'Tap Resume to play. Left stick: move · right thumb: aim and fire (tap = one shot, hold still = auto-fire, push = turn; hold and push to fire while turning) · buttons: jump, duck, reload, use, drop.';
+  $('controls-hint').textContent = 'Touch: left stick moves; the right thumb aims AND fires: tap = shoot, hold still = keep shooting, push = turn (swipe-aim in the pause menu) · JUMP / R reload · USE pick up · DROP · NADE throws the chosen grenade (tap HE to change) · SCOPE (sniper) · tap the weapon list to switch';
   $('sens').previousElementSibling.textContent = 'Look sensitivity (also scales the aim stick)';
   $('pause-look').hidden = false;
   $('look-mode').value = input.touchUi.mode;

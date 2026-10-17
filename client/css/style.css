@@ -71,13 +71,12 @@ html.touch, body.touch, body.touch canvas#view { touch-action: none; -webkit-tex
 #t-zone { position: absolute; inset: 0; touch-action: none; }
 #touch button { position: absolute; border-radius: 50%; padding: 0; min-height: 0; width: 60px; height: 60px; background: rgba(20,24,32,.45); border: 2px solid rgba(255,255,255,.4); color: #fff; font-weight: 700; font-size: 13px; touch-action: none; }
 #touch button.down { background: rgba(245,165,36,.7); }
-#t-fire { right: calc(28px + env(safe-area-inset-right)); bottom: calc(24px + env(safe-area-inset-bottom)); width: 92px !important; height: 92px !important; font-size: 16px !important; border-color: rgba(255,90,70,.8) !important; }
-#t-jump { right: calc(136px + env(safe-area-inset-right)); bottom: calc(36px + env(safe-area-inset-bottom)); }
-#t-reload { right: calc(136px + env(safe-area-inset-right)); bottom: calc(108px + env(safe-area-inset-bottom)); width: 50px !important; height: 50px !important; }
-#t-use { right: calc(36px + env(safe-area-inset-right)); bottom: calc(128px + env(safe-area-inset-bottom)); }
+#t-jump { right: calc(30px + env(safe-area-inset-right)); bottom: calc(30px + env(safe-area-inset-bottom)); width: 72px !important; height: 72px !important; font-size: 14px !important; }
+#t-reload { right: calc(118px + env(safe-area-inset-right)); bottom: calc(24px + env(safe-area-inset-bottom)); width: 50px !important; height: 50px !important; }
+#t-use { right: calc(36px + env(safe-area-inset-right)); bottom: calc(116px + env(safe-area-inset-bottom)); }
 #t-use.hot { background: rgba(93,255,122,.6); border-color: #5dff7a; animation: pulse .8s infinite alternate; }
 @keyframes pulse { to { transform: scale(1.12); } }
-#t-drop { right: calc(40px + env(safe-area-inset-right)); bottom: calc(196px + env(safe-area-inset-bottom)); width: 48px !important; height: 48px !important; font-size: 11px !important; }
+#t-drop { right: calc(40px + env(safe-area-inset-right)); bottom: calc(184px + env(safe-area-inset-bottom)); width: 48px !important; height: 48px !important; font-size: 11px !important; }
 #t-board { right: calc(64px + env(safe-area-inset-right)); top: calc(8px + env(safe-area-inset-top)); width: 44px !important; height: 36px !important; border-radius: 8px !important; font-size: 11px !important; }
 #t-menu { right: calc(8px + env(safe-area-inset-right)); top: calc(8px + env(safe-area-inset-top)); width: 44px !important; height: 36px !important; border-radius: 8px !important; }
 #t-stick, #t-lstick { position: absolute; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); background: rgba(20,24,32,.25); display: none; pointer-events: none; }
@@ -102,16 +101,20 @@ body.touch #practice-stats { top: 70px; }
 #scope-h { width: 82vmin; height: 2px; } #scope-v { width: 2px; height: 82vmin; }
 #scope-h::after { content: ""; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #e33; }
 #hud.scoped #crosshair, #hud.scoped #hitmarker { display: none; }
-#t-scope { right: calc(210px + env(safe-area-inset-right)); bottom: calc(80px + env(safe-area-inset-bottom)); width: 54px !important; height: 54px !important; font-size: 10px !important; }
+#t-scope { right: calc(118px + env(safe-area-inset-right)); bottom: calc(142px + env(safe-area-inset-bottom)); width: 54px !important; height: 54px !important; font-size: 10px !important; }
 
 /* ---- grenades, flash, bots ---- */
 #flash { position: absolute; inset: 0; background: #fff; pointer-events: none; }
 #nades { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; font-size: 12px; }
 #nades span { padding: 1px 8px; border-radius: 4px; background: rgba(0,0,0,.45); color: #cfd6e2; } #nades span.empty { opacity: .35; }
-#t-nade { right: calc(210px + env(safe-area-inset-right)); bottom: calc(150px + env(safe-area-inset-bottom)); width: 54px !important; height: 54px !important; font-size: 10px !important; }
-#t-nadesel { right: calc(276px + env(safe-area-inset-right)); bottom: calc(158px + env(safe-area-inset-bottom)); width: 40px !important; height: 40px !important; font-size: 10px !important; }
+#t-nade { right: calc(188px + env(safe-area-inset-right)); bottom: calc(30px + env(safe-area-inset-bottom)); width: 54px !important; height: 54px !important; font-size: 10px !important; }
+#t-nadesel { right: calc(188px + env(safe-area-inset-right)); bottom: calc(92px + env(safe-area-inset-bottom)); width: 40px !important; height: 40px !important; font-size: 10px !important; }
 body.touch #nades { justify-content: center; }
 #pause-bots { display: flex; flex-direction: column; gap: 8px; }
-#t-crouch { right: calc(136px + env(safe-area-inset-right)); bottom: calc(164px + env(safe-area-inset-bottom)); width: 50px !important; height: 50px !important; font-size: 10px !important; }
-#t-fire2 { left: calc(24px + env(safe-area-inset-left)); bottom: calc(150px + env(safe-area-inset-bottom)); width: 66px !important; height: 66px !important; font-size: 12px !important; border-color: rgba(255,90,70,.8) !important; }
+#t-crouch { right: calc(118px + env(safe-area-inset-right)); bottom: calc(84px + env(safe-area-inset-bottom)); width: 50px !important; height: 50px !important; font-size: 10px !important; }
 #t-lstick { border-color: rgba(255,170,90,.55); }
+/* fire lives in the aim control: the ring turns red and pulses while the thumb is auto-firing, flashes on a tap */
+#t-lstick.fire { border-color: rgba(255,60,50,.95); background: rgba(255,40,30,.22); animation: aimfire .22s infinite alternate; }
+#t-lstick.fire #t-lknob { background: rgba(255,90,70,.75); }
+#t-lstick.tapshot { animation: none; }
+@keyframes aimfire { to { transform: scale(1.1); } }
