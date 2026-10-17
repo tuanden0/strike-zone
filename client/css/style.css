@@ -80,9 +80,9 @@ html.touch, body.touch, body.touch canvas#view { touch-action: none; -webkit-tex
 #t-drop { right: calc(40px + env(safe-area-inset-right)); bottom: calc(196px + env(safe-area-inset-bottom)); width: 48px !important; height: 48px !important; font-size: 11px !important; }
 #t-board { right: calc(64px + env(safe-area-inset-right)); top: calc(8px + env(safe-area-inset-top)); width: 44px !important; height: 36px !important; border-radius: 8px !important; font-size: 11px !important; }
 #t-menu { right: calc(8px + env(safe-area-inset-right)); top: calc(8px + env(safe-area-inset-top)); width: 44px !important; height: 36px !important; border-radius: 8px !important; }
-#t-stick { position: absolute; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); background: rgba(20,24,32,.25); display: none; pointer-events: none; }
-#t-stick.on { display: block; }
-#t-knob { position: absolute; left: 32px; top: 32px; width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.45); }
+#t-stick, #t-lstick { position: absolute; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); background: rgba(20,24,32,.25); display: none; pointer-events: none; }
+#t-stick.on, #t-lstick.on { display: block; }
+#t-knob, #t-lknob { position: absolute; left: 32px; top: 32px; width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.45); }
 #t-rotate { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; background: rgba(8,10,14,.9); font-size: 20px; text-align: center; padding: 24px; }
 @media (orientation: portrait) { #t-rotate { display: flex; } }
 body.touch #hud-bl { left: calc(10px + env(safe-area-inset-left)); bottom: auto; top: 30px; font-size: 16px; }
@@ -113,3 +113,5 @@ body.touch #practice-stats { top: 70px; }
 body.touch #nades { justify-content: center; }
 #pause-bots { display: flex; flex-direction: column; gap: 8px; }
 #t-crouch { right: calc(136px + env(safe-area-inset-right)); bottom: calc(164px + env(safe-area-inset-bottom)); width: 50px !important; height: 50px !important; font-size: 10px !important; }
+#t-fire2 { left: calc(24px + env(safe-area-inset-left)); bottom: calc(150px + env(safe-area-inset-bottom)); width: 66px !important; height: 66px !important; font-size: 12px !important; border-color: rgba(255,90,70,.8) !important; }
+#t-lstick { border-color: rgba(255,170,90,.55); }

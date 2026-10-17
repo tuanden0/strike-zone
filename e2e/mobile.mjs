@@ -54,7 +54,7 @@ try {
     };
   });
   check('touch-action none on page + controls, pan-y on menus', zoom.html === 'none' && zoom.body === 'none' && zoom.layer === 'none' && zoom.menu === 'pan-y', JSON.stringify(zoom));
-  check('pinch / double-tap / gesture events are cancelled', zoom.gesture && zoom.dbl && zoom.pinch);
+  check('gesture + double-tap events are cancelled; two-finger touches are left alone (CSS touch-action stops the pinch, and the two thumbs must not be cancelled)', zoom.gesture && zoom.dbl && zoom.pinch === false);
   check('inputs are 16 px (no iOS focus zoom)', zoom.input === '16px', zoom.input);
   for (let i = 0; i < 12; i++) await p.tap('#t-fire', { force: true });
   check('12 rapid FIRE taps: page scale stays 1 and the HUD is still reachable', await p.evaluate(() => (!window.visualViewport || window.visualViewport.scale === 1) && window.__sz.input.locked && !document.getElementById('touch').hidden));
@@ -77,13 +77,45 @@ try {
   await touch('touchEnd', []);
   check('releasing the stick stops input', await sz(p, () => window.__sz.input.mv.f === 0 && window.__sz.input.mv.s === 0));
 
+  // Right thumb = aim stick: hold right of the touch point -> the view keeps turning right; release -> it stops.
+  const sampleYaw = () => sz(p, () => window.__sz.input.yaw);
+  const y0 = await sampleYaw();
+  await touch('touchStart', [[600, 200, 5]]);
+  await touch('touchMove', [[670, 200, 5]]);
+  await p.waitForFunction((y) => Math.abs(window.__sz.input.yaw - y) > 0.6, y0);
+  const yHeld = await sampleYaw();
+  await p.waitForFunction((y) => Math.abs(window.__sz.input.yaw - y) > 0.3, yHeld);
+  check('holding the aim stick right keeps turning the view right (yaw decreases)', (await sampleYaw()) < y0 - 0.9, `${y0.toFixed(2)} -> ${(await sampleYaw()).toFixed(2)}`);
+  const p0 = await sz(p, () => window.__sz.input.pitch);
+  await touch('touchMove', [[600, 140, 5]]);
+  await p.waitForFunction((v) => window.__sz.input.pitch > v + 0.25, p0);
+  check('pushing the aim stick up looks up', true);
+  await touch('touchEnd', []);
+  const yEnd = await sampleYaw();
+  const pEnd = await sz(p, () => window.__sz.input.pitch);
+  await p.waitForFunction(() => new Promise((r) => setTimeout(() => r(true), 700)));
+  check('releasing the aim stick stops the turn', (await sampleYaw()) === yEnd && (await sz(p, () => window.__sz.input.pitch)) === pEnd);
+  await touch('touchStart', [[600, 200, 6]]);
+  await touch('touchMove', [[606, 200, 6]]); // a 6 px nudge sits in the dead zone: no creeping
+  await p.waitForFunction(() => new Promise((r) => setTimeout(() => r(true), 500)));
+  check('a tiny nudge (dead zone) does not turn the view', (await sampleYaw()) === yEnd);
+  await touch('touchEnd', []);
+  // Left FIRE button works too
+  const mL = await sz(p, () => window.__sz.game.loadout.mag[0]);
+  await tap(p, '#t-fire2');
+  await p.waitForFunction((a) => window.__sz.game.loadout.mag[0] < a, mL);
+  check('the left FIRE button shoots', true);
+  // Swipe mode (pause menu option) still available
+  await sz(p, () => window.__sz.input.touchUi.setMode('drag'));
+
   // Right thumb: drag to look.
   const yaw0 = await sz(p, () => window.__sz.input.yaw);
   await touch('touchStart', [[600, 150, 2]]);
   await touch('touchMove', [[680, 150, 2]]);
   await touch('touchEnd', []);
   const yaw1 = await sz(p, () => window.__sz.input.yaw);
-  check('dragging right half turns the view', Math.abs(yaw1 - yaw0) > 0.1, `${yaw0.toFixed(3)} -> ${yaw1.toFixed(3)}`);
+  check('swipe mode: dragging the right half turns the view', Math.abs(yaw1 - yaw0) > 0.1, `${yaw0.toFixed(3)} -> ${yaw1.toFixed(3)}`);
+  await sz(p, () => window.__sz.input.touchUi.setMode('stick'));
 
   // Fire button (hold with one finger while another looks).
   const m0 = await sz(p, () => window.__sz.game.loadout.mag[0]);

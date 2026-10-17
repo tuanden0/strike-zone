@@ -177,9 +177,12 @@ $('btn-practice').addEventListener('click', async () => {
   }
 });
 if (isTouch) {
-  $('pause-hint').textContent = 'Tap Resume to play. Left side: move · right side: look · buttons: fire, jump, reload, use, drop.';
-  $('controls-hint').textContent = 'Touch: left thumb moves, right thumb aims · FIRE / JUMP / R reload · USE pick up · DROP · NADE throws the chosen grenade (tap HE to change) · SCOPE (sniper) · tap the weapon list to switch';
-  $('sens').previousElementSibling.textContent = 'Look sensitivity';
+  $('pause-hint').textContent = 'Tap Resume to play. Left stick: move · right stick: aim (hold the thumb down and steer; the pause menu can switch it to swipe) · buttons: fire (right and left), jump, duck, reload, use, drop.';
+  $('controls-hint').textContent = 'Touch: left stick moves, right stick aims (change to swipe-aim in the pause menu); a second FIRE sits under the left thumb · FIRE / JUMP / R reload · USE pick up · DROP · NADE throws the chosen grenade (tap HE to change) · SCOPE (sniper) · tap the weapon list to switch';
+  $('sens').previousElementSibling.textContent = 'Look sensitivity (also scales the aim stick)';
+  $('pause-look').hidden = false;
+  $('look-mode').value = input.touchUi.mode;
+  $('look-mode').addEventListener('change', (e) => input.touchUi.setMode(e.target.value));
 }
 $('btn-online').addEventListener('click', goOnline);
 $('btn-lobby-back').addEventListener('click', () => backToTitle(''));

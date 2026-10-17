@@ -1,9 +1,15 @@
-// On-screen controls for phones/tablets: floating move stick (left), drag-to-look (right), action buttons.
+// On-screen controls for phones/tablets: floating move stick (left), floating aim stick or drag-to-look (right), action buttons.
 // Pointer Lock does not exist on mobile, so Input swaps `locked` for "touch UI is active" (see input.js).
 
 const STICK_R = 56; // px of travel for full deflection
 const DEAD = 0.3; // fraction of STICK_R before an axis registers (server takes -1/0/1 only)
-const LOOK_GAIN = 2.2; // touch drag px -> radians relative to the mouse sensitivity setting
+const LOOK_GAIN = 2.2;
+// Aim stick: view turn rate at full deflection (rad/s) at the default sensitivity; small deflections are eased (power curve) for fine aim.
+const AIM_YAW = 3.4;
+const AIM_PITCH = 2.2;
+const AIM_DEAD = 0.12;
+const AIM_CURVE = 1.7;
+const LOOK_KEY = 'sz.look'; // touch drag px -> radians relative to the mouse sensitivity setting
 
 const $ = (id) => document.getElementById(id);
 
@@ -15,11 +21,7 @@ export function lockPageZoom() {
   for (const t of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(t, stop, { passive: false }); // iOS Safari pinch
   document.addEventListener('dblclick', stop, { passive: false });
   const inMenu = (e) => e.target && e.target.closest && e.target.closest('.screen');
-  const multi = (e) => {
-    if (e.touches.length > 1 && !inMenu(e)) e.preventDefault(); // second finger of a pinch (stick + look + fire are pointer events and unaffected)
-  };
-  document.addEventListener('touchstart', multi, { passive: false });
-  document.addEventListener('touchmove', multi, { passive: false });
+  // Pinch is stopped by CSS touch-action: none (page + controls). The two thumbs on the sticks must never have their touches cancelled in JS.
   let lastEnd = 0;
   document.addEventListener(
     'touchend',
@@ -50,12 +52,18 @@ export class TouchControls {
     this.stick = $('t-stick');
     this.knob = $('t-knob');
     this.move = { id: null, x0: 0, y0: 0 };
-    this.look = { id: null, x: 0, y: 0 };
+    this.look = { id: null, x: 0, y: 0, x0: 0, y0: 0, ax: 0, ay: 0 };
+    this.lstick = $('t-lstick');
+    this.lknob = $('t-lknob');
+    this.mode = 'stick'; // right thumb: 'stick' (hold-and-steer, like the left one) or 'drag' (relative swipe)
+    try {
+      if (localStorage.getItem(LOOK_KEY) === 'drag') this.mode = 'drag';
+    } catch {
+      // skip: storage blocked, stick is the default
+    }
     this.bindZone();
-    this.bindHold('t-fire', (down) => {
-      input.mouseDown = down;
-      if (down) input.tap = true;
-    });
+    this.bindFire('t-fire');
+    this.bindFire('t-fire2'); // second FIRE under the left thumb: shoot while the right thumb aims
     this.bindHold('t-jump', (down) => input.setKey('Space', down));
     this.bindPress('t-reload', () => (input.reload = true));
     this.bindPress('t-crouch', () => {
@@ -81,15 +89,70 @@ export class TouchControls {
     });
   }
 
+  setMode(m) {
+    this.mode = m === 'drag' ? 'drag' : 'stick';
+    this.look.id = null;
+    this.look.ax = this.look.ay = 0;
+    this.lstick.classList.remove('on');
+    try {
+      localStorage.setItem(LOOK_KEY, this.mode);
+    } catch {
+      // skip: remembering the choice is a convenience only
+    }
+  }
+
+  // Fire buttons share one "fingers down" count so releasing one while the other is held keeps firing.
+  bindFire(id) {
+    this.fireHeld = this.fireHeld || new Set();
+    this.bindHold(id, (down) => {
+      if (down) this.fireHeld.add(id);
+      else this.fireHeld.delete(id);
+      this.input.mouseDown = this.fireHeld.size > 0;
+      if (down) this.input.tap = true;
+    });
+  }
+
   show(on) {
     this.root.hidden = !on;
-    if (!on) this.reset();
+    if (on) {
+      this.last = performance.now();
+      this.loop = requestAnimationFrame(() => this.frame());
+    } else {
+      cancelAnimationFrame(this.loop);
+      this.reset();
+    }
+  }
+
+  // Aim stick: turn the view at a rate proportional to the deflection, every animation frame (not every 30 Hz tick, so it is smooth).
+  frame() {
+    if (this.root.hidden) return;
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.last) / 1000);
+    this.last = now;
+    const { ax, ay } = this.look;
+    if (this.mode === 'stick' && (ax || ay)) {
+      const g = (this.input.sens / 0.0022) * this.input.sensScale; // mouse-sensitivity slider and scope zoom apply to the stick too
+      const inp = this.input;
+      inp.yaw -= ax * AIM_YAW * g * dt;
+      inp.pitch = Math.max(-1.55, Math.min(1.55, inp.pitch - ay * AIM_PITCH * g * dt));
+    }
+    this.loop = requestAnimationFrame(() => this.frame());
+  }
+
+  // stick axes in -1..1 from a displacement in px: dead zone, then a power curve for fine control near the centre
+  static axis(d) {
+    const a = Math.abs(d);
+    if (a < AIM_DEAD) return 0;
+    return Math.sign(d) * Math.pow((a - AIM_DEAD) / (1 - AIM_DEAD), AIM_CURVE);
   }
 
   reset() {
     this.move.id = this.look.id = null;
+    this.look.ax = this.look.ay = 0;
+    this.lstick.classList.remove('on');
     this.input.mv.f = this.input.mv.s = 0;
     this.stick.classList.remove('on');
+    this.fireHeld.clear();
     this.input.mouseDown = false;
     this.input.keys.delete('Space');
     this.input.scopeHeld = false;
@@ -113,7 +176,13 @@ export class TouchControls {
         this.knob.style.transform = 'translate(0,0)';
         this.stick.classList.add('on');
       } else if (this.look.id === null) {
-        this.look = { id: e.pointerId, x: e.clientX, y: e.clientY };
+        this.look = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, ax: 0, ay: 0 };
+        if (this.mode === 'stick') {
+          this.lstick.style.left = `${e.clientX}px`;
+          this.lstick.style.top = `${e.clientY}px`;
+          this.lknob.style.transform = 'translate(0,0)';
+          this.lstick.classList.add('on');
+        }
       } else {
         return;
       }
@@ -133,9 +202,22 @@ export class TouchControls {
         this.input.mv.s = dx > t ? 1 : dx < -t ? -1 : 0;
         this.input.mv.f = dy < -t ? 1 : dy > t ? -1 : 0;
       } else if (e.pointerId === this.look.id) {
-        this.input.turn((e.clientX - this.look.x) * LOOK_GAIN, (e.clientY - this.look.y) * LOOK_GAIN);
-        this.look.x = e.clientX;
-        this.look.y = e.clientY;
+        if (this.mode === 'drag') {
+          this.input.turn((e.clientX - this.look.x) * LOOK_GAIN, (e.clientY - this.look.y) * LOOK_GAIN);
+          this.look.x = e.clientX;
+          this.look.y = e.clientY;
+        } else {
+          let dx = e.clientX - this.look.x0;
+          let dy = e.clientY - this.look.y0;
+          const len = Math.hypot(dx, dy);
+          if (len > STICK_R) {
+            dx = (dx / len) * STICK_R;
+            dy = (dy / len) * STICK_R;
+          }
+          this.lknob.style.transform = `translate(${dx}px,${dy}px)`;
+          this.look.ax = TouchControls.axis(dx / STICK_R);
+          this.look.ay = TouchControls.axis(dy / STICK_R);
+        }
       }
     });
     const end = (e) => {
@@ -145,6 +227,8 @@ export class TouchControls {
         this.stick.classList.remove('on');
       } else if (e.pointerId === this.look.id) {
         this.look.id = null;
+        this.look.ax = this.look.ay = 0;
+        this.lstick.classList.remove('on');
       }
     };
     z.addEventListener('pointerup', end);

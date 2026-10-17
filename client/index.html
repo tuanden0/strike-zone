@@ -30,7 +30,9 @@
 <div id="touch" hidden>
   <div id="t-zone"></div>
   <div id="t-stick"><div id="t-knob"></div></div>
+  <div id="t-lstick"><div id="t-lknob"></div></div>
   <button id="t-fire" aria-label="Fire">FIRE</button>
+  <button id="t-fire2" aria-label="Fire (left hand)">FIRE</button>
   <button id="t-jump" aria-label="Jump">JUMP</button>
   <button id="t-crouch" aria-label="Crouch">DUCK</button>
   <button id="t-scope" aria-label="Scope">SCOPE</button>
@@ -104,6 +106,10 @@
       <div class="row"><button id="btn-bot-a">+ Bot Ember</button><button id="btn-bot-b">+ Bot Cobalt</button><button id="btn-bot-rm">- Bot</button></div>
       <label for="bot-skill">New bot skill</label>
       <select id="bot-skill"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
+    </div>
+    <div id="pause-look" hidden>
+      <label for="look-mode">Aim control (right thumb)</label>
+      <select id="look-mode"><option value="stick">Stick (hold and steer)</option><option value="drag">Drag (swipe)</option></select>
     </div>
     <label for="sens">Mouse sensitivity</label>
     <input id="sens" type="range" min="3" max="80" value="22">
