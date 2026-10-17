@@ -81,12 +81,33 @@ def scratches(n, seed, count, length=60):
     return m
 
 
+def cracks(n, seed, count, length=90):
+    """Wandering hairline cracks (random walk with a drifting heading), periodic, 0..1 mask."""
+    rng = _rng(seed)
+    m = np.zeros((n, n))
+    for _ in range(count):
+        x, y = rng.uniform(0, n, 2)
+        a = rng.uniform(0, 2 * np.pi)
+        for _ in range(int(rng.uniform(0.4, 1) * length)):
+            a += rng.normal(0, 0.35)
+            x, y = x + np.cos(a), y + np.sin(a)
+            m[int(y) % n, int(x) % n] = 1.0
+            if rng.random() < 0.03:  # short branch
+                bx, by, ba = x, y, a + rng.choice((-1, 1)) * 0.9
+                for _ in range(int(rng.uniform(5, 18))):
+                    ba += rng.normal(0, 0.3)
+                    bx, by = bx + np.cos(ba), by + np.sin(ba)
+                    m[int(by) % n, int(bx) % n] = 0.8
+    return m
+
+
 # ---------------------------------------------------------------- map materials
 def concrete(n=512, seed=1):
     h = fbm(n, seed)
     pits = dots(n, seed + 3, 140, 2.2)
     stain = smooth01(pnoise(n, 2.6, seed + 7), 0.2, 1.6)
-    v = 0.60 + 0.07 * h - 0.18 * pits - 0.10 * stain
+    crack = cracks(n, seed + 41, 3, 70)
+    v = 0.60 + 0.07 * h - 0.18 * pits - 0.10 * stain - 0.3 * crack
     base = tint((1.0, 1.0, 1.03), v)
     x, y = grid(n)
     seam = (np.minimum(x, 1 - x) < 2.0 / n) | (np.minimum(y, 1 - y) < 2.0 / n)  # formwork panel joints
@@ -95,7 +116,7 @@ def concrete(n=512, seed=1):
         d = np.sqrt(((x - cx) * n) ** 2 + ((y - cy) * n) ** 2)
         base[d < 5] *= 0.45
         pits = np.maximum(pits, (d < 5).astype(float))
-    ht = 0.5 * h + 1.5 * pits * -1 - seam * 2.0
+    ht = 0.5 * h + 1.5 * pits * -1 - seam * 2.0 - crack * 1.5
     rough = np.clip(0.88 + 0.05 * h - 0.05 * pits, 0.6, 1.0)
     return dict(base=base, normal=normal_from_height(ht * 0.8, 3.0),
                 orm=np.stack([1 - 0.5 * pits, rough, np.zeros((n, n))], -1))
@@ -106,12 +127,14 @@ def floor_tile(n=512, seed=2):
     x, y = grid(n)
     oil = smooth01(pnoise(n, 3.0, seed + 11), 0.9, 1.9)
     scuff = scratches(n, seed + 5, 90, 40)
-    v = 0.52 + 0.06 * h - 0.14 * oil + 0.05 * scuff
+    crack = cracks(n, seed + 21, 7, 110)
+    puddle = smooth01(pnoise(n, 3.2, seed + 31), 1.1, 1.6)  # low spots that hold water: darker, glossy
+    v = 0.52 + 0.06 * h - 0.14 * oil + 0.05 * scuff - 0.3 * crack - 0.12 * puddle
     base = tint((1.0, 1.0, 1.02), v)
     joint = (np.minimum(x, 1 - x) < 3.0 / n) | (np.minimum(y, 1 - y) < 3.0 / n)
     base[joint] *= 0.45
-    ht = 0.3 * h - joint * 2.5
-    rough = np.clip(0.78 + 0.1 * h - 0.25 * oil, 0.4, 1)
+    ht = 0.3 * h - joint * 2.5 - crack * 2.0
+    rough = np.clip(0.78 + 0.1 * h - 0.25 * oil - 0.55 * puddle, 0.12, 1)
     return dict(base=base, normal=normal_from_height(ht, 2.5),
                 orm=np.stack([np.ones((n, n)), rough, np.zeros((n, n))], -1))
 
@@ -209,7 +232,7 @@ def fabric_camo(n=512, seed=8):
     dirt = smooth01(pnoise(n, 2.4, seed + 3), 0.4, 2.0)
     v = v * (1 - 0.22 * dirt) + 0.03 * weave
     base = np.stack([v, v, v], -1)
-    return dict(base=np.clip(base, 0, 1), normal=normal_from_height(weave * 0.5 + 0.2 * a, 2.0),
+    return dict(base=np.clip(base, 0, 1), normal=normal_from_height(weave * 0.5 + 0.9 * a + 0.5 * b, 2.0),  # low-frequency terms read as cloth folds
                 orm=np.stack([np.ones((n, n)), np.full((n, n), 0.92), np.zeros((n, n))], -1))
 
 

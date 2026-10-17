@@ -17,7 +17,7 @@ def weapon_materials():
     S = 256  # small objects: 256 px maps are plenty and keep the glb files small
     material("gunmetal", tex="gunmetal", size=S)
     material("polymer", tex="polymer", size=S)
-    material("polymer_tan", tex="polymer", tex_kwargs=dict(color=(0.50, 0.43, 0.31)), size=S)
+    material("polymer_tan", tex="polymer", tex_kwargs=dict(color=(0.24, 0.27, 0.19)), size=S)
     material("steel_dark", tex="steel", color=(0.35, 0.35, 0.38, 1), size=S)
     material("rubber", tex="rubber", size=S)
     material("lens", color=(0.05, 0.09, 0.14, 1), roughness=0.05, metallic=0.0)
@@ -48,6 +48,9 @@ def rifle(detail="high"):
                 body.add(box((0.004, 0.035, 0.03), (sx * 0.027, 0.22 + i * 0.056, 0.066), bevel=0), d, (8, 8))
         for i in range(22):  # rail slots
             body.add(box((0.024, 0.006, 0.0015), (0, -0.07 + i * 0.022, 0.1185), bevel=0), d, (8, 8))
+        for i in range(6):  # keymod slots along the lower handguard, both sides
+            for sx in (-1, 1):
+                body.add(box((0.004, 0.014, 0.01), (sx * 0.027, 0.2 + i * 0.045, 0.05), bevel=0), d, (8, 8))
         body.add(box((0.006, 0.05, 0.02), (0.024, 0.04, 0.085), bevel=0), d, (8, 8))  # ejection port
         body.add(box((0.012, 0.02, 0.01), (-0.025, 0.0, 0.06), bevel=0.002, segs=1), d, (8, 8))  # selector
         body.add(box((0.012, 0.025, 0.012), (0.025, 0.045, -0.005), bevel=0.003, segs=1), d, (8, 8))  # mag release
@@ -87,6 +90,9 @@ def rifle(detail="high"):
         pos = pos + Vector((0, math.sin(th), -math.cos(th))) * 0.03
     mag.add(loft(rings), p, (6, 6))
     mag.add(box((0.032, 0.05, 0.01), tuple(pos + Vector((0, 0.0, 0.002))), (math.degrees(0.085 * 5), 0, 0), bevel=0.003, segs=1), d, (6, 6))
+    if hi:
+        for k in range(5):  # reinforcing ribs down the front of the magazine
+            mag.add(box((0.026, 0.004, 0.014), (0, 0.098 + 0.0 * k, -0.03 - k * 0.024), bevel=0), d, (8, 8))
     # charging handle
     bolt.add(box((0.012, 0.03, 0.02), (0.03, 0.01, 0.1), bevel=0.003, segs=1), d, (6, 6))
     bolt.add(box((0.02, 0.012, 0.012), (0.022, 0.0, 0.1), bevel=0.002, segs=1), d, (6, 6))
@@ -108,6 +114,12 @@ def sniper(detail="high"):
             body.add(box((0.046, 0.008, 0.012), (0, 0.925 + k * 0.025, 0.07), bevel=0), "rubber", (2, 2))  # brake ports
         body.add(box((0.006, 0.07, 0.02), (0.027, 0.04, 0.09), bevel=0), d, (8, 8))  # ejection port
         body.add(box((0.012, 0.3, 0.008), (0, 0.18, 0.108), bevel=0.002, segs=1), d, (4, 4))  # receiver rail
+        for k in range(4):  # barrel flutes
+            body.add(box((0.004, 0.14, 0.004), (0.011, 0.42 + 0.0 * k, 0.07 + (k - 1.5) * 0.007), bevel=0), d, (8, 8))
+        for y in (0.0, 0.17):  # scope rings
+            body.add(cyl(0.027, 0.027, 0.014, (0, y, 0.158), (90, 0, 0), 12), g, (4, 4))
+        body.add(cyl(0.013, 0.013, 0.01, (0, 0.085, 0.208), (0, 0, 0), 8), "rubber", (4, 4))  # turret cap
+        body.add(cyl(0.013, 0.013, 0.01, (0.049, 0.085, 0.158), (0, 90, 0), 8), "rubber", (4, 4))
     # --- scope: tube, objective bell, eyepiece, mounts, turrets
     body.add(cyl(0.0225, 0.0225, 0.30, (0, 0.08, 0.158), (90, 0, 0), 12), d, (4, 4))
     body.add(cyl(0.0225, 0.034, 0.07, (0, 0.265, 0.158), (90, 0, 0), 12), d, (4, 4))  # objective bell
@@ -131,6 +143,7 @@ def sniper(detail="high"):
     if hi:  # folded bipod
         for sx in (-1, 1):
             body.add(cyl(0.005, 0.005, 0.15, (sx * 0.02, 0.5, 0.0), (80, 0, 0), 6), d, (4, 4))
+            body.add(box((0.014, 0.03, 0.01), (sx * 0.02, 0.575, -0.026), bevel=0.003, segs=1), "rubber", (4, 4))  # bipod foot
     # --- 5-round box magazine (flush under the action) and the bolt handle (cycles after each shot)
     mag.add(box((0.032, 0.07, 0.06), (0, 0.07, -0.002), bevel=0.004, segs=1), p, (6, 6))
     mag.add(box((0.034, 0.072, 0.008), (0, 0.07, -0.034), bevel=0.002, segs=1), d, (6, 6))
@@ -170,6 +183,9 @@ def pistol(detail="high"):
             for sx in (-1, 1):
                 slide.add(box((0.003, 0.004, 0.026), (sx * 0.0155, -0.03 + i * 0.01, 0.07), bevel=0), d, (8, 8))
         slide.add(box((0.003, 0.04, 0.02), (0.0155, 0.07, 0.075), bevel=0), d, (8, 8))  # ejection port
+        for i in range(4):  # front serrations
+            for sx in (-1, 1):
+                slide.add(box((0.003, 0.004, 0.026), (sx * 0.0155, 0.115 + i * 0.01, 0.07), bevel=0), d, (8, 8))
     mag.add(box((0.024, 0.04, 0.09), (0, -0.012, -0.03), (-12, 0, 0), bevel=0.002, segs=1), d, (6, 6))
     return {"body": body, "slide": slide, "mag": mag}
 
