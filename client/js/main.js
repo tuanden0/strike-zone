@@ -1,4 +1,5 @@
 // App shell: title -> (practice | online lobby -> room) -> game.
+import * as THREE from '../vendor/three.module.js';
 import { Sfx } from './audio.js';
 import { Input, isTouch } from './input.js';
 import { Hud } from './hud.js';
@@ -18,6 +19,17 @@ async function fetchJson(url) {
   if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
   return r.json();
 }
+
+// three.js builds its shader-cache key from `this.onBeforeCompile.toString()`. Firefox extensions that hook Function.prototype.toString make that
+// throw "Permission denied to access object" and the renderer never starts. This game never sets onBeforeCompile, so fall back to a constant key.
+const cacheKey = THREE.Material.prototype.customProgramCacheKey;
+THREE.Material.prototype.customProgramCacheKey = function () {
+  try {
+    return cacheKey.call(this);
+  } catch {
+    return '';
+  }
+};
 
 const state = { spec: null, map: null, maps: [], mapData: {}, mapGlb: {}, safeImages: false, assets: null, game: null, net: null, lobby: null, nick: '', online: false };
 const sfx = new Sfx();
