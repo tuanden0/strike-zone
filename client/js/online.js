@@ -172,7 +172,7 @@ export class Online {
         const w = this.spec.weapons[ev.w];
         if (ev.by !== me) {
           const v = game.remotes.get(ev.by);
-          if (v) v.flash = 0.05;
+          if (v) v.fire();
           game.playAt(w.id, ev.from);
           if (!w.melee) game.tracer([ev.from[0], ev.from[1] - 0.2, ev.from[2]], ev.to);
         }

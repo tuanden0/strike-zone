@@ -2,10 +2,26 @@
 import * as THREE from '../vendor/three.module.js';
 import { stepMove, createKin, aimDir, rayWorld } from './physics.js';
 import { Loadout } from './weapons.js';
-import { buildWorld, buildLights, TEAM_COLORS } from './world.js';
-import { createCharacter, createWeaponModel, nameSprite } from './models.js';
+import { buildWorld, buildLights, buildEnvironment } from './world.js';
+import { Soldier, nameSprite, applyAnisotropy, flashTexture } from './models.js';
+import { clone } from '../vendor/SkeletonUtils.js';
 
 const INTERP_MS = 100;
+const FP_WEAPONS = ['rifle', 'pistol', 'knife'];
+// first-person placement per weapon: camera-space position + scale + muzzle (model space) + ejection port
+const FP = {
+  rifle: { pos: [0.2, -0.25, -0.66], scale: 0.8, muzzle: [0, 0.066, -0.7], port: [0.03, 0.085, -0.03] },
+  pistol: { pos: [0.1, -0.13, -0.5], scale: 0.9, muzzle: [0, 0.062, -0.2], port: [0.017, 0.075, -0.03] },
+  knife: { pos: [0.13, -0.12, -0.45], scale: 1.0, muzzle: null, port: null },
+};
+
+function readQuality() {
+  try {
+    return localStorage.getItem('sz.quality') === 'low' ? 'low' : 'high';
+  } catch {
+    return 'high'; // skip: storage blocked, default quality is fine
+  }
+}
 const lerp = (a, b, t) => a + (b - a) * t;
 const lerpAngle = (a, b, t) => {
   let d = (b - a) % (Math.PI * 2);
@@ -23,15 +39,11 @@ export class RemoteView {
     this.team = team;
     this.buf = [];
     this.alive = true;
-    this.fall = 0;
-    this.flash = 0;
     this.stepDist = 0;
     this.last = null;
     this.t = 0;
-    const ids = game.spec.weapons.map((w) => w.id);
-    this.char = createCharacter(game.spec, TEAM_COLORS[team] ?? 0xcccccc, ids);
+    this.char = new Soldier(game.assets[team === 'B' ? 'character_b' : 'character_a'], game.spec);
     this.group = this.char.group;
-    this.char.setWeapon(0);
     game.scene.add(this.group);
     this.label = null;
     if (showLabel) {
@@ -70,10 +82,9 @@ export class RemoteView {
     const latest = b[b.length - 1];
     this.alive = latest.alive;
     this.char.setWeapon(latest.w);
+    this.char.setDead(!this.alive);
     this.group.position.set(s.x, s.y, s.z);
     this.group.rotation.y = s.yaw;
-    this.fall = Math.max(0, Math.min(1, this.fall + (this.alive ? -dt * 4 : dt * 3)));
-    this.char.setDead(this.fall);
     this.t += dt;
     let speed = 0;
     if (this.last && dt > 0) {
@@ -90,25 +101,24 @@ export class RemoteView {
       }
     }
     this.last = { x: s.x, y: s.y, z: s.z };
-    this.char.animate(this.alive ? speed : 0, this.t);
-    this.flash -= dt;
-    this.char.muzzle.visible = this.flash > 0;
+    this.char.update(dt, this.alive && s.y < 0.05 ? speed : 0);
+    this.char.setShadow(Math.hypot(s.x - this.game.camera.position.x, s.z - this.game.camera.position.z) < 32);
+  }
+
+  fire() {
+    this.char.fire();
   }
 
   dispose() {
     this.game.scene.remove(this.group);
-    this.group.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) {
-        if (o.material.map) o.material.map.dispose();
-        o.material.dispose();
-      }
-    });
+    if (this.label) this.label.material.map.dispose(), this.label.material.dispose();
+    this.char.dispose(); // geometries/materials are shared between clones: not disposed here
   }
 }
 
 export class Game {
-  constructor({ canvas, spec, map, sfx, hud, input }) {
+  constructor({ canvas, spec, map, sfx, hud, input, assets }) {
+    this.assets = assets;
     this.canvas = canvas;
     this.spec = spec;
     this.map = map;
@@ -120,42 +130,64 @@ export class Game {
     this.remotes = new Map();
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.autoClear = false;
+    this.quality = readQuality();
+    this.renderer.shadowMap.enabled = this.quality === 'high';
+    this.renderer.setPixelRatio(this.pixelRatio());
+    this.aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    const env = buildEnvironment(this.renderer);
+
     this.scene = new THREE.Scene();
-    buildLights(this.scene);
-    this.scene.add(buildWorld(map));
+    this.sun = buildLights(this.scene, env, true);
+    this.sun.castShadow = this.quality === 'high';
+    this.scene.add(buildWorld(map, assets, this.aniso));
     this.camera = new THREE.PerspectiveCamera(78, 1, 0.05, 200);
     this.scene.add(this.camera);
+    for (const k of ['character_a', 'character_b']) applyAnisotropy(assets[k].scene, this.aniso);
 
+    // First-person pass (own scene/camera so the weapon never clips into walls).
     this.viewScene = new THREE.Scene();
-    this.viewScene.add(new THREE.HemisphereLight(0xffffff, 0x666666, 2.2));
-    const vl = new THREE.DirectionalLight(0xffffff, 1.2);
-    vl.position.set(1, 2, 1);
+    this.viewScene.environment = env;
+    this.viewScene.environmentIntensity = 0.9;
+    this.viewScene.add(new THREE.HemisphereLight(0xdfeaff, 0x7a7568, 0.7));
+    const vl = new THREE.DirectionalLight(0xfff0dc, 2.2);
+    vl.position.set(-1.5, 2, 1);
     this.viewScene.add(vl);
     this.viewCam = new THREE.PerspectiveCamera(60, 1, 0.01, 10);
-    this.vm = spec.weapons.map((w) => {
+    this.vm = FP_WEAPONS.map((id) => {
       const g = new THREE.Group();
-      const model = createWeaponModel(w.id);
-      model.scale.setScalar(0.7);
+      const model = clone(assets[id + '_fp'].scene);
+      applyAnisotropy(model, this.aniso);
+      model.traverse((o) => {
+        if (o.isMesh) o.frustumCulled = false;
+      });
       g.add(model);
-      const arm = new THREE.Mesh(
-        new THREE.BoxGeometry(0.07, 0.07, 0.3),
-        new THREE.MeshLambertMaterial({ color: 0x3a4a63 }),
-      );
-      arm.position.set(0.0, -0.1, w.melee ? 0.1 : 0.16);
-      arm.rotation.x = 0.4;
-      g.add(arm);
+      g.userData.slide = model.getObjectByName('slide');
+      g.userData.mag = model.getObjectByName('mag');
+      g.userData.bolt = model.getObjectByName('bolt');
+      for (const k of ['slide', 'mag', 'bolt']) if (g.userData[k]) g.userData[k + 'Rest'] = g.userData[k].position.clone();
       g.visible = false;
       this.viewScene.add(g);
       return g;
     });
     this.vmFlash = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.22, 0.22),
-      new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }),
+      new THREE.PlaneGeometry(0.24, 0.24),
+      new THREE.MeshBasicMaterial({ map: flashTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }),
     );
     this.vmFlash.visible = false;
     this.viewScene.add(this.vmFlash);
+    // Ejected brass (first person only, purely cosmetic).
+    this.casings = Array.from({ length: 10 }, () => {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.0055, 0.04, 6), new THREE.MeshStandardMaterial({ color: 0xc79a3a, metalness: 1, roughness: 0.35 }));
+      m.visible = false;
+      m.userData = { life: 0, v: new THREE.Vector3() };
+      this.viewScene.add(m);
+      return m;
+    });
 
     this.tracers = Array.from({ length: 24 }, () => {
       const m = new THREE.Mesh(
@@ -202,6 +234,49 @@ export class Game {
 
     this._onResize = () => this.resize();
     window.addEventListener('resize', this._onResize);
+    this.resize();
+  }
+
+  // Compile every shader variant up front (characters, first-person models, shadows) so the first frame in a
+  // match does not stall for seconds. Temporary soldiers are added to the scene only for the compile.
+  async warmup() {
+    const tmp = ['character_a', 'character_b'].map((k) => new Soldier(this.assets[k], this.spec));
+    tmp.forEach((t) => this.scene.add(t.group));
+    this.vm.forEach((g) => (g.visible = true));
+    try {
+      if (this.renderer.extensions.has('KHR_parallel_shader_compile')) {
+        await this.renderer.compileAsync(this.scene, this.camera);
+        await this.renderer.compileAsync(this.viewScene, this.viewCam);
+      } else {
+        this.renderer.compile(this.scene, this.camera);
+        this.renderer.compile(this.viewScene, this.viewCam);
+      }
+    } finally {
+      this.vm.forEach((g) => (g.visible = false));
+      tmp.forEach((t) => {
+        this.scene.remove(t.group);
+        t.dispose();
+      });
+    }
+  }
+
+  pixelRatio() {
+    return this.quality === 'high' ? Math.min(window.devicePixelRatio || 1, 1.5) : 1;
+  }
+
+  setQuality(q) {
+    this.quality = q === 'low' ? 'low' : 'high';
+    this.renderer.shadowMap.enabled = this.quality === 'high';
+    this.sun.castShadow = this.quality === 'high';
+    this.renderer.setPixelRatio(this.pixelRatio());
+    this.scene.traverse((o) => {
+      if (o.material) for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.needsUpdate = true; // shadow shader variants
+    });
+    try {
+      localStorage.setItem('sz.quality', this.quality);
+    } catch {
+      // skip: persisting the quality choice is a convenience only
+    }
     this.resize();
   }
 
@@ -345,7 +420,10 @@ export class Game {
       this.kick = 1;
       this.sinceFire = 0;
       if (w.melee) this.swing = 1;
-      else this.flashT = 0.05;
+      else {
+        this.flashT = 0.05;
+        this.ejectCasing();
+      }
       const rp = w.recoilPitch;
       this.input.pitch = Math.min(1.55, this.input.pitch + rp);
       this.input.yaw += (Math.random() - 0.5) * 2 * w.recoilYaw;
@@ -384,7 +462,7 @@ export class Game {
     this.renderer.clear();
     this.renderer.render(this.scene, this.camera);
     this.renderer.clearDepth();
-    if (this.alive) this.renderer.render(this.viewScene, this.viewCam);
+    if (this.alive && !this.debugCam) this.renderer.render(this.viewScene, this.viewCam);
 
     this.frames++;
     this.fpsT += dt;
@@ -407,6 +485,10 @@ export class Game {
     this.camera.position.set(lerp(p.x, k.x, alpha), ey, lerp(p.z, k.z, alpha));
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.set(this.input.pitch, this.input.yaw, this.alive ? 0 : this.deadT * 0.6);
+    if (this.debugCam) { // free camera for screenshots/tests: {pos:[x,y,z], look:[x,y,z]}
+      this.camera.position.set(...this.debugCam.pos);
+      this.camera.lookAt(...this.debugCam.look);
+    }
 
     // view model
     this.bob += dt * (this.alive && k.onGround ? this.speed : 0) * 1.6;
@@ -433,23 +515,64 @@ export class Game {
       rotY -= s * 0.9;
       rotX -= s * 0.6;
     }
-    const base = this.loadout.weapon.melee ? [0.16, -0.13, -0.4] : cur === 1 ? [0.15, -0.14, -0.42] : [0.16, -0.15, -0.5];
+    const fp = FP[FP_WEAPONS[cur]];
+    g.scale.setScalar(fp.scale);
     g.position.set(
-      base[0] + Math.sin(this.bob) * 0.008,
-      base[1] - drop + Math.abs(Math.cos(this.bob)) * 0.006,
-      base[2] + this.kick * 0.05,
+      fp.pos[0] + Math.sin(this.bob) * 0.008,
+      fp.pos[1] - drop + Math.abs(Math.cos(this.bob)) * 0.006,
+      fp.pos[2] + this.kick * 0.05,
     );
-    g.rotation.set(rotX + (this.loadout.weapon.melee ? 0.35 : 0), rotY, rotZ);
+    g.rotation.set(rotX + (this.loadout.weapon.melee ? 0.25 : 0), rotY, rotZ);
+
+    // moving parts: pistol slide kicks back; rifle bolt + magazine move during a reload
+    const u = g.userData;
+    if (u.slide) u.slide.position.z = u.slideRest.z + this.kick * 0.03;
+    if (u.mag || u.bolt) {
+      let r = 0;
+      if (this.loadout.reloading) {
+        const w = this.loadout.weapon;
+        const prog = Math.max(0, Math.min(1, 1 - (this.loadout.reloadDone - this.tickNo) / w.reloadTicks));
+        r = prog < 0.25 ? prog / 0.25 : prog < 0.6 ? 1 : Math.max(0, 1 - (prog - 0.6) / 0.25);
+      }
+      if (u.mag) u.mag.position.y = u.magRest.y - r * 0.16;
+      if (u.bolt) u.bolt.position.z = u.boltRest.z + (this.loadout.reloading ? 0.04 * Math.max(0, r - 0.5) * 2 : 0);
+    }
 
     this.flashT -= dt;
-    this.vmFlash.visible = this.alive && this.flashT > 0;
+    this.vmFlash.visible = this.alive && this.flashT > 0 && !!fp.muzzle;
     if (this.vmFlash.visible) {
-      this.vmFlash.position.set(g.position.x, g.position.y + 0.02, g.position.z - (cur === 1 ? 0.22 : 0.55));
+      const m = new THREE.Vector3(fp.muzzle[0], fp.muzzle[1], fp.muzzle[2]).multiplyScalar(fp.scale).applyEuler(g.rotation).add(g.position);
+      this.vmFlash.position.copy(m);
       this.vmFlash.rotation.z = Math.random() * 3;
+      this.vmFlash.scale.setScalar(0.8 + Math.random() * 0.5);
+      this.vmFlash.quaternion.copy(this.viewCam.quaternion);
+      this.vmFlash.rotateZ(Math.random() * 3);
     }
   }
 
+  ejectCasing() {
+    const fp = FP[FP_WEAPONS[this.loadout.cur]];
+    if (!fp.port) return;
+    const m = this.casings.find((c) => !c.visible) || this.casings[0];
+    const g = this.vm[this.loadout.cur];
+    const p = new THREE.Vector3(fp.port[0], fp.port[1], fp.port[2]).multiplyScalar(fp.scale).applyEuler(g.rotation).add(g.position);
+    m.position.copy(p);
+    m.userData.v.set(0.9 + Math.random() * 0.5, 0.9 + Math.random() * 0.5, 0.6 + Math.random() * 0.4);
+    m.userData.life = 0.7;
+    m.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+    m.visible = true;
+  }
+
   updateEffects(dt) {
+    for (const c of this.casings) {
+      if (!c.visible) continue;
+      c.userData.life -= dt;
+      c.userData.v.y -= 6 * dt;
+      c.position.addScaledVector(c.userData.v, dt);
+      c.rotation.x += 14 * dt;
+      c.rotation.z += 9 * dt;
+      if (c.userData.life <= 0) c.visible = false;
+    }
     for (const m of this.tracers) {
       if (!m.visible) continue;
       m.userData.life -= dt;

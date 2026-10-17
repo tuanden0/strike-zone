@@ -3,7 +3,7 @@ package client
 
 import "embed"
 
-// FS holds index.html, css/, js/, shared/ and vendor/.
+// FS holds index.html, css/, js/, shared/, vendor/ and assets/ (generated .glb models).
 //
-//go:embed index.html css js shared vendor
+//go:embed index.html css js shared vendor assets
 var FS embed.FS

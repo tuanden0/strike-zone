@@ -289,7 +289,7 @@ func TestCrossOriginRejectedOnRealServer(t *testing.T) {
 
 func TestStaticClientServedWithSecurityHeaders(t *testing.T) {
 	ts := newTestServer(t)
-	for path, want := range map[string]string{"/": "Strike Zone", "/js/main.js": "import", "/shared/spec.json": "tickRate"} {
+	for path, want := range map[string]string{"/": "Strike Zone", "/js/main.js": "import", "/shared/spec.json": "tickRate", "/assets/models/map.glb": "glTF", "/assets/models/character_a.glb": "glTF", "/vendor/GLTFLoader.js": "GLTFLoader"} {
 		resp, err := http.Get(ts.URL + path)
 		if err != nil {
 			t.Fatal(err)

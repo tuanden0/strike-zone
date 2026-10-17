@@ -12,6 +12,8 @@ const SPOTS = [
   { x: 0, z: 11, mx: 5, sp: 2.2 },
 ];
 
+const WEAPONS = [0, 0, 1, 2, 0, 1, 0, 2]; // dummies hold rifle / pistol / knife for variety
+
 export class Practice {
   constructor(spec, map) {
     this.spec = spec;
@@ -52,7 +54,7 @@ export class Practice {
         tg.vx = nx - tg.px;
         tg.px = nx;
       }
-      tg.view.setNow({ x: tg.px, y: 0, z: tg.pz, yaw: tg.mx ? (tg.vx > 0 ? -Math.PI / 2 : Math.PI / 2) : 0, alive: tg.alive, w: 0 });
+      tg.view.setNow({ x: tg.px, y: 0, z: tg.pz, yaw: tg.mx ? (tg.vx > 0 ? -Math.PI / 2 : Math.PI / 2) : 0, alive: tg.alive, w: WEAPONS[tg.id - 1] });
     }
     if (res && res.fired) this.fire(cmd, game);
     this.refresh(game);

@@ -8,6 +8,7 @@ import { Net } from './net.js';
 import { LobbyUI } from './lobby.js';
 import { Online } from './online.js';
 import { prepareMap } from './physics.js';
+import { loadAssets } from './assets.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -17,7 +18,7 @@ async function fetchJson(url) {
   return r.json();
 }
 
-const state = { spec: null, map: null, game: null, net: null, lobby: null, nick: '', online: false };
+const state = { spec: null, map: null, assets: null, game: null, net: null, lobby: null, nick: '', online: false };
 const sfx = new Sfx();
 state.sfx = sfx;
 const canvas = $('view');
@@ -41,7 +42,7 @@ function cleanNick(s) {
 }
 
 function ensureGame() {
-  if (!state.game) state.game = new Game({ canvas, spec: state.spec, map: state.map, sfx, hud, input });
+  if (!state.game) state.game = new Game({ canvas, spec: state.spec, map: state.map, sfx, hud, input, assets: state.assets });
   return state.game;
 }
 
@@ -150,16 +151,38 @@ $('btn-team-b').addEventListener('click', () => state.net && state.net.send({ t:
 $('sens').addEventListener('input', (e) => input.setSens(Number(e.target.value) / 10000));
 $('vol').addEventListener('input', (e) => sfx.setVolume(Number(e.target.value) / 100));
 $('sens').value = String(Math.round(input.sens * 10000));
+$('quality').addEventListener('change', (e) => {
+  if (state.game) state.game.setQuality(e.target.value);
+  else {
+    try {
+      localStorage.setItem('sz.quality', e.target.value);
+    } catch {
+      // skip: persisting the choice is a convenience only
+    }
+  }
+});
+try {
+  $('quality').value = localStorage.getItem('sz.quality') === 'low' ? 'low' : 'high';
+} catch {
+  // skip: storage blocked, keep the default
+}
 
 (async () => {
   try {
+    setStatus('title-status', 'Loading game data…', true);
     const [spec, mapJson] = await Promise.all([fetchJson('shared/spec.json'), fetchJson('shared/map.json')]);
     state.spec = spec;
     state.map = prepareMap(mapJson);
+    state.assets = await loadAssets(undefined, (p) => setStatus('title-status', `Loading models… ${Math.round(p * 100)}%`, true));
+    setStatus('title-status', 'Preparing graphics…', true);
+    await ensureGame().warmup();
     window.__sz = state; // debug/e2e hook
+    window.__sz.sfx = sfx;
+    setStatus('title-status', '');
+    $('btn-online').disabled = false;
+    $('btn-practice').disabled = false;
   } catch (e) {
+    console.error(e);
     setStatus('title-status', `Failed to load game data: ${e.message}`);
-    $('btn-online').disabled = true;
-    $('btn-practice').disabled = true;
   }
 })();

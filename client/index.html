@@ -31,8 +31,8 @@
     <label for="nick">Nickname</label>
     <input id="nick" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Player">
     <div class="row">
-      <button id="btn-online" class="primary">Play online</button>
-      <button id="btn-practice">Practice range</button>
+      <button id="btn-online" class="primary" disabled>Play online</button>
+      <button id="btn-practice" disabled>Practice range</button>
     </div>
     <p id="title-status" class="status"></p>
     <p class="hint">WASD move · Mouse aim · Space jump · Shift walk · R reload · 1/2/3 weapons · Tab scoreboard</p>
@@ -79,6 +79,8 @@
     <input id="sens" type="range" min="3" max="80" value="22">
     <label for="vol">Volume</label>
     <input id="vol" type="range" min="0" max="100" value="70">
+    <label for="quality">Graphics</label>
+    <select id="quality"><option value="high">High (shadows)</option><option value="low">Low (faster)</option></select>
     <p id="pause-status" class="status"></p>
   </div>
 </section>
