@@ -113,6 +113,8 @@ Not tested with a real controller (only a fake pad in `e2e/gamepad.mjs`).
 
 **Crouch:** hold `Shift` (touch: **DUCK** toggle). Crouching lowers your eye (0.98 m) and hitboxes (1.15 m tall: a shot at standing head height passes over you), slows you to 2.2 m/s, makes no footstep noise and forbids jumping. Releasing Shift under a low ceiling keeps you crouched until there is room to stand. Other players see the crouch pose. This replaces the old Shift=walk binding; walking is now `Alt`.
 
+**Players are solid:** you cannot walk through other players, bots or the practice dummies; you stop against them, slide along them, and can stand on their heads. Dead players are not obstacles.
+
 **Knife:** left click slashes (40 damage; a slash that hits the head is a headshot, x2.5 = kills). **Right click (touch: SCOPE button, gamepad: LT) = overhead stab**: the knife is raised, lands 0.3 s later and then needs 1.2 s before any other attack. Damage depends on where it lands: legs and belly 50 (+25%), chest up to the neck 80 (x2), head = headshot (160, kills). Switching weapon or dying cancels it.
 
 **Kill medals:** when you kill someone, a medal pops up under the crosshair: **HEADSHOT** (gold), **KNIFE KILL**, **GRENADE KILL** or **KILL**, with the victim's name; kills within 4 s of each other add DOUBLE / TRIPLE / MULTI KILL. Works online and on the practice range (no medal for killing yourself).

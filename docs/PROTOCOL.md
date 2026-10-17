@@ -78,6 +78,8 @@ Before `hello` only `hello`, `resume` and `ping` are accepted. Protocol violatio
 | `vt` | uint32, optional | **Lag compensation:** the server tick of the newest snapshot the client had drawn others from (view tick). Hitscan shots are tested against the other players where they were at that tick, rewound at most `lagComp.maxRewindTicks` (10 = 333 ms) from the current one; missing/too old/in the future = no rewind (or the cap). The shooter's own position is never rewound. |
 | `drop`, `use` | bool | Edge-detected server side. `drop` throws the current weapon (knife cannot be dropped); `use` picks up the nearest weapon within `pickups.radius` (swaps with the held weapon if that slot is occupied). Missing = false. |
 
+**Player collision:** the server blocks a player's movement against the other living players' boxes (same size as their hitbox body/head, see `PlayerSolids`); the client predicts with the latest known positions of the others.
+
 **Movement extras** (`spec.player`): `stepHeight` (0.45 m) is the tallest ledge you walk onto without jumping (stairs, fine-stepped ramps); landing on the ground
 with a downward speed above `fall.safeSpeed` (9 m/s) costs `(speed - safeSpeed) × fall.damagePerSpeed` HP (a kill shows weapon "Fall", no score). The server reports the landing speed to the
 client through the shared physics (`kin.impact`), so prediction and server agree.

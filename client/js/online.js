@@ -191,7 +191,7 @@ export class Online {
       k.vy = you.vy;
       k.onGround = you.g;
       k.crouch = !!you.cr;
-      for (const p of this.pending) stepMove(this.spec, game.map, k, p.cmd);
+      for (const p of this.pending) stepMove(this.spec, game.map, k, p.cmd, game.solids(k));
       this.maxCorr = Math.max(this.maxCorr, Math.hypot(k.x - px, k.y - py, k.z - pz)); // prediction error, for diagnostics
       game.loadout.sync(you, tAck);
       for (const p of this.pending) game.loadout.step(p.cmd, p.tick);

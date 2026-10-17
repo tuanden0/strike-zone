@@ -1,7 +1,7 @@
 // Regenerates server/internal/game/testdata/golden_move.json from the JS physics.
 // Run: node scripts/gen-golden.mjs   (the Go test then proves Go == JS)
 import { readFileSync, writeFileSync } from 'node:fs';
-import { stepMove, createKin, prepareMap } from '../client/js/physics.js';
+import { stepMove, playerSolids, createKin, prepareMap } from '../client/js/physics.js';
 import { Loadout, burstKick, spread, bloom } from '../client/js/weapons.js';
 
 const spec = JSON.parse(readFileSync(new URL('../client/shared/spec.json', import.meta.url)));
@@ -9,7 +9,7 @@ const map = prepareMap(JSON.parse(readFileSync(new URL('../client/shared/map.jso
 let seed = 12345;
 const rnd = () => ((seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 4294967296);
 
-function run(start, gen, n, extraBoxes = null) {
+function run(start, gen, n, extraBoxes = null, others = null) {
   const m = extraBoxes ? { ...map, boxes: [...map.boxes, ...extraBoxes] } : map;
   const k = createKin(...start);
   const inputs = [];
@@ -17,10 +17,10 @@ function run(start, gen, n, extraBoxes = null) {
   for (let i = 0; i < n; i++) {
     const c = gen(i);
     inputs.push(c);
-    stepMove(spec, m, k, c);
+    stepMove(spec, m, k, c, others ? playerSolids(spec, k, others.map((o) => ({ alive: true, ...o }))) : null);
     expect.push({ x: k.x, y: k.y, z: k.z, vy: k.vy, g: k.onGround, c: k.crouch, i: k.impact });
   }
-  return { start, inputs, expect, boxes: extraBoxes };
+  return { start, inputs, expect, boxes: extraBoxes, others };
 }
 
 let yaw = 0;
@@ -47,6 +47,11 @@ const scenarios = [
   ]),
   // walk off a 3 m platform: the landing speed (impact) is part of the golden data, then a short hop (no impact)
   run([0, 3, 14.5], (i) => ({ f: i < 40 ? 1 : 0, s: 0, yaw: 0, jump: i === 90, walk: false }), 140, [[-3, 0, 14, 3, 3, 16]]),
+  // other players as obstacles: run into one, slide along it, walk around (strafe), then a crouching one in the way; a start inside a player
+  // walks apart and the player is solid again afterwards; jumping in front of a player does not carry you through
+  run([0, 0, 20], (i) => ({ f: i < 120 ? 1 : 0.6, s: i > 60 && i < 75 ? 1 : i > 100 && i < 112 ? -1 : 0, yaw: 0, jump: false, walk: false }), 220, null, [{ x: 0, y: 0, z: 14 }, { x: 0.4, y: 0, z: 10, c: true }]),
+  run([0, 0, 16.2], (i) => ({ f: i < 40 ? -1 : -0.2 + (i < 90 ? 0 : 1.2), s: 0, yaw: 0, jump: false, walk: false }), 140, null, [{ x: 0, y: 0, z: 16 }]),
+  run([0, 0, 18], (i) => ({ f: i < 30 ? 1 : 0, s: 0, yaw: 0, jump: i === 12 || i === 20, walk: false }), 90, null, [{ x: 0, y: 0, z: 16.7 }]),
 ];
 writeFileSync(new URL('../server/internal/game/testdata/golden_move.json', import.meta.url), JSON.stringify(scenarios));
 for (const sc of scenarios) console.log('scenario steps', sc.inputs.length, 'final', JSON.stringify(sc.expect.at(-1)));

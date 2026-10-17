@@ -34,8 +34,8 @@ function overlaps(spec, map, k) {
   return false;
 }
 
-// Advance one fixed tick. cmd: {f, s, yaw, jump, walk, crouch}. dt = 1/tickRate.
-export function stepMove(spec, map, k, cmd) {
+// Advance one fixed tick. cmd: {f, s, yaw, jump, walk, crouch}. dt = 1/tickRate. extra: more solid boxes (other players, see playerSolids).
+export function stepMove(spec, map, k, cmd, extra = null) {
   const p = spec.player;
   const dt = 1 / spec.tickRate;
   const hw = p.halfWidth;
@@ -66,7 +66,7 @@ export function stepMove(spec, map, k, cmd) {
   }
   k.vy -= p.gravity * dt;
 
-  const b = map.boxes;
+  const b = extra && extra.length ? map.boxes.concat(extra) : map.boxes;
   const hit = (o) => k.x + hw > o[0] && k.x - hw < o[3] && k.y + height > o[1] && k.y < o[4] && k.z + hw > o[2] && k.z - hw < o[5];
   // step-up: a grounded player walks onto an obstacle whose top is at most stepHeight above the feet (stairs, kerbs, ramps made of
   // small steps) when there is headroom there; anything higher blocks as before (jump instead)
@@ -184,4 +184,20 @@ export function rayPlayer(spec, o, d, maxT, x, y, z, crouch = false) {
   if (th < 0 && tb < 0) return null;
   if (th >= 0 && (tb < 0 || th <= tb)) return { t: th, head: true };
   return { t: tb, head: false };
+}
+
+// The boxes of the other living players as obstacles for k's next step (others: [{x, y, z, c (crouching), alive}]). A player that k already
+// overlaps is left out so that the two can walk apart instead of being stuck. Must stay identical to PlayerSolids in server/internal/game/physics.go.
+const EPS = 1e-6;
+export function playerSolids(spec, k, others) {
+  const hw = spec.player.halfWidth;
+  const h = heightOf(spec, k);
+  const out = [];
+  for (const o of others) {
+    if (!o.alive) continue;
+    const b = [o.x - hw, o.y, o.z - hw, o.x + hw, o.y + heightOf(spec, { crouch: !!o.c }), o.z + hw];
+    if (k.x + hw > b[0] + EPS && k.x - hw < b[3] - EPS && k.y + h > b[1] + EPS && k.y < b[4] - EPS && k.z + hw > b[2] + EPS && k.z - hw < b[5] - EPS) continue; // (a touch is not an overlap, even with rounding noise)
+    out.push(b);
+  }
+  return out;
 }

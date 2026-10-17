@@ -367,9 +367,20 @@ func (w *World) Step() {
 	}
 }
 
+// solidsFor lists the other living players as obstacles for p's movement (players do not walk through each other or through bots).
+func (w *World) solidsFor(p *Player) [][6]float64 {
+	others := make([]Kin, 0, len(w.order))
+	for _, id := range w.order {
+		if o := w.players[id]; o != p && o.Alive {
+			others = append(others, o.Kin)
+		}
+	}
+	return PlayerSolids(w.Spec, &p.Kin, others)
+}
+
 func (w *World) apply(p *Player, in Input) {
 	p.Yaw, p.Pitch = in.Yaw, in.Pitch
-	p.Speed = Step(w.Spec, w.Map, &p.Kin, MoveCmd{F: in.F, S: in.S, Yaw: in.Yaw, Jump: in.Jump, Walk: in.Walk, Crouch: in.Crouch})
+	p.Speed = Step(w.Spec, w.Map, &p.Kin, MoveCmd{F: in.F, S: in.S, Yaw: in.Yaw, Jump: in.Jump, Walk: in.Walk, Crouch: in.Crouch}, w.solidsFor(p)...)
 	p.LastSeq = in.Seq
 	p.ViewTick = in.VT
 	if p.Kin.Impact > w.Spec.Player.Fall.SafeSpeed {

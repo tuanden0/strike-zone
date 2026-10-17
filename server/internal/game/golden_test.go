@@ -18,6 +18,10 @@ type goldenScenario struct {
 	Start  [3]float64
 	Inputs []goldenCmd
 	Boxes  [][6]float64 // extra collision boxes for this scenario (e.g. a low beam)
+	Others []struct {   // other (static, living) players standing in the scenario
+		X, Y, Z float64
+		C       bool
+	}
 	Expect []struct {
 		X, Y, Z, Vy float64
 		G, C        bool
@@ -45,8 +49,8 @@ func TestMoveMatchesJSGolden(t *testing.T) {
 	if err := json.Unmarshal(raw, &sc); err != nil {
 		t.Fatal(err)
 	}
-	if len(sc) < 8 {
-		t.Fatalf("expected >=8 scenarios, got %d", len(sc))
+	if len(sc) < 11 {
+		t.Fatalf("expected >=11 scenarios, got %d", len(sc))
 	}
 	crouched, landings := 0, 0
 	const eps = 1e-9
@@ -59,7 +63,15 @@ func TestMoveMatchesJSGolden(t *testing.T) {
 			mm = &c
 		}
 		for i, in := range s.Inputs {
-			Step(spec, mm, &k, MoveCmd{F: in.F, S: in.S, Yaw: in.Yaw, Jump: in.Jump, Walk: in.Walk, Crouch: in.Crouch})
+			var solids [][6]float64
+			if len(s.Others) > 0 {
+				ks := make([]Kin, len(s.Others))
+				for j, o := range s.Others {
+					ks[j] = Kin{X: o.X, Y: o.Y, Z: o.Z, Crouch: o.C}
+				}
+				solids = PlayerSolids(spec, &k, ks)
+			}
+			Step(spec, mm, &k, MoveCmd{F: in.F, S: in.S, Yaw: in.Yaw, Jump: in.Jump, Walk: in.Walk, Crouch: in.Crouch}, solids...)
 			if k.Crouch {
 				crouched++
 			}

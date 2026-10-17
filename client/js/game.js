@@ -1,6 +1,6 @@
 // Rendering + fixed-tick local simulation. Mode objects (practice.js / online.js) plug in game rules.
 import * as THREE from '../vendor/three.module.js';
-import { stepMove, createKin, aimDir, rayWorld, eyeOf } from './physics.js';
+import { stepMove, playerSolids, createKin, aimDir, rayWorld, eyeOf } from './physics.js';
 import { Loadout, burstKick, spread } from './weapons.js';
 import { buildWorld, buildLights, buildEnvironment, fitShadow } from './world.js';
 import { Pickups } from './pickups.js';
@@ -492,7 +492,7 @@ export class Game {
     if (this.alive) {
       const wasGround = this.kin.onGround;
       const fallVy = this.kin.vy; // vertical speed before the step (landing loudness)
-      stepMove(this.spec, this.map, this.kin, cmd);
+      stepMove(this.spec, this.map, this.kin, cmd, this.solids(this.kin));
       const dx = this.kin.x - this.prev.x;
       const dz = this.kin.z - this.prev.z;
       const d = Math.hypot(dx, dz);
@@ -509,6 +509,16 @@ export class Game {
       this.onLocalWeapon(res, cmd);
     }
     if (this.mode && this.mode.onTick) this.mode.onTick(cmd, res, this);
+  }
+
+  // Other players (and practice dummies) as obstacles for k, from their latest known positions: the server blocks against their real ones.
+  solids(k) {
+    const others = [];
+    for (const r of this.remotes.values()) {
+      const s = r.buf[r.buf.length - 1];
+      if (s) others.push(s);
+    }
+    return playerSolids(this.spec, k, others);
   }
 
   // Select the next (dir 1) / previous (-1) weapon you own.
