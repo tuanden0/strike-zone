@@ -36,6 +36,26 @@ try {
   check('Resume shows touch controls without pointer lock', await sz(p, () => !document.pointerLockElement && !document.getElementById('touch').hidden));
   await p.waitForFunction(() => window.__sz.game.tickNo > 20);
 
+  // page zoom must be impossible: CSS touch-action, JS guards, 16 px inputs, and rapid FIRE taps leave the scale at 1
+  const zoom = await p.evaluate(() => {
+    const ta = (el) => getComputedStyle(el).touchAction;
+    const prevented = (make) => { const e = make(); document.body.dispatchEvent(e); return e.defaultPrevented; };
+    const canvas = document.getElementById('view');
+    const touch = (id) => new Touch({ identifier: id, target: canvas, clientX: 100 + id * 50, clientY: 100 });
+    return {
+      html: ta(document.documentElement), body: ta(document.body), layer: ta(document.getElementById('touch')), menu: ta(document.getElementById('screen-pause')),
+      gesture: prevented(() => new Event('gesturestart', { cancelable: true, bubbles: true })),
+      dbl: prevented(() => new MouseEvent('dblclick', { cancelable: true, bubbles: true })),
+      pinch: (() => { const e = new TouchEvent('touchstart', { cancelable: true, bubbles: true, touches: [touch(1), touch(2)], targetTouches: [touch(1), touch(2)], changedTouches: [touch(2)] }); canvas.dispatchEvent(e); return e.defaultPrevented; })(),
+      input: getComputedStyle(document.getElementById('nick')).fontSize,
+    };
+  });
+  check('touch-action none on page + controls, pan-y on menus', zoom.html === 'none' && zoom.body === 'none' && zoom.layer === 'none' && zoom.menu === 'pan-y', JSON.stringify(zoom));
+  check('pinch / double-tap / gesture events are cancelled', zoom.gesture && zoom.dbl && zoom.pinch);
+  check('inputs are 16 px (no iOS focus zoom)', zoom.input === '16px', zoom.input);
+  for (let i = 0; i < 12; i++) await p.tap('#t-fire', { force: true });
+  check('12 rapid FIRE taps: page scale stays 1 and the HUD is still reachable', await p.evaluate(() => (!window.visualViewport || window.visualViewport.scale === 1) && window.__sz.input.locked && !document.getElementById('touch').hidden));
+
   // Left thumb: drag the stick up -> walk forward.
   const z0 = await sz(p, () => ({ x: window.__sz.game.kin.x, z: window.__sz.game.kin.z }));
   await touch('touchStart', [[100, 250, 1]]);

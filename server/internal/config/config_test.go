@@ -65,3 +65,23 @@ func TestInvalid(t *testing.T) {
 		}
 	}
 }
+
+func TestUPnPSettings(t *testing.T) {
+	env := func(m map[string]string) func(string) string { return func(k string) string { return m[k] } }
+	c, err := Load(env(map[string]string{"PORT": "9000", "UPNP": "yes"}))
+	if err != nil || !c.UPnP || c.UPnPPort != 9000 {
+		t.Fatalf("UPNP=yes: %+v %v", c, err)
+	}
+	c, err = Load(env(map[string]string{"UPNP": "1", "UPNP_EXTERNAL_PORT": "28080"}))
+	if err != nil || c.UPnPPort != 28080 || c.Port != 8080 {
+		t.Fatalf("external port: %+v %v", c, err)
+	}
+	if c, err = Load(env(nil)); err != nil || c.UPnP {
+		t.Fatalf("UPnP must be off by default: %+v %v", c, err)
+	}
+	for _, bad := range []map[string]string{{"UPNP": "maybe"}, {"UPNP_EXTERNAL_PORT": "0"}, {"UPNP_EXTERNAL_PORT": "70000"}, {"UPNP_EXTERNAL_PORT": "x"}} {
+		if _, err := Load(env(bad)); err == nil {
+			t.Errorf("%v accepted", bad)
+		}
+	}
+}

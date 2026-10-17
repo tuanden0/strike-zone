@@ -69,10 +69,12 @@ export class Practice {
         tg.alive = true;
         tg.hp = 100;
       }
-      if (tg.mx) {
+      if (tg.mx && tg.alive) { // a dead dummy lies where it fell instead of sliding along its patrol line
         const nx = tg.x + Math.sin(this.t * tg.sp) * tg.mx;
         tg.vx = nx - tg.px;
         tg.px = nx;
+      } else if (!tg.alive) {
+        tg.vx = 0;
       }
       tg.view.setNow({ x: tg.px, y: 0, z: tg.pz, yaw: tg.mx ? (tg.vx > 0 ? -Math.PI / 2 : Math.PI / 2) : 0, alive: tg.alive, w: WEAPONS[tg.id - 1] });
     }

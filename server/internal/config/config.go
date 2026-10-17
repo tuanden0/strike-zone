@@ -17,6 +17,8 @@ type Config struct {
 	AllowedOrigins []string // extra WebSocket origins (lowercase scheme://host[:port])
 	AdminToken     string   // empty = admin endpoint disabled
 	MaxConnPerIP   int      // concurrent WebSocket connections per client IP
+	UPnP           bool     // temporarily forward the port on the router while the server runs (opt-in)
+	UPnPPort       int      // external port for UPnP (default = Port)
 }
 
 // Addr returns host:port suitable for net.Listen.
@@ -40,6 +42,23 @@ func Load(getenv func(string) string) (Config, error) {
 			return c, fmt.Errorf("PORT %q: must be an integer in 1..65535", v)
 		}
 		c.Port = p
+	}
+	if v := strings.ToLower(strings.TrimSpace(getenv("UPNP"))); v != "" {
+		switch v {
+		case "1", "true", "yes", "on":
+			c.UPnP = true
+		case "0", "false", "no", "off":
+		default:
+			return c, fmt.Errorf("UPNP %q: use 1/true/yes/on or 0/false/no/off", v)
+		}
+	}
+	c.UPnPPort = c.Port
+	if v := strings.TrimSpace(getenv("UPNP_EXTERNAL_PORT")); v != "" {
+		p, err := strconv.Atoi(v)
+		if err != nil || p < 1 || p > 65535 {
+			return c, fmt.Errorf("UPNP_EXTERNAL_PORT %q: must be an integer in 1..65535", v)
+		}
+		c.UPnPPort = p
 	}
 	if v := strings.TrimSpace(getenv("MAX_CONN_PER_IP")); v != "" {
 		n, err := strconv.Atoi(v)

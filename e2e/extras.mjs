@@ -29,6 +29,11 @@ try {
   // ---- yard: holes on wall/floor/crate, blood on a dummy ----
   const p = await practice('yard');
   check('yard map selected', await p.evaluate(() => window.__sz.game.mapId === 'yard'));
+  // a patrolling dummy that dies must stay where it fell (it used to keep sliding along its patrol line)
+  const fall = await p.evaluate(() => { const m = window.__sz.game.mode; const t = m.targets.find((x) => x.mx > 0); t.alive = false; t.respawnAt = m.t + 1e6; return { i: m.targets.indexOf(t), px: t.px, tick: window.__sz.game.tickNo }; });
+  await p.waitForFunction((t) => window.__sz.game.tickNo > t + 90, fall.tick);
+  const fell = await p.evaluate((i) => { const t = window.__sz.game.mode.targets[i]; return { px: t.px, vx: t.vx, x: t.view.group.position.x }; }, fall.i);
+  check('a dead patrolling dummy stays where it fell', fell.px === fall.px && fell.vx === 0 && Math.abs(fell.x - fall.px) < 0.01, JSON.stringify({ at: fall.px, now: fell }));
   const r = await p.evaluate(() => {
     const g = window.__sz.game, m = g.mode;
     for (const t of m.targets) t.mx = 0;

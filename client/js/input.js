@@ -1,6 +1,6 @@
 // Keyboard/mouse + Pointer Lock. Pointer Lock works on plain http:// (no secure context needed).
 
-import { TouchControls } from './touch.js';
+import { TouchControls, lockPageZoom } from './touch.js';
 
 const SENS_KEY = 'sz.sens';
 
@@ -45,6 +45,8 @@ export class Input {
     this.sensScale = 1; // < 1 while zoomed (set by Game.updateScope)
     if (this.touch) {
       document.body.classList.add('touch');
+      document.documentElement.classList.add('touch');
+      this.resetZoom = lockPageZoom();
       this.touchUi = new TouchControls(this);
     }
 
@@ -123,6 +125,7 @@ export class Input {
 
   lock() {
     if (this.touch) {
+      this.resetZoom();
       this.touchLocked = true;
       this.touchUi.show(true);
       try {

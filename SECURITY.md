@@ -41,3 +41,11 @@ Provenance of vendored code: `client/vendor/three.module.js` is `three@0.170.0` 
 * **Per-IP limits** assume distinct client IPs; `X-Forwarded-For` is deliberately ignored (a reverse proxy would make all clients share one IP; raise `MAX_CONN_PER_IP` then).
 * **DoS**: limits bound memory and CPU for a LAN, not a determined attacker with many source addresses.
 * Unsigned release binaries (`dist/`); verify with `SHA256SUMS`.
+
+## Optional internet exposure (`--open-port` / `UPNP=1`)
+
+Off by default. When enabled the server asks the router (UPnP) to forward its port and the run script opens the local firewall, both only
+while the process runs. Consequences: the game becomes reachable by anyone who learns the address, so rooms should have passwords (stored salted,
+5 wrong tries disconnect), all existing limits apply (per-IP connection cap, message rate limits, origin check, input validation), the admin endpoint stays
+disabled unless `ADMIN_TOKEN` is set, and there is no TLS (the browser shows plain `http://`). UPnP itself: the code only talks to RFC1918/link-local addresses,
+limits response sizes, never follows redirects, and every mapping has a lease. Not suitable for hostile public hosting; use it to play with friends for a session.

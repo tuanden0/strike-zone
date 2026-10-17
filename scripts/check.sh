@@ -7,6 +7,7 @@ export PATH="$PATH:$(go env GOPATH)/bin"
 echo "== gofmt";  test -z "$(gofmt -l .)" || { gofmt -l .; echo "gofmt needed"; exit 1; }
 echo "== vet";    go vet ./...
 echo "== test";   go test -race -count=1 ./...
+echo "== run.sh --open-port (stub firewall)"; bash "$(dirname "$0")/test-run.sh" | tail -3
 echo "== gitleaks"
 if command -v gitleaks >/dev/null; then
   gitleaks dir . --no-banner --redact

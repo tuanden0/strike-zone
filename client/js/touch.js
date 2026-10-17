@@ -7,6 +7,41 @@ const LOOK_GAIN = 2.2; // touch drag px -> radians relative to the mouse sensiti
 
 const $ = (id) => document.getElementById(id);
 
+// Browsers zoom the page on double-tap, pinch and (iOS) when an input under 16 px gets focus; user-scalable=no is ignored by
+// iOS Safari and Firefox. In a shooter that means a few quick FIRE taps can blow the page up with no way back. Block every path
+// (CSS touch-action does most of it) and undo a zoom that still slips through. Menus (.screen) keep vertical scrolling.
+export function lockPageZoom() {
+  const stop = (e) => e.preventDefault();
+  for (const t of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(t, stop, { passive: false }); // iOS Safari pinch
+  document.addEventListener('dblclick', stop, { passive: false });
+  const inMenu = (e) => e.target && e.target.closest && e.target.closest('.screen');
+  const multi = (e) => {
+    if (e.touches.length > 1 && !inMenu(e)) e.preventDefault(); // second finger of a pinch (stick + look + fire are pointer events and unaffected)
+  };
+  document.addEventListener('touchstart', multi, { passive: false });
+  document.addEventListener('touchmove', multi, { passive: false });
+  let lastEnd = 0;
+  document.addEventListener(
+    'touchend',
+    (e) => {
+      const now = Date.now();
+      if (now - lastEnd < 350 && !inMenu(e)) e.preventDefault(); // second tap of a double-tap
+      lastEnd = now;
+    },
+    { passive: false },
+  );
+  const meta = document.querySelector('meta[name=viewport]');
+  const content = meta ? meta.content : '';
+  const reset = () => {
+    const vv = window.visualViewport;
+    if (!meta || !vv || vv.scale <= 1.02) return;
+    meta.content = 'width=device-width, initial-scale=1, maximum-scale=1'; // re-applying the viewport makes the browser drop the zoom
+    requestAnimationFrame(() => (meta.content = content));
+  };
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', reset);
+  return reset;
+}
+
 export class TouchControls {
   constructor(input) {
     this.input = input;

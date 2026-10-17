@@ -62,7 +62,9 @@ td input { width: 120px; padding: 4px 6px; }
 
 /* ---- touch (phones/tablets) ---- */
 body.touch { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
-body.touch, body.touch canvas#view { touch-action: none; }
+html.touch, body.touch, body.touch canvas#view { touch-action: none; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.touch .screen { touch-action: pan-y; } /* menus scroll vertically, never pinch/double-tap zoom */
+.touch input, .touch select, .touch textarea { font-size: 16px; } /* iOS zooms the page when focusing a field under 16 px */
 @media (pointer: coarse) { button, input, select { min-height: 44px; } .screen { align-items: flex-start; } }
 #touch { position: fixed; inset: 0; z-index: 15; touch-action: none; }
 #t-zone { position: absolute; inset: 0; touch-action: none; }

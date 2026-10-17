@@ -27,6 +27,22 @@ Strike Zone listening on 0.0.0.0:8080
 
 Single machine only? `HOST=127.0.0.1 go run .`
 
+### Play over the internet (temporary port forward)
+
+```bash
+./scripts/run.sh --open-port        # Windows: .\scripts\run.ps1 -OpenPort     (or env OPEN_PORT=1 / UPNP=1)
+```
+
+While the server runs, the script opens the port twice: a **UPnP port forward on your router** (done by the server itself; it prints
+`INTERNET: http://<your public ip>:8080` to share) and a **temporary local firewall rule** (ufw / firewalld on Linux, Windows Firewall
+when elevated). Stopping the server (Ctrl+C or a normal exit) removes both again; the router entry also carries a 1 h lease that the server renews, so it
+disappears by itself if the process is killed. Only rules this run added are removed.
+
+* **Security:** while open, anyone who knows the address can connect. Create rooms with a password, and stop the server when you are done.
+* It needs UPnP enabled on the router, and a public WAN address: behind carrier-grade NAT (CGNAT) or a second router the server says so and nobody outside can reach you. Then forward the port by hand or use a VPN.
+* The script uses `sudo -n` for the firewall and never prompts; without sudo it prints the command to run yourself.
+* Tested with a fake router (UPnP) and stub firewall commands (`scripts/test-run.sh`); not tried against a real router or on Windows.
+
 ## Run without installing Go (binary)
 
 Build all targets once on any machine with Go:
@@ -89,6 +105,8 @@ Nothing is required. Invalid values make the server exit at startup with a clear
 | `PORT` | `8080` | Listen port (1–65535). |
 | `ALLOWED_ORIGINS` | *(empty)* | Extra WebSocket origins, comma separated, e.g. `http://game.lan:8080`. Same-origin (page host:port = WS host:port) is always allowed, so `localhost` and LAN IPs need no setup. |
 | `ADMIN_TOKEN` | *(unset)* | ≥16 chars. Enables `GET /admin/stats` (`Authorization: Bearer …`). Unset = endpoint returns 404. |
+| `UPNP` | `0` | `1` = forward the port on the router via UPnP while the server runs and remove it on exit (what `run.sh --open-port` sets). |
+| `UPNP_EXTERNAL_PORT` | = `PORT` | Public port to use on the router. |
 | `MAX_CONN_PER_IP` | `8` | Concurrent WebSocket connections per client IP (1–1000). |
 
 `.env.example` lists them; `scripts/run.*` load a local `.env` if you create one. Never commit `.env`.
