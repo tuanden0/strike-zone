@@ -25,6 +25,7 @@
     "maxScoreLimit": 100,
     "maxPlayers": 10
   },
+  "pickups": { "radius": 1.6, "respawnSeconds": 20, "dropLifetimeSeconds": 60, "dropForward": 0.9 },
   "weapons": [
     {
       "id": "rifle", "name": "AR-7 Rifle", "damage": 30, "headMult": 4, "range": 150,
@@ -40,6 +41,12 @@
       "id": "knife", "name": "Combat Knife", "damage": 40, "headMult": 1, "range": 2.2,
       "intervalTicks": 14, "auto": true, "magSize": 0, "reserve": 0, "reloadTicks": 0,
       "spread": 0, "moveSpread": 0, "recoilPitch": 0, "recoilYaw": 0, "melee": true
+    },
+    {
+      "id": "sniper", "name": "SR-9 Sniper", "damage": 100, "headMult": 4, "range": 400,
+      "intervalTicks": 42, "auto": false, "magSize": 5, "reserve": 15, "reloadTicks": 96,
+      "spread": 0.045, "moveSpread": 0.07, "recoilPitch": 0.05, "recoilYaw": 0.006, "melee": false,
+      "scopeFov": 14, "scopedSpread": 0, "pickupOnly": true
     }
   ]
 }

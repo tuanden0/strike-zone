@@ -27,6 +27,7 @@ type Self struct {
 	HP   int     `json:"hp"`
 	A    bool    `json:"a"`
 	W    int     `json:"w"`
+	Has  []bool  `json:"has"`
 	Mag  []int   `json:"mag"`
 	Res  []int   `json:"res"`
 	RL   int     `json:"rl"`   // ticks until reload completes (0 = not reloading)
@@ -76,7 +77,7 @@ func (w *World) SelfFor(id int) *Self {
 	s := &Self{
 		X: r3(p.Kin.X), Y: r3(p.Kin.Y), Z: r3(p.Kin.Z), Vy: r3(p.Kin.Vy), G: p.Kin.OnGround,
 		Yaw: r3(p.Yaw), HP: p.HP, A: p.Alive, W: p.Cur,
-		Mag: append([]int(nil), p.Mag...), Res: append([]int(nil), p.Res...),
+		Has: append([]bool(nil), p.Has...), Mag: append([]int(nil), p.Mag...), Res: append([]int(nil), p.Res...),
 		Prot: w.Tick < p.ProtectUntil, Seq: p.LastSeq,
 	}
 	if p.ReloadDone > w.Tick {

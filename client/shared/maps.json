@@ -1,0 +1,14 @@
+[
+ {
+  "id": "yard",
+  "label": "Crossfire Yard",
+  "file": "map.json",
+  "model": "map.glb"
+ },
+ {
+  "id": "crossroads",
+  "label": "Crossroads",
+  "file": "map_crossroads.json",
+  "model": "map_crossroads.glb"
+ }
+]

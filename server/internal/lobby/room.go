@@ -22,6 +22,7 @@ type Room struct {
 	ID    int
 	Name  string
 	Max   int
+	MapID string
 	World *game.World
 
 	locked  bool
@@ -34,8 +35,8 @@ func hashPassword(salt [16]byte, pw string) [32]byte {
 	return sha256.Sum256(append(salt[:], pw...))
 }
 
-func newRoom(id int, name, password string, max int, w *game.World) (*Room, error) {
-	r := &Room{ID: id, Name: name, Max: max, World: w, members: map[int]*Session{}}
+func newRoom(id int, name, password string, max int, mapID string, w *game.World) (*Room, error) {
+	r := &Room{ID: id, Name: name, Max: max, MapID: mapID, World: w, members: map[int]*Session{}}
 	if password != "" {
 		if _, err := rand.Read(r.salt[:]); err != nil {
 			return nil, err
@@ -112,7 +113,7 @@ func (r *Room) Leave(id int) (empty bool) {
 func (r *Room) Info() RoomInfo {
 	return RoomInfo{
 		ID: r.ID, Name: r.Name, Players: r.World.Len(), Max: r.Max, Locked: r.locked,
-		TimeLimit: r.World.Cfg.TimeLimitSec, ScoreLimit: r.World.Cfg.ScoreLimit, State: r.World.State,
+		TimeLimit: r.World.Cfg.TimeLimitSec, ScoreLimit: r.World.Cfg.ScoreLimit, State: r.World.State, Map: r.MapID,
 	}
 }
 

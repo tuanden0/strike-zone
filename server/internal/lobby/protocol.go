@@ -6,6 +6,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"strikezone/server/internal/game"
 )
 
 // Limits on user-supplied text.
@@ -49,6 +51,7 @@ type createMsg struct {
 	TimeLimit  int    `json:"timeLimit"` // seconds
 	ScoreLimit int    `json:"scoreLimit"`
 	Team       string `json:"team"`
+	Map        string `json:"map"` // map id from shared/maps.json; empty = default
 }
 
 type joinMsg struct {
@@ -84,6 +87,7 @@ type RoomInfo struct {
 	TimeLimit  int    `json:"timeLimit"`
 	ScoreLimit int    `json:"scoreLimit"`
 	State      string `json:"st"`
+	Map        string `json:"map"`
 }
 
 type roomsMsg struct {
@@ -111,6 +115,12 @@ type rosterMsg struct {
 	T       string        `json:"t"`
 	Players []RosterEntry `json:"players"`
 	Score   [2]int        `json:"sc"`
+}
+
+// pickupsMsg is the full list of weapons lying on the ground (sent on join and whenever it changes).
+type pickupsMsg struct {
+	T    string        `json:"t"`
+	List []game.Pickup `json:"list"`
 }
 
 type errorMsg struct {

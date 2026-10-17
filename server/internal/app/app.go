@@ -24,16 +24,21 @@ type App struct {
 
 // New builds the app from validated config.
 func New(cfg config.Config) (*App, error) {
-	spec, gmap, err := game.LoadDefault()
+	spec, maps, err := game.LoadAll()
 	if err != nil {
 		return nil, err
 	}
-	return NewWith(cfg, spec, gmap), nil
+	return NewWithMaps(cfg, spec, maps), nil
 }
 
-// NewWith builds the app with explicit game data (tests use custom maps/specs).
+// NewWith builds the app with explicit game data and a single map (tests use custom maps/specs).
 func NewWith(cfg config.Config, spec *game.Spec, gmap *game.Map) *App {
-	hub := lobby.NewHub(spec, gmap)
+	return NewWithMaps(cfg, spec, game.OneMap(gmap))
+}
+
+// NewWithMaps builds the app serving every map in the set.
+func NewWithMaps(cfg config.Config, spec *game.Spec, maps *game.MapSet) *App {
+	hub := lobby.NewHubMaps(spec, maps)
 	ws := wsserver.New(hub, wsserver.Config{AllowedOrigins: cfg.AllowedOrigins, MaxConnPerIP: cfg.MaxConnPerIP})
 
 	mux := http.NewServeMux()

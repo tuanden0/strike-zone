@@ -45,6 +45,9 @@ type Input struct {
 	Fire   bool    `json:"fire"`
 	Reload bool    `json:"reload"`
 	Weapon int     `json:"weapon"` // -1 = keep current; decode into Input{Weapon: -1}
+	Drop   bool    `json:"drop"`   // edge-detected server side: drop the current weapon
+	Use    bool    `json:"use"`    // edge-detected server side: pick up the nearest weapon
+	Scope  bool    `json:"scope"`  // zoom held; only has an effect with a scoped weapon (see WeaponSpec.ScopeFov)
 }
 
 func finite(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) }
@@ -83,6 +86,10 @@ type Player struct {
 	Deaths       int
 
 	Cur        int
+	Has        []bool // weapon slots the player owns (drop/pickup change this)
+	PrevDrop   bool
+	PrevUse    bool
+	Scoped     bool // scope held with a scoped weapon and not reloading, as of the last input
 	Mag, Res   []int
 	NextFire   int
 	ReloadDone int // tick when reload completes; 0 = not reloading
@@ -113,14 +120,19 @@ type World struct {
 	endsAt    int
 	restartAt int
 
-	players map[int]*Player
-	order   []int
-	events  []Event
-	shots   []*Player // shooters queued this tick, resolved after all movement
-	rng     *rand.Rand
-	spawnN  int
+	players    map[int]*Player
+	order      []int
+	events     []Event
+	pickups    map[int]*Pickup
+	respawns   []pickupRespawn
+	nextPickup int
+	shots      []*Player // shooters queued this tick, resolved after all movement
+	rng        *rand.Rand
+	spawnN     int
 	// Dirty is set when roster-visible data (score, kills, teams) changed; owner clears it.
 	Dirty bool
+	// PickupsDirty is set when the ground weapons changed; the owner broadcasts them and clears it.
+	PickupsDirty bool
 }
 
 // NewWorld creates a match. seed makes spread deterministic for tests.
@@ -132,6 +144,8 @@ func NewWorld(spec *Spec, m *Map, cfg MatchConfig, seed uint64) *World {
 		State:   StatePlaying,
 	}
 	w.endsAt = w.ticks(float64(cfg.TimeLimitSec))
+	w.pickups = map[int]*Pickup{}
+	w.resetPickups()
 	return w
 }
 
@@ -314,6 +328,7 @@ func (w *World) Step() {
 		}
 	}
 	w.resolveShots()
+	w.stepPickups()
 	if w.State == StatePlaying && w.Tick >= w.endsAt {
 		w.endMatch()
 	}
@@ -345,6 +360,7 @@ func (w *World) restart() {
 	w.Winner = ""
 	w.Score = [2]int{}
 	w.endsAt = w.Tick + w.ticks(float64(w.Cfg.TimeLimitSec))
+	w.resetPickups()
 	for _, id := range w.order {
 		p := w.players[id]
 		p.Kills, p.Deaths = 0, 0

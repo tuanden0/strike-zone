@@ -60,7 +60,7 @@ func TestMoveMatchesJSGolden(t *testing.T) {
 
 func TestLoadDefault(t *testing.T) {
 	s, m := mustLoad(t)
-	if s.TickRate != 30 || len(s.Weapons) != 3 || len(m.Boxes) == 0 || len(m.Spawns["A"]) == 0 {
+	if s.TickRate != 30 || len(s.Weapons) != 4 || len(m.Boxes) == 0 || len(m.Spawns["A"]) == 0 {
 		t.Fatalf("unexpected defaults: %+v", s)
 	}
 }

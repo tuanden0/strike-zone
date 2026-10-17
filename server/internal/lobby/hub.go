@@ -45,7 +45,7 @@ type Session struct {
 type Hub struct {
 	mu       sync.Mutex
 	spec     *game.Spec
-	gmap     *game.Map
+	maps     *game.MapSet
 	rooms    map[int]*Room
 	sessions map[int]*Session
 	nextRoom int
@@ -53,9 +53,12 @@ type Hub struct {
 	seed     uint64
 }
 
-// NewHub creates an empty hub.
-func NewHub(spec *game.Spec, m *game.Map) *Hub {
-	return &Hub{spec: spec, gmap: m, rooms: map[int]*Room{}, sessions: map[int]*Session{}, nextRoom: 1, nextID: 1, seed: 1}
+// NewHub creates an empty hub serving a single map (the default id).
+func NewHub(spec *game.Spec, m *game.Map) *Hub { return NewHubMaps(spec, game.OneMap(m)) }
+
+// NewHubMaps creates an empty hub serving every map in the set.
+func NewHubMaps(spec *game.Spec, maps *game.MapSet) *Hub {
+	return &Hub{spec: spec, maps: maps, rooms: map[int]*Room{}, sessions: map[int]*Session{}, nextRoom: 1, nextID: 1, seed: 1}
 }
 
 // Register allocates a session for a new connection.
@@ -249,9 +252,17 @@ func (h *Hub) create(s *Session, m createMsg) error {
 		h.sendErr(s, CodeTooManyRoom, "too many rooms")
 		return nil
 	}
+	mapID := m.Map
+	if mapID == "" {
+		mapID = h.maps.Default()
+	}
+	gm := h.maps.Maps[mapID]
+	if gm == nil {
+		return h.violation(s, CodeBadRequest, "unknown map")
+	}
 	h.seed++
-	w := game.NewWorld(h.spec, h.gmap, game.MatchConfig{TimeLimitSec: m.TimeLimit, ScoreLimit: m.ScoreLimit}, h.seed)
-	r, err := newRoom(h.nextRoom, name, m.Password, m.Max, w)
+	w := game.NewWorld(h.spec, gm, game.MatchConfig{TimeLimitSec: m.TimeLimit, ScoreLimit: m.ScoreLimit}, h.seed)
+	r, err := newRoom(h.nextRoom, name, m.Password, m.Max, mapID, w)
 	if err != nil {
 		log.Printf("create room: %v", err)
 		h.sendErr(s, CodeBadRequest, "could not create room")
@@ -296,6 +307,7 @@ func (h *Hub) join(s *Session, m joinMsg) error {
 
 func (h *Hub) afterJoin(s *Session, r *Room, team string) {
 	s.Conn.Send(joinedMsg{T: "joined", Room: r.Info(), ID: s.ID, Team: team})
+	s.Conn.Send(pickupsMsg{T: "pk", List: r.World.Pickups()})
 	h.broadcastRoster(r)
 }
 
@@ -344,5 +356,12 @@ func (h *Hub) stepRoom(r *Room) {
 	}
 	if r.World.Dirty {
 		h.broadcastRoster(r)
+	}
+	if r.World.PickupsDirty {
+		msg := pickupsMsg{T: "pk", List: r.World.Pickups()}
+		for _, m := range r.members {
+			m.Conn.Send(msg)
+		}
+		r.World.PickupsDirty = false
 	}
 }

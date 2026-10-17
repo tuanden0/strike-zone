@@ -50,7 +50,7 @@ for (const sc of scenarios) console.log('scenario steps', sc.inputs.length, 'fin
     const inp = {
       fire: held || rnd() < 0.05,
       reload: rnd() < 0.03,
-      weapon: rnd() < 0.04 ? Math.floor(rnd() * 3) : -1,
+      weapon: rnd() < 0.04 ? Math.floor(rnd() * 4) : -1,
     };
     inputs.push(inp);
     lo.step(inp, tick);

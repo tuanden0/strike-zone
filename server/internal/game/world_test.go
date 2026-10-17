@@ -251,7 +251,7 @@ func TestSnapshotContents(t *testing.T) {
 		t.Fatalf("snapshot: %+v", s)
 	}
 	you := w.SelfFor(1)
-	if you.Seq != 1 || !you.A || you.HP != 100 || len(you.Mag) != 3 || !you.Prot {
+	if you.Seq != 1 || !you.A || you.HP != 100 || len(you.Mag) != 4 || !you.Prot {
 		t.Fatalf("self: %+v", you)
 	}
 	if w.SelfFor(99) != nil {
