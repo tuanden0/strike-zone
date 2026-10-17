@@ -29,7 +29,7 @@ try {
   // WebAudio works on plain http (no secure context needed) and every synthesized sound plays without throwing.
   const audio = await page.evaluate(() => {
     const sfx = window.__sz.sfx;
-    const names = ['rifle', 'pistol', 'knife', 'reload', 'empty', 'hit', 'headshot', 'hurt', 'kill', 'death', 'spawn', 'step', 'land', 'jump', 'switch', 'impact', 'end'];
+    const names = ['rifle', 'pistol', 'knife', 'reload', 'empty', 'hit', 'headshot', 'hurt', 'kill', 'death', 'spawn', 'scope_in', 'scope_out', 'step', 'land', 'jump', 'switch', 'impact', 'end'];
     try {
       for (const n of names) {
         sfx.play(n);

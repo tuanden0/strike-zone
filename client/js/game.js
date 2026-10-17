@@ -672,6 +672,10 @@ export class Game {
     const can = this.alive && w.scopeFov > 0 && !this.loadout.reloading;
     if (!can) this.input.scopeHeld = false; // toggled state ends when the scope stops being usable (reload, switch, death)
     const want = can && this.input.scopeHeld;
+    if (want !== !!this._scopeWant) { // edge only: scope turned on / off (also by reload, weapon switch or pause)
+      this._scopeWant = want;
+      if (this.alive) this.sfx.play(want ? 'scope_in' : 'scope_out'); // local and non-positional
+    }
     if (w.scopeFov > 0) this.scopeFov = w.scopeFov;
     this.scopeT = Math.max(0, Math.min(1, this.scopeT + (want ? 1 : -1) * dt * 7));
     if (!this.alive) this.scopeT = 0;

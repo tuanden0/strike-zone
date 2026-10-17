@@ -184,6 +184,20 @@ export class Sfx {
       case 'smoke':
         this._noise(v(0.5), t, 1.4, 5000, 800, 'highpass', 0.5);
         break;
+      case 'scope_in': { // servo whirr rising, then the lens-lock click
+        const o = v(0.35);
+        this._tone(o, t, 0.2, 260, 820, 'triangle', 0.5);
+        this._noise(o, t, 0.2, 1200, 3200, 'bandpass', 2.5);
+        this._tone(o, t + 0.2, 0.025, 2000, 900, 'square', 0.4);
+        break;
+      }
+      case 'scope_out': { // click, then the whirr falling away
+        const o = v(0.3);
+        this._tone(o, t, 0.025, 1500, 700, 'square', 0.4);
+        this._tone(o, t + 0.02, 0.16, 780, 240, 'triangle', 0.4);
+        this._noise(o, t + 0.02, 0.16, 3000, 1000, 'bandpass', 2.5);
+        break;
+      }
       case 'end':
         this._tone(v(0.5), t, 0.6, 440, 220, 'triangle');
         break;
