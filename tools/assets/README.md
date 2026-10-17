@@ -13,7 +13,9 @@ python tools/assets/rifle.py --no-preview    # skip the Cycles preview renders (
 | Script | Output |
 |--------|--------|
 | `map_kit.py` | `map.glb` — one prop per collision box in `client/shared/map.json` (so visuals == collision) |
+| `gen_crossroads_map.py` + `crossroads_kit.py` | `client/shared/map_crossroads.json` and `map_crossroads.glb` (empty four-way intersection) |
 | `rifle.py` | `rifle.glb`, `rifle_fp.glb` (first person, with gloved hands) |
+| `sniper.py` | `sniper.glb`, `sniper_fp.glb` (bolt-action scoped rifle; held by characters via the rifle's hand slot) |
 | `pistol.py` | `pistol.glb`, `pistol_fp.glb` |
 | `knife.py` | `knife.glb`, `knife_fp.glb` |
 | `character.py` | `character_a.glb`, `character_b.glb` (team colours; armature + animations) |

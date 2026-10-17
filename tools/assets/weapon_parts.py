@@ -93,6 +93,52 @@ def rifle(detail="high"):
     return {"body": body, "mag": mag, "bolt": bolt}
 
 
+def sniper(detail="high"):
+    """Bolt-action scoped rifle. Grip/trigger/fore-end sit where the rifle's do, so the rifle hold pose fits it."""
+    hi = detail == "high"
+    body, mag, bolt = Builder("sniper"), Builder("sniper_mag"), Builder("sniper_bolt")
+    g, p, d = "gunmetal", "polymer", "steel_dark"
+    # --- action, fore-end, long barrel with muzzle brake
+    body.add(box((0.048, 0.36, 0.07), (0, 0.04, 0.07), bevel=0.006), g, (4, 4))
+    body.add(box((0.052, 0.34, 0.06), (0, 0.3, 0.046), bevel=0.012), "polymer_tan", (4, 4))  # fore-end
+    body.add(cyl(0.0135, 0.0105, 0.62, (0, 0.62, 0.07), (90, 0, 0), 10), g, (4, 4))  # heavy barrel
+    body.add(cyl(0.021, 0.021, 0.09, (0, 0.95, 0.07), (90, 0, 0), 10, bevel=0.002), d, (4, 4))  # muzzle brake
+    if hi:
+        for k in range(3):
+            body.add(box((0.046, 0.008, 0.012), (0, 0.925 + k * 0.025, 0.07), bevel=0), "rubber", (2, 2))  # brake ports
+        body.add(box((0.006, 0.07, 0.02), (0.027, 0.04, 0.09), bevel=0), d, (8, 8))  # ejection port
+        body.add(box((0.012, 0.3, 0.008), (0, 0.18, 0.108), bevel=0.002, segs=1), d, (4, 4))  # receiver rail
+    # --- scope: tube, objective bell, eyepiece, mounts, turrets
+    body.add(cyl(0.0225, 0.0225, 0.30, (0, 0.08, 0.158), (90, 0, 0), 12), d, (4, 4))
+    body.add(cyl(0.0225, 0.034, 0.07, (0, 0.265, 0.158), (90, 0, 0), 12), d, (4, 4))  # objective bell
+    body.add(cyl(0.0225, 0.03, 0.05, (0, -0.085, 0.158), (90, 0, 0), 12), d, (4, 4))  # eyepiece
+    body.add(cyl(0.029, 0.029, 0.004, (0, 0.30, 0.158), (90, 0, 0), 12), "lens", (1, 1))  # front lens
+    body.add(cyl(0.024, 0.024, 0.004, (0, -0.111, 0.158), (90, 0, 0), 12), "lens", (1, 1))  # rear lens
+    for y in (0.0, 0.17):
+        body.add(box((0.03, 0.03, 0.04), (0, y, 0.12), bevel=0.004, segs=1), g, (4, 4))
+    body.add(cyl(0.011, 0.011, 0.03, (0, 0.085, 0.19), (0, 0, 0), 8), g, (4, 4))  # elevation turret
+    body.add(cyl(0.011, 0.011, 0.03, (0.03, 0.085, 0.158), (0, 90, 0), 8), g, (4, 4))  # windage turret
+    # --- stock: thumbhole-style taper with high cheek piece
+    secs = [(-0.34, 0.042, 0.11, 0.055), (-0.26, 0.042, 0.095, 0.07), (-0.17, 0.04, 0.075, 0.075), (-0.1, 0.034, 0.062, 0.07)]
+    body.add(loft([ring((0, y, z), (1, 0, 0), (0, 0, 1), w, h) for y, w, h, z in secs]), "polymer_tan", (4, 4))
+    body.add(box((0.036, 0.13, 0.026), (0, -0.2, 0.124), (2, 0, 0), bevel=0.008, segs=1), "polymer_tan", (4, 4))  # cheek riser
+    body.add(box((0.044, 0.022, 0.115), (0, -0.352, 0.052), (3, 0, 0), bevel=0.006), "rubber", (6, 6))  # recoil pad
+    # --- grip + trigger group (same place as the rifle's)
+    body.add(box((0.034, 0.05, 0.105), (0, -0.035, -0.045), (-16, 0, 0), bevel=0.008), p, (6, 6))
+    body.add(box((0.012, 0.075, 0.006), (0, 0.07, -0.04), bevel=0.0015, segs=1), g, (4, 4))
+    body.add(box((0.012, 0.006, 0.03), (0, 0.105, -0.025), bevel=0.0015, segs=1), g, (4, 4))
+    body.add(box((0.01, 0.01, 0.03), (0, 0.07, -0.012), (-20, 0, 0), bevel=0.002, segs=1), d, (4, 4))
+    if hi:  # folded bipod
+        for sx in (-1, 1):
+            body.add(cyl(0.005, 0.005, 0.15, (sx * 0.02, 0.5, 0.0), (80, 0, 0), 6), d, (4, 4))
+    # --- 5-round box magazine (flush under the action) and the bolt handle (cycles after each shot)
+    mag.add(box((0.032, 0.07, 0.06), (0, 0.07, -0.002), bevel=0.004, segs=1), p, (6, 6))
+    mag.add(box((0.034, 0.072, 0.008), (0, 0.07, -0.034), bevel=0.002, segs=1), d, (6, 6))
+    bolt.add(cyl(0.006, 0.006, 0.045, (0.04, -0.03, 0.075), (0, 90, 0), 8), d, (6, 6))
+    bolt.add(sphere(0.016, loc=(0.068, -0.03, 0.075), segs=8, rings=6), "rubber", (4, 4))
+    return {"body": body, "mag": mag, "bolt": bolt}
+
+
 def pistol(detail="high"):
     hi = detail == "high"
     body, slide, mag = Builder("pistol"), Builder("pistol_slide"), Builder("pistol_mag")

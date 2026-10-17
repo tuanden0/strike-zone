@@ -9,6 +9,6 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-for name in ("map_kit", "rifle", "pistol", "knife", "character"):
+for name in ("map_kit", "rifle", "sniper", "pistol", "knife", "character"):
     print(f"=== {name}")
     runpy.run_path(os.path.join(HERE, name + ".py"), run_name="__main__")

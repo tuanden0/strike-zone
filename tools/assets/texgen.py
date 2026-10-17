@@ -277,7 +277,47 @@ def leather(n=512, seed=15, color=(0.17, 0.13, 0.10)):
                 orm=np.stack([np.ones((n, n)), np.clip(0.6 + 0.2 * h, 0.2, 1), np.zeros((n, n))], -1))
 
 
+def asphalt(n=512, seed=16):
+    h = fbm(n, seed)
+    grit = dots(n, seed + 1, 500, 1.6)
+    crack = scratches(n, seed + 4, 14, 140)
+    oil = smooth01(pnoise(n, 2.8, seed + 9), 1.0, 2.0)
+    v = 0.30 + 0.05 * h + 0.07 * grit - 0.07 * oil - 0.1 * crack
+    base = tint((1.0, 1.0, 1.04), v)
+    return dict(base=np.clip(base, 0, 1), normal=normal_from_height(0.5 * h + grit * 1.2 - crack * 2.0, 3.0),
+                orm=np.stack([np.ones((n, n)), np.clip(0.88 - 0.2 * oil, 0.5, 1), np.zeros((n, n))], -1))
+
+
+def brick(n=512, seed=17):
+    """Running-bond brick, 4 bricks across a 1 m tile, 14 courses; mortar joints, colour variation, grime."""
+    r = _rng(seed)
+    base = np.zeros((n, n, 3))
+    ht = np.zeros((n, n))
+    rows, cols = 14, 4
+    rh = n / rows
+    cw = n / cols
+    h = fbm(n, seed + 3)
+    yy, xx = np.mgrid[0:n, 0:n]
+    row = (yy // rh).astype(int)
+    off = (row % 2) * (cw / 2)
+    col = ((xx + off) // cw).astype(int)
+    my = (yy % rh) / rh
+    mx = ((xx + off) % cw) / cw
+    mortar = (my < 0.09) | (my > 0.97) | (mx < 0.03) | (mx > 0.985)
+    tone = r.uniform(0.75, 1.15, (rows, cols + 1))
+    t = tone[row, np.minimum(col, cols)]
+    brickc = np.stack([0.50 * t, 0.24 * t, 0.17 * t], -1) * (0.92 + 0.08 * h[..., None])
+    mort = np.array([0.55, 0.53, 0.5]) * (0.9 + 0.1 * h[..., None])
+    base = np.where(mortar[..., None], mort, brickc)
+    grime = smooth01(1 - yy / n, 0.0, 1.0) * smooth01(pnoise(n, 2.4, seed + 5), -0.2, 1.6)
+    base = base * (1 - 0.3 * grime[..., None])
+    ht = np.where(mortar, -1.0, 0.2 * h)
+    return dict(base=np.clip(base, 0, 1), normal=normal_from_height(ht, 3.0),
+                orm=np.stack([np.ones((n, n)), np.full((n, n), 0.9), np.zeros((n, n))], -1))
+
+
 GENERATORS = dict(
+    asphalt=asphalt, brick=brick,
     concrete=concrete, floor_tile=floor_tile, outer_panel=outer_panel, wood=wood, container_metal=container_metal,
     burlap=burlap, steel=steel, fabric_camo=fabric_camo, nylon=nylon, polymer=polymer, gunmetal=gunmetal,
     blade=blade, rubber=rubber, skin=skin, leather=leather,
