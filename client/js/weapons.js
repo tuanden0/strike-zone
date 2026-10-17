@@ -47,6 +47,7 @@ export class Loadout {
     this.nextFire = 0;
     this.reloadDone = 0;
     this.prevFire = false;
+    this.prevHeavy = false;
     this.burst = 0; // consecutive shots; drives spread bloom and view-kick ramp
     this.burstUntil = 0;
   }
@@ -69,13 +70,14 @@ export class Loadout {
     this.nextFire = tAck + you.cd;
     this.reloadDone = you.rl > 0 ? tAck + you.rl : 0;
     this.prevFire = you.pf;
+    this.prevHeavy = false; // the pulse is one tick long and `cd` already covers a started stab
     this.burst = you.bu || 0;
     this.burstUntil = tAck + (you.bx || 0);
   }
 
-  // One fixed tick. Returns {fired, empty, reloadStarted, reloadDone, switched}.
+  // One fixed tick. Returns {fired, empty, reloadStarted, reloadDone, switched, heavy} (heavy: a melee stab was started).
   step(inp, tick) {
-    const out = { fired: false, empty: false, reloadStarted: false, reloadDone: false, switched: false };
+    const out = { fired: false, empty: false, reloadStarted: false, reloadDone: false, switched: false, heavy: false };
     let w = this.weapon;
     if (this.reloadDone > 0 && tick >= this.reloadDone) {
       const n = Math.min(w.magSize - this.mag[this.cur], this.res[this.cur]);
@@ -96,6 +98,13 @@ export class Loadout {
       this.reloadDone = tick + w.reloadTicks;
       this.burst = 0;
       out.reloadStarted = true;
+    }
+    const heavy = !!inp.heavy && !this.prevHeavy;
+    this.prevHeavy = !!inp.heavy;
+    if (heavy && w.heavy && tick >= this.nextFire && this.reloadDone === 0) {
+      this.nextFire = tick + w.heavy.intervalTicks;
+      this.burst = 0;
+      out.heavy = true;
     }
     const wants = inp.fire && (w.auto || !this.prevFire);
     this.prevFire = inp.fire;

@@ -100,7 +100,8 @@ export class Soldier {
     // the knife alternates slash, backhand and stab (a pause restarts the combo)
     this.combo = [this.shootA[KNIFE], act('slash_back_knife', THREE.LoopOnce), act('stab_knife', THREE.LoopOnce)];
     this.comboI = 0;
-    this.shoots = [...this.shootA, this.combo[1], this.combo[2]];
+    this.heavyA = act('stab_down_knife', THREE.LoopOnce); // right-click overhead stab
+    this.shoots = [...this.shootA, this.combo[1], this.combo[2], this.heavyA];
     this.comboGap = 9; // seconds since the last knife swing
     this.shootAct = this.shootA[0];
     this.death = act('death', THREE.LoopOnce);
@@ -152,6 +153,14 @@ export class Soldier {
     a.reset().play();
     this.shootT = a.getClip().duration;
     this.flashT = 0.05;
+  }
+
+  // Right-click overhead stab (starts when the server says so; the hit lands 0.3 s later).
+  stab() {
+    this.shootAct = this.heavyA;
+    this.heavyA.reset().play();
+    this.shootT = this.heavyA.getClip().duration;
+    this.comboGap = 0;
   }
 
   setDead(dead) {

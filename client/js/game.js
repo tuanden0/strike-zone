@@ -22,6 +22,9 @@ const KNIFE_SWINGS = [
   [[0, 0, 0, 0, 0, 0, 0], [0.3, 0, -0.04, 0.12, 0.3, 0, 0], [0.48, 0, 0.02, -0.28, 1.0, 0, 0], [0.66, 0, 0.02, -0.28, 1.0, 0, 0], [1, 0, 0, 0, 0, 0, 0]], // stab
 ];
 
+// Overhead stab (right click): the hand rises above the view, then the blade is driven down and forward, holds, recovers.
+const HEAVY_STAB = [[0, 0, 0, 0, 0, 0, 0], [0.33, 0.02, 0.2, 0.0, 0.3, 0, -0.1], [0.45, 0, -0.18, -0.35, -1.9, 0, 0], [0.62, 0, -0.18, -0.35, -1.9, 0, 0], [1, 0, 0, 0, 0, 0, 0]];
+
 function knifePose(keys, t) {
   for (let i = 1; i < keys.length; i++) {
     if (t <= keys[i][0]) {
@@ -35,6 +38,7 @@ function knifePose(keys, t) {
   return [0, 0, 0, 0, 0, 0];
 }
 
+const HEAVY_TIME = 0.9; // seconds of the overhead stab animation (windup 0.3 s, strike, recover)
 const NADE_POS = [0.15, -0.17, -0.56]; // held grenade in the view-model scene
 const FP_WEAPONS = ['rifle', 'pistol', 'knife', 'sniper'];
 const BASE_FOV = 78;
@@ -132,6 +136,10 @@ export class RemoteView {
     this.last = { x: s.x, y: s.y, z: s.z };
     this.char.update(dt, this.alive && s.y < 0.05 ? speed : 0);
     this.char.setShadow(Math.hypot(s.x - this.game.camera.position.x, s.z - this.game.camera.position.z) < 32);
+  }
+
+  stab() {
+    this.char.stab();
   }
 
   fire() {
@@ -264,6 +272,8 @@ export class Game {
     this.sinceFire = 99;
     this.flashT = 0;
     this.swing = 0;
+    this.heavyAt = 0; // tick when a started overhead stab lands (0 = none)
+    this.heavyT = 0; // seconds left of the overhead stab animation (first person)
     this.swingKind = 0; // knife combo step: 0 slash right-to-left, 1 backhand, 2 stab
     this.swingTick = -1e9; // tick of the last knife swing; a pause of 27 ticks (0.9 s) restarts the combo
     this.switchT = 0;
@@ -406,6 +416,8 @@ export class Game {
     this.deadT = 0;
     this.punch = 0;
     this.camLag = 0;
+    this.heavyAt = 0;
+    this.heavyT = 0;
     this.sfx.play('spawn');
   }
 
@@ -467,8 +479,13 @@ export class Game {
     cmd.yaw = this.input.yaw;
     cmd.pitch = this.input.pitch;
     this.nadeHold.tick(cmd, this.mode && this.mode.nades, this.tickNo);
+    if (cmd.alt && this.loadout.weapon.heavy && this.nadeHold.eq < 0) { // right click with a knife: the overhead stab (a one-tick pulse; no zoom)
+      cmd.heavy = true;
+      cmd.scope = false;
+      this.input.scopeHeld = false;
+    }
     if (!this.alive || (this.mode && (this.mode.frozen || this.mode.offline))) {
-      Object.assign(cmd, { f: 0, s: 0, jump: false, fire: false, reload: false, weapon: -1, scope: false, nade: 0 });
+      Object.assign(cmd, { f: 0, s: 0, jump: false, fire: false, reload: false, weapon: -1, scope: false, nade: 0, heavy: false });
     }
     this.prev = { ...this.kin };
     let res = null;
@@ -483,6 +500,12 @@ export class Game {
       if (cmd.jump && wasGround && !this.kin.onGround) this.playAt('jump', this.eye());
       this.footsteps.local(cmd, this.kin, d, this.speed, wasGround, fallVy); // steps by surface, stride and landing thuds
       res = this.loadout.step(cmd, this.tickNo);
+      if (res.heavy) this.heavyAt = this.tickNo + this.loadout.weapon.heavy.windupTicks;
+      if (res.switched) this.heavyAt = 0; // same cancel rule as the server
+      if (this.heavyAt && this.tickNo >= this.heavyAt) {
+        this.heavyAt = 0;
+        res.heavyLand = true; // practice resolves the hit now; online the server does
+      }
       this.onLocalWeapon(res, cmd);
     }
     if (this.mode && this.mode.onTick) this.mode.onTick(cmd, res, this);
@@ -508,6 +531,12 @@ export class Game {
       this.playAt('switch', null);
     }
     if (res.reloadStarted) this.sfx.play('reload');
+    if (res.heavy) {
+      this.heavyT = HEAVY_TIME;
+      this.heavyHit = false;
+      this.playAt('switch', null); // the knife is drawn back
+    }
+    if (res.heavyLand) this.sfx.play('knife');
     if (res.empty) this.sfx.play('empty');
     if (res.fired) {
       this.sfx.play(w.id);
@@ -635,7 +664,15 @@ export class Game {
     let sx = 0;
     let sy = 0;
     let sz = 0;
-    if (this.swing > 0 && this.loadout.weapon.melee) {
+    this.heavyT = Math.max(0, this.heavyT - dt);
+    if (this.debugHeavy) this.heavyT = HEAVY_TIME * (1 - this.debugHeavy.t); // screenshots/tests: freeze the overhead stab at {t}
+    if (this.heavyT > 0 && this.loadout.weapon.melee) {
+      const pose = knifePose(HEAVY_STAB, 1 - this.heavyT / HEAVY_TIME);
+      [sx, sy, sz] = pose;
+      rotX += pose[3];
+      rotY += pose[4];
+      rotZ += pose[5];
+    } else if (this.swing > 0 && this.loadout.weapon.melee) {
       const pose = knifePose(KNIFE_SWINGS[this.swingKind], 1 - this.swing);
       [sx, sy, sz] = pose;
       rotX += pose[3];

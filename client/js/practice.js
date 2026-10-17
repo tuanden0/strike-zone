@@ -46,6 +46,11 @@ const SPOTS = [
 
 const WEAPONS = [0, 0, 1, 2, 0, 3, 0, 2]; // dummies hold rifle / pistol / knife / sniper for variety
 
+// Damage multiplier of an overhead stab by where it landed (mirrors HeavySpec.Mult in spec.go): head, chest and above, or lower.
+function heavyMult(h, head, frac) {
+  return head ? h.headMult : frac >= h.upperFrac ? h.upperMult : h.lowMult;
+}
+
 export class Practice {
   constructor(spec, map, mapId = 'yard') {
     this.spots = SPOTS_BY_MAP[mapId] || SPOTS;
@@ -104,11 +109,12 @@ export class Practice {
       tg.view.setNow({ x: tg.px, y: 0, z: tg.pz, yaw: tg.mx ? (tg.vx > 0 ? -Math.PI / 2 : Math.PI / 2) : 0, alive: tg.alive, w: WEAPONS[tg.id - 1] });
     }
     if (res && res.fired) this.fire(cmd, game);
+    if (res && res.heavyLand) this.fire(cmd, game, game.loadout.weapon.heavy); // the overhead stab lands after its windup
     this.refresh(game);
   }
 
-  fire(cmd, game) {
-    const w = game.loadout.weapon;
+  fire(cmd, game, heavy = null) {
+    const w = heavy ? { ...game.loadout.weapon, damage: heavy.damage, range: heavy.range, headMult: 1 } : game.loadout.weapon;
     const o = game.eye();
     const d = game.aimWithSpread(cmd);
     const wallT = game.worldHit(o, d, w.range);
@@ -125,7 +131,7 @@ export class Practice {
     if (best) {
       this.hits++;
       if (best.h.head) this.heads++;
-      const dmg = w.damage * (best.h.head ? w.headMult : 1);
+      const dmg = heavy ? heavy.damage * heavyMult(heavy, best.h.head, to[1] / this.spec.player.body.y1) : w.damage * (best.h.head ? w.headMult : 1);
       best.tg.hp -= dmg;
       game.hud.hitmarker(best.h.head);
       game.sfx.play(best.h.head ? 'headshot' : 'hit');

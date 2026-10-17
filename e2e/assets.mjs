@@ -38,7 +38,7 @@ try {
   check('sniper <= 3000 tris', info.sniper.tris <= 3000, `${info.sniper.tris}`);
   check('pistol <= 1500 tris', info.pistol.tris <= 1500, `${info.pistol.tris}`);
   check('knife <= 800 tris', info.knife.tris <= 800, `${info.knife.tris}`);
-  const need = ['idle', 'run', 'crouch', 'death', 'hold_rifle', 'hold_pistol', 'hold_knife', 'shoot_rifle', 'shoot_pistol', 'shoot_knife', 'slash_back_knife', 'stab_knife'];
+  const need = ['idle', 'run', 'crouch', 'death', 'hold_rifle', 'hold_pistol', 'hold_knife', 'shoot_rifle', 'shoot_pistol', 'shoot_knife', 'slash_back_knife', 'stab_knife', 'stab_down_knife'];
   check('character has idle/run/crouch/shoot/death clips', need.every((c) => info.character_a.clips.includes(c) && info.character_b.clips.includes(c)));
 
   // ---- B. character fits the hitbox spec --------------------------------------------------------

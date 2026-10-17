@@ -4,7 +4,7 @@ Standing height 1.80 m (feet z=0, top of helmet z=1.80), facing +Y in Blender (=
 sized to fit the shared hitbox spec (client/shared/spec.json: body 0..1.45 m x 0.6 m, head 1.45..1.80 m x 0.36 m).
 Rigid-bound parts (one bone per part, overlapping joints) so the rig stays tiny and the export is robust.
 
-Clips: idle, run, crouch, hold_rifle/hold_pistol/hold_knife (arm poses), shoot_rifle/shoot_pistol/shoot_knife (+ slash_back_knife, stab_knife for the knife combo), death.
+Clips: idle, run, crouch, hold_rifle/hold_pistol/hold_knife (arm poses), shoot_rifle/shoot_pistol/shoot_knife (+ slash_back_knife, stab_knife for the knife combo, stab_down_knife for the right-click overhead stab), death.
 Leg/body clips never key the arm bones and the arm clips never key legs, so the client can layer them.
 Weapons (low-poly versions) are children of bone hand.R: nodes w_rifle, w_pistol, w_knife (client toggles visibility).
 
@@ -474,6 +474,12 @@ def clips(rig):
         t = i / (n - 1)
         return arm_to(keyed_path(t, [(0.0, Vector((0, 0, 0))), (0.3, Vector((-0.03, -0.20, 0.05))), (0.48, Vector((-0.03, 0.16, 0.02))), (0.62, Vector((-0.03, 0.16, 0.02))), (1.0, Vector((0, 0, 0)))]))
     make_clip(rig, "stab_knife", list(range(1, 15)), ARM_BONES, stab)
+
+    # overhead stab (right click): the fist goes up past the head, then the knife is driven down and forward; about 1 s, strike at 0.45
+    def stab_down(i, n):
+        t = i / (n - 1)
+        return arm_to(keyed_path(t, [(0.0, Vector((0, 0, 0))), (0.33, Vector((-0.02, -0.08, 0.46))), (0.45, Vector((0.02, 0.16, -0.08))), (0.62, Vector((0.02, 0.16, -0.08))), (1.0, Vector((0, 0, 0)))]))
+    make_clip(rig, "stab_down_knife", list(range(1, 25)), ARM_BONES, stab_down)
 
     # ---- death: topple backwards (root pivots at the feet), limbs go slack --------------------
     def death(i, n):

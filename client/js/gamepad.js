@@ -126,7 +126,10 @@ export class GamepadInput {
     this.crouch = state[B];
     this.fire = state[RT];
     if (pressed(RT)) input.tap = true; // a quick pull between two ticks still fires once
-    if (pressed(LT)) input.scopeHeld = !input.scopeHeld;
+    if (pressed(LT)) {
+      input.scopeHeld = !input.scopeHeld;
+      input.altPress = true; // with a knife LT is the overhead stab
+    }
     if (pressed(X)) input.reload = true;
     if (pressed(Y) || pressed(RB)) input.cycleWeapon(1);
     if (pressed(LB)) input.cycleWeapon(-1);

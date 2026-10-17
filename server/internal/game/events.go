@@ -2,7 +2,8 @@ package game
 
 // Event types.
 const (
-	EvShot  = "shot" // someone fired (or swung the knife)
+	EvShot  = "shot" // someone fired (or swung the knife); Hv marks the landing of a heavy stab
+	EvStab  = "stab" // someone started a heavy stab (animation cue; the hit follows after the windup)
 	EvHit   = "hit"  // a shot damaged a player
 	EvKill  = "kill"
 	EvThrow = "throw" // someone threw a grenade (sound)
@@ -25,6 +26,7 @@ type Event struct {
 	W    int         `json:"w"`
 	Dmg  int         `json:"dmg,omitempty"`
 	Head bool        `json:"head,omitempty"`
+	Hv   bool        `json:"hv,omitempty"`
 	Hit  string      `json:"hit,omitempty"`
 	From *[3]float64 `json:"from,omitempty"`
 	To   *[3]float64 `json:"to,omitempty"`

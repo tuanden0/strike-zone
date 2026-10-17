@@ -50,6 +50,7 @@ type Input struct {
 	VT     int     `json:"vt"`     // server tick the shooter's screen was showing the other players at (lag compensation; 0 = none)
 	Nade   int     `json:"nade"`   // throw grenade type Nade-1 (0 = none); cooldown + inventory enforced server side
 	NP     float64 `json:"np"`     // throw power 0 < np <= 1 for Nade (0 or missing = full power); scales the throw speed
+	Heavy  bool    `json:"heavy"`  // secondary attack of a melee weapon (right click); edge-detected server side
 	Use    bool    `json:"use"`    // edge-detected server side: pick up the nearest weapon
 	Scope  bool    `json:"scope"`  // zoom held; only has an effect with a scoped weapon (see WeaponSpec.ScopeFov)
 }
@@ -112,6 +113,8 @@ type Player struct {
 	NextFire   int
 	ReloadDone int // tick when reload completes; 0 = not reloading
 	PrevFire   bool
+	PrevHeavy  bool
+	HeavyAt    int // tick when a started heavy stab lands; 0 = none pending
 
 	budget     int    // inputs this player may still process (refills 1/tick) - stops speed hacks by input flooding
 	LastSeq    uint32 // last processed input
@@ -355,6 +358,7 @@ func (w *World) Step() {
 		}
 	}
 	w.recordHistory()
+	w.resolveHeavy()
 	w.resolveShots()
 	w.stepGrenades()
 	w.stepPickups()

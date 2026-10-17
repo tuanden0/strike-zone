@@ -92,6 +92,9 @@ try {
   check('hitmarker shown on hit event', await b.evaluate(() => document.getElementById('hitmarker').classList.contains('on')));
   const feed = await b.textContent('#killfeed');
   check('killfeed shows killer, weapon, headshot and victim', feed.includes('Bob') && feed.includes('Alice') && feed.includes('HS'), feed);
+  // a heavy stab by Alice: Bob's copy of her plays the overhead clip when the `stab` cue arrives
+  await b.evaluate(() => { const m = window.__sz.game.mode; const id = [...m.roster.keys()].find((k) => k !== m.myId); m.onEvent({ e: 'stab', by: id, w: 2 }); });
+  check('remote character plays the overhead stab on a stab cue', await b.evaluate(() => [...window.__sz.game.remotes.values()].some((r) => r.char.heavyA.isRunning())));
   const medal = await b.evaluate(() => document.getElementById('medal').innerText.replace(/\s+/g, ' ').trim());
   check('kill medal shows HEADSHOT and the victim', medal.startsWith('HEADSHOT') && medal.includes('Alice'), medal);
   check('HUD shows ping', (await a.textContent('#ping')).includes('ping'));

@@ -83,6 +83,7 @@ export class TouchControls {
     this.bindPress('t-drop', () => (input.drop = true));
     this.bindPress('t-scope', () => {
       input.scopeHeld = !input.scopeHeld;
+      input.altPress = true; // with a knife the same button is the overhead stab
       $('t-scope').classList.toggle('down', input.scopeHeld);
     });
     this.bindPress('t-menu', () => input.unlock());

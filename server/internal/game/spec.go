@@ -164,11 +164,37 @@ type WeaponSpec struct {
 	Melee         bool    `json:"melee"`
 	// Scope: ScopeFov > 0 (vertical field of view in degrees) lets the holder zoom with the `scope` input. Scoped shots use
 	// ScopedSpread instead of Spread (MoveSpread still applies). PickupOnly weapons are not part of the spawn loadout.
-	ScopeFov     float64 `json:"scopeFov"`
-	ScopedSpread float64 `json:"scopedSpread"`
-	PickupOnly   bool    `json:"pickupOnly"`
-	RecoilScale  float64 `json:"recoilScale"` // multiplies the damage-derived kick (0 = none, e.g. the knife)
-	BloomScale   float64 `json:"bloomScale"`  // multiplies the spread added by sustained fire (0 = none)
+	ScopeFov     float64    `json:"scopeFov"`
+	ScopedSpread float64    `json:"scopedSpread"`
+	PickupOnly   bool       `json:"pickupOnly"`
+	RecoilScale  float64    `json:"recoilScale"`     // multiplies the damage-derived kick (0 = none, e.g. the knife)
+	BloomScale   float64    `json:"bloomScale"`      // multiplies the spread added by sustained fire (0 = none)
+	Heavy        *HeavySpec `json:"heavy,omitempty"` // melee only: the secondary (right click) overhead stab
+}
+
+// HeavySpec is a melee weapon's slow secondary attack: after WindupTicks the stab lands for Damage (no head bonus) within Range, and the
+// next attack of any kind is possible IntervalTicks after the press. Moving or turning during the windup is allowed; dying, switching weapon
+// or a reload cancels it.
+type HeavySpec struct {
+	Damage        float64 `json:"damage"` // base; multiplied by where the stab lands (see Mult)
+	Range         float64 `json:"range"`
+	WindupTicks   int     `json:"windupTicks"`
+	IntervalTicks int     `json:"intervalTicks"`
+	LowMult       float64 `json:"lowMult"`   // legs and belly (below UpperFrac of the body box): a small bonus
+	UpperMult     float64 `json:"upperMult"` // chest up to the neck
+	UpperFrac     float64 `json:"upperFrac"` // where the chest starts, as a fraction of the body box height (0..1)
+	HeadMult      float64 `json:"headMult"`  // head: a headshot
+}
+
+// Mult is the damage multiplier of a stab that landed on the head, or at height frac (0 = feet, 1 = top of the body box) of the body.
+func (h *HeavySpec) Mult(head bool, frac float64) float64 {
+	switch {
+	case head:
+		return h.HeadMult
+	case frac >= h.UpperFrac:
+		return h.UpperMult
+	}
+	return h.LowMult
 }
 
 // Kick is the view kick (radians of pitch) of the first shot of a burst.
@@ -349,6 +375,9 @@ func validateSpec(s *Spec) error {
 		return fmt.Errorf("spec: bad match limits")
 	}
 	for _, w := range s.Weapons {
+		if h := w.Heavy; h != nil && (!w.Melee || h.Damage <= 0 || h.Range <= 0 || h.Range > 4 || h.WindupTicks < 1 || h.IntervalTicks <= h.WindupTicks || h.IntervalTicks > 150 || h.LowMult <= 0 || h.UpperMult <= 0 || h.HeadMult <= 0 || h.UpperFrac <= 0 || h.UpperFrac >= 1) {
+			return fmt.Errorf("spec: bad heavy attack on %q", w.ID)
+		}
 		if w.IntervalTicks < 1 || w.Range <= 0 || w.Damage <= 0 || w.HeadMult <= 0 || w.MagSize < 0 || w.Reserve < 0 || w.ReloadTicks < 0 ||
 			w.ScopeFov < 0 || (w.ScopeFov > 0 && (w.ScopeFov < 2 || w.ScopeFov > 60)) || w.ScopedSpread < 0 || (w.ScopeFov > 0 && w.Melee) || w.RecoilScale < 0 || w.BloomScale < 0 {
 			return fmt.Errorf("spec: bad weapon %q", w.ID)

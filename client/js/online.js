@@ -56,7 +56,7 @@ export class Online {
     this.seq++;
     this.net.send({
       t: 'in', seq: this.seq, f: cmd.f, s: cmd.s, yaw: cmd.yaw, pitch: cmd.pitch,
-      jump: cmd.jump, walk: cmd.walk, fire: cmd.fire, reload: cmd.reload, weapon: cmd.weapon, drop: cmd.drop, use: cmd.use, scope: cmd.scope, nade: cmd.nade, np: cmd.np, crouch: cmd.crouch, vt: this.viewTick(),
+      jump: cmd.jump, walk: cmd.walk, fire: cmd.fire, reload: cmd.reload, weapon: cmd.weapon, drop: cmd.drop, use: cmd.use, scope: cmd.scope, nade: cmd.nade, np: cmd.np, heavy: cmd.heavy, crouch: cmd.crouch, vt: this.viewTick(),
     });
     this.pending.push({ seq: this.seq, tick: game.tickNo, cmd: { ...cmd } });
     if (this.pending.length > MAX_PENDING) this.pending.shift();
@@ -212,7 +212,7 @@ export class Online {
         if (ev.by !== me) game.radar.ping(ev.by); // the radar shows a shooter for 2 s
         if (ev.by !== me) {
           const v = game.remotes.get(ev.by);
-          if (v) v.fire();
+          if (v && !ev.hv) v.fire(); // a heavy stab already played its animation when it started (`stab`)
           game.playAt(w.id, ev.from);
           if (!w.melee) game.tracer([ev.from[0], ev.from[1] - 0.2, ev.from[2]], ev.to);
         }
@@ -227,6 +227,13 @@ export class Online {
         }
         break;
       }
+      case 'stab': // someone started an overhead stab: the animation cue (the hit follows after the windup)
+        if (ev.by !== me) {
+          const v = game.remotes.get(ev.by);
+          if (v) v.stab();
+          game.radar.ping(ev.by);
+        }
+        break;
       case 'hit':
         if (ev.by === me) {
           this.hud.hitmarker(ev.head);

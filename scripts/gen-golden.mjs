@@ -63,6 +63,7 @@ for (const sc of scenarios) console.log('scenario steps', sc.inputs.length, 'fin
       fire: held || rnd() < 0.05,
       reload: rnd() < 0.03,
       weapon: rnd() < 0.04 ? Math.floor(rnd() * 4) : -1,
+      heavy: rnd() < 0.15, // secondary melee attack (only does anything with the knife)
     };
     inputs.push(inp);
     lo.step(inp, tick);

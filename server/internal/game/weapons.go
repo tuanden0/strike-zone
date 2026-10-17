@@ -18,6 +18,7 @@ func (w *World) resetLoadout(p *Player) {
 		p.Nades[i] = g.Count
 	}
 	p.NextThrow, p.FlashUntil = 0, 0
+	p.HeavyAt, p.PrevHeavy = 0, false
 }
 
 func canReload(p *Player, ws *WeaponSpec) bool {
@@ -51,6 +52,7 @@ func (w *World) weapons(p *Player, in Input) {
 		ws = &w.Spec.Weapons[p.Cur]
 		p.ReloadDone = 0
 		p.Burst = 0
+		p.HeavyAt = 0 // putting the knife away cancels a stab in progress
 		p.NextFire = max(p.NextFire, w.Tick+w.Spec.SwitchTicks)
 	}
 	if in.Reload && canReload(p, ws) && w.Tick >= p.NextFire {
@@ -58,6 +60,15 @@ func (w *World) weapons(p *Player, in Input) {
 		p.Burst = 0
 	}
 	p.Scoped = in.Scope && ws.ScopeFov > 0 && p.ReloadDone == 0
+	heavy := in.Heavy && !p.PrevHeavy
+	p.PrevHeavy = in.Heavy
+	if heavy && ws.Heavy != nil && w.Tick >= p.NextFire && p.ReloadDone == 0 {
+		p.NextFire = w.Tick + ws.Heavy.IntervalTicks
+		p.HeavyAt = w.Tick + ws.Heavy.WindupTicks
+		p.Burst = 0
+		p.ProtectUntil = 0
+		w.events = append(w.events, Event{E: EvStab, By: p.ID, W: p.Cur})
+	}
 	wants := in.Fire && (ws.Auto || !p.PrevFire)
 	p.PrevFire = in.Fire
 	if wants && w.Tick >= p.NextFire && p.ReloadDone == 0 {

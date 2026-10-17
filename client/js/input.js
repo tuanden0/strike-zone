@@ -48,6 +48,7 @@ export class Input {
     this.hudTap = null; // touch: (x, y) => true when a tap hit a HUD widget (the radar)
     this.mv = { f: 0, s: 0 }; // touch stick axes
     this.crouchHeld = false; // touch CROUCH toggle
+    this.altPress = false; // secondary button pressed since the last tick
     this.scopeHeld = false; // scope toggled on (right click / touch SCOPE button)
     this.sensScale = 1; // < 1 while zoomed (set by Game.updateScope)
     this.pad = new GamepadInput(this, (c) => this.onPadConnect(c));
@@ -70,7 +71,10 @@ export class Input {
     document.addEventListener('mousedown', (e) => {
       if (!this.locked || this.touch) return; // touch: synthesized mouse events would double-fire
       if (this.padLocked && document.pointerLockElement !== this.canvas) this.lockPointer(); // a click while playing with the pad: mouse + keyboard take over too
-      if (e.button === 2 && !e.repeat) this.scopeHeld = !this.scopeHeld; // toggle: click to scope in, click again to leave
+      if (e.button === 2 && !e.repeat) {
+        this.scopeHeld = !this.scopeHeld; // toggle: click to scope in, click again to leave
+        this.altPress = true; // the same click is the knife's overhead stab (a one-tick pulse, immune to the scope reset below)
+      }
       if (e.button !== 0) return;
       this.mouseDown = true;
       this.tap = true;
@@ -211,6 +215,7 @@ export class Input {
       drop: live && this.drop,
       use: live && this.use,
       scope: live && this.scopeHeld,
+      alt: live && this.altPress,
       nadeKey: live ? this.nadeKey : 0,
       nade: 0,
       weapon: live ? this.weapon : -1,
@@ -223,6 +228,7 @@ export class Input {
     this.drop = false;
     this.use = false;
     this.nadeKey = 0;
+    this.altPress = false;
     this.weapon = -1;
     return cmd;
   }

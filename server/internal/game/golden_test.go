@@ -175,8 +175,8 @@ func TestWeaponsMatchJSGolden(t *testing.T) {
 	}
 	var g struct {
 		Inputs []struct {
-			Fire, Reload bool
-			Weapon       int
+			Fire, Reload, Heavy bool
+			Weapon              int
 		}
 		Expect []struct {
 			Cur      int
@@ -197,7 +197,7 @@ func TestWeaponsMatchJSGolden(t *testing.T) {
 	p := add(t, w, 1, TeamA)
 	fired := 0
 	for i, in := range g.Inputs {
-		if err := w.QueueInput(1, Input{Seq: uint32(i + 1), Fire: in.Fire, Reload: in.Reload, Weapon: in.Weapon, Yaw: 0}); err != nil {
+		if err := w.QueueInput(1, Input{Seq: uint32(i + 1), Fire: in.Fire, Reload: in.Reload, Heavy: in.Heavy, Weapon: in.Weapon, Yaw: 0}); err != nil {
 			t.Fatal(err)
 		}
 		w.Step()

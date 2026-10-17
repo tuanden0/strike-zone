@@ -53,9 +53,10 @@
       "spread": 0.004, "moveSpread": 0.012, "melee": false, "recoilScale": 1, "bloomScale": 1
     },
     {
-      "id": "knife", "name": "Combat Knife", "damage": 40, "headMult": 1, "range": 2.2,
+      "id": "knife", "name": "Combat Knife", "damage": 40, "headMult": 2.5, "range": 2.2,
       "intervalTicks": 14, "auto": true, "magSize": 0, "reserve": 0, "reloadTicks": 0,
-      "spread": 0, "moveSpread": 0, "melee": true, "recoilScale": 0, "bloomScale": 0
+      "spread": 0, "moveSpread": 0, "melee": true, "recoilScale": 0, "bloomScale": 0,
+      "heavy": { "damage": 40, "range": 2.4, "windupTicks": 9, "intervalTicks": 36, "lowMult": 1.25, "upperMult": 2, "upperFrac": 0.6, "headMult": 4 }
     },
     {
       "id": "sniper", "name": "SR-9 Sniper", "damage": 100, "headMult": 4, "range": 400,

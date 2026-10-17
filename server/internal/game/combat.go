@@ -31,34 +31,8 @@ func (w *World) shoot(p *Player) {
 	}
 	dir := AimDir(yaw, pitch)
 
-	best := w.Map.RayWorld(eye, dir, ws.Range)
-	hitKind := HitNone
-	if best < ws.Range {
-		hitKind = HitWall
-	}
-	var victim *Player
-	head := false
-	rewind := w.rewindTicks(p)
-	for _, id := range w.order {
-		o := w.players[id]
-		if o == p || !o.Alive || o.Team == p.Team || w.Tick < o.ProtectUntil {
-			continue
-		}
-		then, wasAlive := w.kinAt(o, w.Tick-rewind)
-		if !wasAlive {
-			continue
-		}
-		if t, h := w.rayPlayer(eye, dir, best, then); t >= 0 && t <= best {
-			best, victim, head = t, o, h
-		}
-	}
+	best, victim, head, hitKind, _ := w.hitTest(p, eye, dir, ws.Range)
 	to := [3]float64{eye[0] + dir[0]*best, eye[1] + dir[1]*best, eye[2] + dir[2]*best}
-	if victim != nil {
-		hitKind = HitBody
-		if head {
-			hitKind = HitHead
-		}
-	}
 	from := eye
 	w.events = append(w.events, Event{E: EvShot, By: p.ID, W: p.Cur, From: &from, To: &to, Hit: hitKind})
 	if victim == nil {
@@ -74,6 +48,68 @@ func (w *World) shoot(p *Player) {
 	w.events = append(w.events, Event{E: EvHit, By: p.ID, V: victim.ID, W: p.Cur, Dmg: dmg, Head: head})
 	if victim.HP <= 0 {
 		w.kill(p, victim, head, p.Cur, p.ID)
+	}
+}
+
+// hitTest finds what a ray from eye along dir hits within rng: the world, or the nearest enemy hitbox (rewound by the shooter's view tick).
+// It returns the hit distance, the victim (nil for none), whether the head was hit, and the hit kind.
+func (w *World) hitTest(p *Player, eye, dir [3]float64, rng float64) (best float64, victim *Player, head bool, hitKind string, vk Kin) {
+	best = w.Map.RayWorld(eye, dir, rng)
+	hitKind = HitNone
+	if best < rng {
+		hitKind = HitWall
+	}
+	rewind := w.rewindTicks(p)
+	for _, id := range w.order {
+		o := w.players[id]
+		if o == p || !o.Alive || o.Team == p.Team || w.Tick < o.ProtectUntil {
+			continue
+		}
+		then, wasAlive := w.kinAt(o, w.Tick-rewind)
+		if !wasAlive {
+			continue
+		}
+		if t, h := w.rayPlayer(eye, dir, best, then); t >= 0 && t <= best {
+			best, victim, head, vk = t, o, h, then
+		}
+	}
+	if victim != nil {
+		hitKind = HitBody
+		if head {
+			hitKind = HitHead
+		}
+	}
+	return
+}
+
+// resolveHeavy lands every heavy stab whose windup has run out: a ray along the stabber's current view, fixed damage, no head bonus.
+func (w *World) resolveHeavy() {
+	for _, id := range w.order {
+		p := w.players[id]
+		if p.HeavyAt == 0 || w.Tick < p.HeavyAt {
+			continue
+		}
+		p.HeavyAt = 0
+		ws := &w.Spec.Weapons[p.Cur]
+		if !p.Alive || ws.Heavy == nil {
+			continue
+		}
+		eye := [3]float64{p.Kin.X, p.Kin.Y + w.Spec.EyeOf(&p.Kin), p.Kin.Z}
+		dir := AimDir(p.Yaw, p.Pitch)
+		best, victim, head, hitKind, vk := w.hitTest(p, eye, dir, ws.Heavy.Range)
+		to := [3]float64{eye[0] + dir[0]*best, eye[1] + dir[1]*best, eye[2] + dir[2]*best}
+		from := eye
+		w.events = append(w.events, Event{E: EvShot, By: p.ID, W: p.Cur, From: &from, To: &to, Hit: hitKind, Hv: true})
+		if victim == nil {
+			continue
+		}
+		bs, _ := w.Spec.Boxes(vk.Crouch)
+		dmg := int(math.Round(ws.Heavy.Damage * ws.Heavy.Mult(head, (to[1]-vk.Y)/bs.Y1)))
+		victim.HP -= dmg
+		w.events = append(w.events, Event{E: EvHit, By: p.ID, V: victim.ID, W: p.Cur, Dmg: dmg, Head: head, Hv: true})
+		if victim.HP <= 0 {
+			w.kill(p, victim, head, p.Cur, p.ID)
+		}
 	}
 }
 
@@ -102,6 +138,7 @@ func (w *World) kill(killer, victim *Player, head bool, wIdx, by int) {
 	victim.Deaths++
 	victim.RespawnAt = w.Tick + w.ticks(w.Spec.Match.RespawnSeconds)
 	victim.queue = nil
+	victim.HeavyAt = 0
 	victim.LastSeq = victim.lastQueued
 	w.Dirty = true
 	w.events = append(w.events, Event{E: EvKill, By: by, V: victim.ID, W: wIdx, Head: head})
