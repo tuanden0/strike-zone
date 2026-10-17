@@ -79,9 +79,27 @@ Copy **one file** to the host machine (the client is embedded) and run it:
 
 ### Controls
 
-`W A S D` move · mouse aim · `Space` jump · `Shift` crouch (hold) · `Alt` walk (slow, quiet) · `R` reload · `1` rifle `2` pistol `3` knife · left mouse fire/slash · `Tab` scoreboard · `E` pick up weapon · `G` drop weapon · `X`/`C`/`V` frag/smoke/flash · `4` sniper (once picked up) · right click to scope in/out
+`W A S D` move · mouse aim · `Space` jump · `Shift` crouch (hold) · `Alt` walk (slow, quiet) · `R` reload · `1` rifle `2` pistol `3` knife · left mouse fire/slash · `Tab` scoreboard · `E` pick up weapon · `G` drop weapon · `X`/`C`/`V` frag/smoke/flash · `4` sniper (once picked up) · right click to scope in/out · `M` radar on/off
 
 **Phones/tablets:** open the same URL in the mobile browser (landscape). **Left thumb = move stick, right thumb = aim stick *and* fire button**: touch anywhere on the right half. *Push* and the view turns at a rate proportional to the push (small pushes turn slowly for fine aim, release stops it). *Tap* (lift within 0.3 s without leaving the small dead zone) = one shot, rapid taps = repeated shots. *Hold still* in the dead zone for 0.3 s = auto-fire: the aim ring turns red and pulses, and the fire stays on while you then push to steer, until you lift the thumb. Pushing out of the dead zone at once steers without firing. There is no FIRE button. Pause menu → *Aim control* switches the right thumb to swipe-to-look (a swipe turns, a tap or a hold still fires). Buttons: JUMP · DUCK · R (reload) · USE (pick up) · DROP · tap `1 2 3` to switch weapon, `TAB` scoreboard, `II` pause menu. Touch devices default to Graphics = Low; no Pointer Lock or HTTPS is needed. iOS Safari has no fullscreen API for pages, so add the page to the home screen for a full-screen view.
+
+**Gamepad:** any controller with the browser's *standard* mapping (Xbox, PlayStation, most others over USB/Bluetooth). Plug it in or press a button; the pause screen then says "Gamepad connected". **A or Start** on the pause screen resumes in pad mode (browsers cannot give a Pointer Lock to a pad button, so the pad has its own "playing" state); **Start** pauses again, and so does `Esc`. The mouse and keyboard keep working at the same time (a mouse click while playing with the pad also takes the Pointer Lock).
+
+| Pad | Action | Pad | Action |
+|-----|--------|-----|--------|
+| Left stick | move (analog, 0.15 dead zone) | D-pad up / left / right | frag / smoke / flash |
+| Right stick | aim at a rate (power curve; mouse-sensitivity slider and scope zoom scale it) | D-pad down | drop weapon |
+| RT | fire | R3 (stick click) | use / pick up |
+| LT | scope on / off | Start | pause / resume |
+| A | jump | Back / View | scoreboard (hold) |
+| B | crouch (hold) | LB / RB | previous / next weapon |
+| X | reload | Y | next weapon |
+
+Not tested with a real controller (only a fake pad in `e2e/gamepad.mjs`).
+
+**Radar:** a round minimap under the fps line (170 px; 120 px on phones), rotating so your view is up, 35 m radius. White arrow = you; **teammates** are always shown as dots in their team colour (on the rim, dimmed, when beyond 35 m); **enemies** only while you have a clear line of sight to their head or chest (up to 90 m) and for 2 s after they fire; dead players are hidden; yellow squares are weapon pickups. `M` toggles it (remembered); on a phone tap the radar (a small RADAR chip remains to tap it back on). Works in the practice range (dummies are enemies).
+
+**Footsteps:** each step is synthesized for the surface under you: *concrete*, *sand*, *stone*, *wood*, *metal*. The map sets the default (`floor` in `shared/maps.json`: yard/crossroads/harbor/bunker concrete, piazza stone, pyramid/canyon sand) and standing on top of a crate (wood), container or steel pillar (metal) or a stone block overrides it. Left and right foot alternate (pitch/pan), the stride grows with speed (2.2 m at a run), running is loudest, walking (`Alt`) and crouching are silent, landings thud louder the harder you fall. Other players' steps are positional and audible up to 25 m. The sniper scope also has its own zoom whirr and click.
 
 **Weapons:** AR-7 rifle (auto), P-9 pistol, combat knife and the **SR-9 sniper** (bolt-action, one shot kills at any range on a body or head hit, 5 rounds, 1.4 s between shots). The sniper is *not* in the spawn loadout: pick one up from the purple-ringed spawn points (yard: two side lanes; crossroads: both ends of the cross street; the newer maps: the ends of their longest corridor or aisle). **Right click** (touch: **SCOPE** button) toggles the zoom (~5.5x); click again to leave: look sensitivity drops with the zoom and shots are perfectly accurate while standing still; moving or hip-firing spreads them wide. Reloading, switching weapon, pausing or dying leaves the scope. Dying loses the sniper. Practice range gives you the sniper from the start.
 
@@ -126,6 +144,8 @@ Nothing is required. Invalid values make the server exit at startup with a clear
 | Page loads but "Cannot reach the game server" | Reverse proxy without WebSocket upgrade, or the Origin was rejected: the server log prints `ws: rejected origin …`; add it to `ALLOWED_ORIGINS`. |
 | "too many connections" | More than `MAX_CONN_PER_IP` tabs/clients from one IP (e.g. everyone behind one NAT). Raise `MAX_CONN_PER_IP`. |
 | No sound | Browsers start audio only after a click: press **Resume**. Check the Volume slider. |
+| Menus too tall for the window | Menus shrink to fit (down to 50 %) and only scroll below that; zoom the browser out (`Ctrl -`) on very small windows. |
+| Gamepad not detected | Press any button once (browsers hide a pad until then), use a pad with the *standard* mapping, keep the tab focused. |
 | Phone: touch controls missing / page scrolls | Use landscape; tap **Resume** first. Add the page to the home screen on iOS for fullscreen. Touch mode is chosen from the primary pointer (`pointer: coarse`); `?touch=1` forces it. |
 | Mouse not captured | Click **Resume** (a click is required); a browser may refuse re-capture for ~1 s after `Esc`. |
 | Laggy / low FPS | Needs WebGL. Pause menu → **Graphics: Low** (no shadows, 1x pixel ratio). Close other tabs; enable hardware acceleration. FPS and ping are shown top-left. |
@@ -137,7 +157,7 @@ Nothing is required. Invalid values make the server exit at startup with a clear
 go test -race ./...                 # unit + integration (real sockets); needs no browser
 ./scripts/check.sh                  # gofmt, vet, race tests, gitleaks (tree + history), govulncheck
 node scripts/gen-golden.mjs         # regenerate JS<->Go golden files after touching physics/weapons
-cd e2e && npm ci && node smoke.mjs && node online.mjs && node assets.mjs && node extras.mjs && node mobile.mjs && node recoil.mjs && node maps.mjs && node nades_bots.mjs && node postfx.mjs   # headless Chromium; server must be running (BASE_URL=http://host:port)
+cd e2e && npm ci && node smoke.mjs && node online.mjs && node assets.mjs && node extras.mjs && node mobile.mjs && node recoil.mjs && node maps.mjs && node nades_bots.mjs && node postfx.mjs && node fit.mjs && node footsteps.mjs && node radar.mjs && node gamepad.mjs   # headless Chromium; server must be running (BASE_URL=http://host:port)
 pip install bpy==5.2.2 && python tools/assets/build_all.py   # regenerate every model + preview renders (or: blender -b -P tools/assets/build_all.py)
 ```
 
@@ -154,7 +174,7 @@ server/            main.go + internal/{config,netutil,game,lobby,wsserver,app}
 docs/PROTOCOL.md   wire protocol
 tools/assets/      Blender scripts that generate every .glb (see tools/assets/README.md, ASSETS.md)
 scripts/           run.sh, run.ps1, build-all.sh, check.sh, gen-golden.mjs
-e2e/               Playwright tests: smoke, online, xss, assets (hitbox fit), extras (decals, sniper scope, crossroads), maps (the five newer maps), mobile (touch emulation), perf, screenshots
+e2e/               Playwright tests: smoke, online, xss, assets (hitbox fit), extras (decals, sniper scope, crossroads), maps (the five newer maps), mobile (touch emulation, aim-stick fire), fit (menus/HUD at small windows), footsteps, radar, gamepad (fake pad), perf, screenshots
 ```
 
 More: [ASSETS.md](ASSETS.md) (models, budgets, licences), [DECISIONS.md](DECISIONS.md), [SECURITY.md](SECURITY.md), [REPORT.md](REPORT.md) (asset overhaul status, tests, screenshots), [docs/REPORT_MVP.md](docs/REPORT_MVP.md) (original MVP report).
