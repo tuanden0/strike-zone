@@ -11,3 +11,4 @@ node_modules/
 /e2e/playwright-report/
 *.log
 .DS_Store
+__pycache__/
