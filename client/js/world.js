@@ -2,7 +2,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { applyAnisotropy } from './models.js';
 
-export const TEAM_COLORS = { A: 0x3b82f6, B: 0xef4444 };
+export const TEAM_COLORS = { A: 0xef4444, B: 0x3b82f6 };
 export const SHADOW_EXTENT = 32;
 
 export function buildWorld(map, glbScene, aniso) {

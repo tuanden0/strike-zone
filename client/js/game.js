@@ -55,7 +55,7 @@ export class RemoteView {
     game.scene.add(this.group);
     this.label = null;
     if (showLabel) {
-      this.label = nameSprite(nick, '#bcd8ff');
+      this.label = nameSprite(nick, team === 'A' ? '#ffc9c0' : '#bcd8ff');
       this.label.position.set(0, game.spec.player.height + 0.45, 0);
       this.group.add(this.label);
     }

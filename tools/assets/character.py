@@ -28,7 +28,7 @@ def lin(c):
 
 
 # Team colour is only an accent (helmet stripe, patch, shoulder tabs); both teams wear the same olive fatigues.
-TEAMS = {"a": (0.31, 0.49, 0.56), "b": (0.76, 0.34, 0.18)}  # #4F7D8F / #C2562F
+TEAMS = {"a": (0.86, 0.16, 0.14), "b": (0.15, 0.42, 0.92)}  # team A red #DB2924 (HUD #ef4444) / team B blue #266BEB (HUD #3b82f6)
 UNIFORM = (0.40, 0.44, 0.34)  # sRGB, lifted from #4A5448 so it reads under the map lighting
 
 # ------------------------------------------------------------------------------------------------ rest pose

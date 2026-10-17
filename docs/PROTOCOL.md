@@ -7,7 +7,7 @@ Frames: **text only**, one JSON object per frame, field `t` = message type. Max 
 and `client/shared/map.json` (geometry + spawns).
 
 Coordinates: metres, `y` up. Yaw 0 looks toward **-Z**; forward vector = `(-sin yaw·cos pitch, sin pitch, -cos yaw·cos pitch)`;
-right = `(cos yaw, 0, -sin yaw)`. Positions are feet positions. Teams are `"A"` (Cobalt) and `"B"` (Ember).
+right = `(cos yaw, 0, -sin yaw)`. Positions are feet positions. Teams are `"A"` (Ember, red) and `"B"` (Cobalt, blue).
 
 ## Connection flow
 

@@ -1,4 +1,4 @@
-:root { --a: #3b82f6; --b: #ef4444; --bg: #11141a; --fg: #e6e9ef; --mut: #8a93a3; --acc: #f5a524; }
+:root { --a: #ef4444; --b: #3b82f6; --bg: #11141a; --fg: #e6e9ef; --mut: #8a93a3; --acc: #f5a524; }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: var(--fg); font: 15px/1.4 system-ui, sans-serif; }
 canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }

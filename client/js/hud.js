@@ -9,7 +9,7 @@ function el(tag, cls, text) {
   return e;
 }
 
-export const TEAM_NAMES = { A: 'Cobalt', B: 'Ember' };
+export const TEAM_NAMES = { A: 'Ember', B: 'Cobalt' };
 
 export class Hud {
   constructor() {
