@@ -3,11 +3,9 @@ import { TextureLoader } from '../vendor/three.module.js';
 import { GLTFLoader } from '../vendor/GLTFLoader.js';
 
 const BASE = 'assets/models/';
-export const MODEL_FILES = [
-  'map', 'character_a', 'character_b',
-  'rifle_fp', 'pistol_fp', 'knife_fp',
-  'rifle', 'pistol', 'knife',
-];
+// Needed for every match; other maps are loaded on demand (see main.js ensureMap).
+export const CORE_FILES = ['map', 'character_a', 'character_b', 'rifle_fp', 'pistol_fp', 'knife_fp', 'sniper_fp', 'rifle', 'pistol', 'sniper'];
+export const MODEL_FILES = [...CORE_FILES, 'knife', 'map_crossroads'];
 
 function loadOne(loader, name, onBytes) {
   return new Promise((resolve, reject) => {
@@ -20,11 +18,11 @@ function loadOne(loader, name, onBytes) {
   });
 }
 
-// files: subset of MODEL_FILES to load (the game needs the first six; tests load all).
+// files: subset of MODEL_FILES to load (the game needs CORE_FILES; tests load all).
 //
 // safeImages: decode embedded textures through <img> elements instead of createImageBitmap/fetch(blob:). GLTFLoader picks
 // ImageBitmapLoader on modern Firefox/Chrome; some browsers/extensions block that path, so main.js retries with this.
-export async function loadAssets(files = MODEL_FILES.slice(0, 6), onProgress = () => {}, { safeImages = false } = {}) {
+export async function loadAssets(files = CORE_FILES, onProgress = () => {}, { safeImages = false } = {}) {
   const loader = new GLTFLoader();
   if (safeImages) {
     loader.register((parser) => {

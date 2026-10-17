@@ -9,8 +9,9 @@ export class Loadout {
 
   reset() {
     this.cur = 0;
-    this.mag = this.spec.weapons.map((w) => w.magSize);
-    this.res = this.spec.weapons.map((w) => w.reserve);
+    this.has = this.spec.weapons.map((w) => !w.pickupOnly);
+    this.mag = this.spec.weapons.map((w) => (w.pickupOnly ? 0 : w.magSize));
+    this.res = this.spec.weapons.map((w) => (w.pickupOnly ? 0 : w.reserve));
     this.nextFire = 0;
     this.reloadDone = 0;
     this.prevFire = false;
@@ -28,6 +29,7 @@ export class Loadout {
   // Caller then replays unacknowledged inputs through step().
   sync(you, tAck) {
     this.cur = you.w;
+    if (you.has) this.has = you.has.slice();
     this.mag = you.mag.slice();
     this.res = you.res.slice();
     this.nextFire = tAck + you.cd;
@@ -46,7 +48,7 @@ export class Loadout {
       this.reloadDone = 0;
       out.reloadDone = true;
     }
-    if (inp.weapon >= 0 && inp.weapon < this.spec.weapons.length && inp.weapon !== this.cur) {
+    if (inp.weapon >= 0 && inp.weapon < this.spec.weapons.length && inp.weapon !== this.cur && this.has[inp.weapon]) {
       this.cur = inp.weapon;
       w = this.weapon;
       this.reloadDone = 0;

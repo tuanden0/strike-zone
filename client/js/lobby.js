@@ -10,14 +10,17 @@ function el(tag, cls, text) {
 }
 
 export class LobbyUI {
-  constructor(spec) {
+  constructor(spec, maps) {
     this.spec = spec;
+    this.maps = maps;
     this.net = null;
     this.timer = 0;
     const sel = $('c-max');
     sel.replaceChildren();
     for (let n = 2; n <= spec.match.maxPlayers; n++) sel.append(new Option(String(n), String(n)));
     sel.value = String(spec.match.maxPlayers);
+    const ms = $('c-map');
+    ms.replaceChildren(...maps.map((m) => new Option(m.label, m.id)));
     $('create-form').addEventListener('submit', (e) => {
       e.preventDefault();
       this.create();
@@ -62,6 +65,7 @@ export class LobbyUI {
       max: Number($('c-max').value),
       timeLimit: Math.round(minutes * 60),
       scoreLimit: Number($('c-score').value),
+      map: $('c-map').value,
       team: $('pref-team').value,
     });
   }
@@ -79,7 +83,8 @@ export class LobbyUI {
       const tr = el('tr');
       tr.append(el('td', '', (r.locked ? '[locked] ' : '') + r.name));
       tr.append(el('td', '', `${r.players}/${r.max}`));
-      tr.append(el('td', '', `${Math.round(r.timeLimit / 60)} min · ${r.scoreLimit} kills`));
+      const label = (this.maps.find((m) => m.id === r.map) || {}).label || r.map || '';
+      tr.append(el('td', '', `${label} · ${Math.round(r.timeLimit / 60)} min · ${r.scoreLimit} kills`));
       tr.append(el('td', '', r.st === 'ended' ? 'intermission' : 'playing'));
       const td = el('td');
       let pw = null;

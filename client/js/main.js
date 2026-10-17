@@ -1,6 +1,6 @@
 // App shell: title -> (practice | online lobby -> room) -> game.
 import { Sfx } from './audio.js';
-import { Input } from './input.js';
+import { Input, isTouch } from './input.js';
 import { Hud } from './hud.js';
 import { Game } from './game.js';
 import { Practice } from './practice.js';
@@ -18,7 +18,7 @@ async function fetchJson(url) {
   return r.json();
 }
 
-const state = { spec: null, map: null, assets: null, game: null, net: null, lobby: null, nick: '', online: false };
+const state = { spec: null, map: null, maps: [], mapData: {}, mapGlb: {}, safeImages: false, assets: null, game: null, net: null, lobby: null, nick: '', online: false };
 const sfx = new Sfx();
 state.sfx = sfx;
 const canvas = $('view');
@@ -39,6 +39,20 @@ function cleanNick(s) {
   // eslint-disable-next-line no-control-regex
   const n = s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, '').trim().slice(0, 16);
   return n || 'Player';
+}
+
+// Load (once) the collision data and glb of a map from the registry and make it the game's current map.
+async function applyMap(id) {
+  const entry = state.maps.find((m) => m.id === id) || state.maps[0];
+  if (!state.mapData[entry.id]) {
+    state.mapData[entry.id] = prepareMap(await fetchJson(`shared/${entry.file}`));
+    const name = entry.model.replace(/\.glb$/, '');
+    const glb = state.assets[name] || (await loadAssets([name], () => {}, { safeImages: state.safeImages }))[name];
+    state.mapGlb[entry.id] = glb;
+  }
+  const game = ensureGame();
+  if (game.mapId !== entry.id) game.setMap(entry.id, state.mapData[entry.id], state.mapGlb[entry.id].scene);
+  return entry.id;
 }
 
 function ensureGame() {
@@ -89,12 +103,25 @@ async function goOnline() {
   state.net = net;
   net.on('welcome', () => {
     setStatus('title-status', '');
-    state.lobby = state.lobby || new LobbyUI(state.spec);
+    state.lobby = state.lobby || new LobbyUI(state.spec, state.maps);
     showLobby();
   });
-  net.on('joined', (m) => {
+  let pendingPickups = []; // the server sends `pk` right after `joined`, possibly while the map is still loading
+  net.on('pk', (m) => {
+    pendingPickups = m.list;
+  });
+  net.on('joined', async (m) => {
     state.lobby.close();
-    const mode = new Online({ spec: state.spec, net, myId: m.id, room: m.room, team: m.team, hud, sfx });
+    try {
+      await applyMap(m.room.map);
+    } catch (e) {
+      console.error(e);
+      net.send({ t: 'leave' });
+      showLobby();
+      state.lobby.status(`Could not load the map: ${e.message}`);
+      return;
+    }
+    const mode = new Online({ spec: state.spec, net, myId: m.id, room: m.room, team: m.team, hud, sfx, pickups: pendingPickups });
     enterGame(mode, `Room: ${m.room.name}`, true);
   });
   net.on('error', (m) => {
@@ -135,10 +162,24 @@ input.onLockChange = (locked) => {
 };
 input.onScoreboard = (v) => hud.showBoard(v);
 
-$('btn-practice').addEventListener('click', () => {
+$('btn-practice').addEventListener('click', async () => {
   state.nick = cleanNick($('nick').value);
-  enterGame(new Practice(state.spec, state.map), 'Practice range', false);
+  $('btn-practice').disabled = true;
+  try {
+    const id = await applyMap($('practice-map').value);
+    enterGame(new Practice(state.spec, state.mapData[id], id), 'Practice range', false);
+  } catch (e) {
+    console.error(e);
+    setStatus('title-status', `Could not load the map: ${e.message}`);
+  } finally {
+    $('btn-practice').disabled = false;
+  }
 });
+if (isTouch) {
+  $('pause-hint').textContent = 'Tap Resume to play. Left side: move · right side: look · buttons: fire, jump, reload, use, drop.';
+  $('controls-hint').textContent = 'Touch: left thumb moves, right thumb aims · FIRE / JUMP / R reload · USE pick up · DROP · SCOPE (sniper) · tap the weapon list to switch';
+  $('sens').previousElementSibling.textContent = 'Look sensitivity';
+}
 $('btn-online').addEventListener('click', goOnline);
 $('btn-lobby-back').addEventListener('click', () => backToTitle(''));
 $('btn-resume').addEventListener('click', () => {
@@ -162,7 +203,8 @@ $('quality').addEventListener('change', (e) => {
   }
 });
 try {
-  $('quality').value = localStorage.getItem('sz.quality') === 'low' ? 'low' : 'high';
+  const q = localStorage.getItem('sz.quality');
+  $('quality').value = q === 'low' || q === 'high' ? q : isTouch ? 'low' : 'high';
 } catch {
   // skip: storage blocked, keep the default
 }
@@ -171,21 +213,27 @@ try {
   let stage = 'game data';
   try {
     setStatus('title-status', 'Loading game data…', true);
-    const [spec, mapJson] = await Promise.all([fetchJson('shared/spec.json'), fetchJson('shared/map.json')]);
+    const [spec, maps] = await Promise.all([fetchJson('shared/spec.json'), fetchJson('shared/maps.json')]);
     state.spec = spec;
-    state.map = prepareMap(mapJson);
+    state.maps = maps;
+    $('practice-map').replaceChildren(...maps.map((m) => new Option(m.label, m.id)));
+    state.mapData[maps[0].id] = prepareMap(await fetchJson(`shared/${maps[0].file}`));
+    state.map = state.mapData[maps[0].id];
     stage = 'models';
     const progress = (p) => setStatus('title-status', `Loading models… ${Math.round(p * 100)}%`, true);
     const forceSafe = new URLSearchParams(location.search).has('safeimg'); // test hook
+    state.safeImages = forceSafe;
     try {
       state.assets = await loadAssets(undefined, progress, { safeImages: forceSafe });
     } catch (e) {
       if (forceSafe) throw e;
       console.warn('model load failed, retrying with <img> texture decoding:', e);
+      state.safeImages = true;
       state.assets = await loadAssets(undefined, progress, { safeImages: true });
     }
     stage = 'renderer (WebGL)';
     setStatus('title-status', 'Preparing graphics…', true);
+    state.mapGlb[maps[0].id] = state.assets.map;
     const game = ensureGame();
     stage = 'shader warm-up';
     try {
@@ -193,6 +241,7 @@ try {
     } catch (e) {
       console.warn('shader warm-up failed (continuing, first frame may stall):', e); // non-fatal
     }
+    state.input = input;
     window.__sz = state; // debug/e2e hook
     window.__sz.sfx = sfx;
     setStatus('title-status', '');

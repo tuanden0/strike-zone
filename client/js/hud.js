@@ -14,6 +14,7 @@ export const TEAM_NAMES = { A: 'Cobalt', B: 'Ember' };
 export class Hud {
   constructor() {
     this.root = $('hud');
+    this.scopeEl = $('scope');
     this.hpFill = $('hp-fill');
     this.hpNum = $('hp-num');
     this.ammo = $('ammo');
@@ -28,6 +29,7 @@ export class Hud {
     this.banner = $('banner');
     this.board = $('scoreboard');
     this.practice = $('practice-stats');
+    this.promptEl = $('prompt');
     this.fps = $('fps');
     this.pingEl = $('ping');
     this._hitT = 0;
@@ -51,12 +53,12 @@ export class Hud {
     this.hpFill.style.background = h > 60 ? '#4ade80' : h > 30 ? '#facc15' : '#f87171';
   }
 
-  setWeapons(weapons, cur) {
-    const key = `${weapons.length}:${cur}`;
+  setWeapons(weapons, cur, has) {
+    const key = `${weapons.length}:${cur}:${has ? has.join('') : ''}`;
     if (key !== this._slotsKey) {
       this._slotsKey = key;
       this.slots.replaceChildren(
-        ...weapons.map((w, i) => el('span', i === cur ? 'cur' : '', `${i + 1} ${w.id}`)),
+        ...weapons.map((w, i) => el('span', `${i === cur ? 'cur' : ''}${has && !has[i] ? ' empty' : ''}`.trim(), `${i + 1} ${w.id}`)),
       );
     }
     this.wname.textContent = weapons[cur].name;
@@ -146,6 +148,22 @@ export class Hud {
       return box;
     });
     this.board.replaceChildren(...cols);
+  }
+
+  // Context hint under the crosshair, e.g. '[E] Pick up AR-7 Rifle'.
+  // t: 0 (no scope) .. 1 (fully zoomed). The overlay fades in over the last part of the zoom.
+  setScope(t) {
+    const v = Math.max(0, (t - 0.35) / 0.65);
+    this.scopeEl.style.opacity = String(v);
+    this.scopeEl.hidden = v <= 0;
+    this.root.classList.toggle('scoped', t > 0.5);
+  }
+
+  setPrompt(text) {
+    this.promptEl.textContent = text || '';
+    this.promptEl.hidden = !text;
+    const use = document.getElementById('t-use');
+    if (use) use.classList.toggle('hot', !!text); // touch: highlight the USE button while a weapon is in reach
   }
 
   setPractice(text) {

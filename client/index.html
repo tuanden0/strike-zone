@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Strike Zone</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="css/style.css">
@@ -15,6 +15,8 @@
   <div id="hud-info"><span id="fps"></span> <span id="ping"></span></div>
   <div id="killfeed"></div>
   <div id="crosshair"></div>
+  <div id="scope" hidden><div id="scope-h"></div><div id="scope-v"></div></div>
+  <div id="prompt" hidden></div>
   <div id="hitmarker"></div>
   <div id="damage"></div>
   <div id="banner"></div>
@@ -24,18 +26,34 @@
   <div id="scoreboard" hidden></div>
 </div>
 
+<div id="touch" hidden>
+  <div id="t-zone"></div>
+  <div id="t-stick"><div id="t-knob"></div></div>
+  <button id="t-fire" aria-label="Fire">FIRE</button>
+  <button id="t-jump" aria-label="Jump">JUMP</button>
+  <button id="t-scope" aria-label="Scope">SCOPE</button>
+  <button id="t-reload" aria-label="Reload">R</button>
+  <button id="t-use" aria-label="Pick up weapon">USE</button>
+  <button id="t-drop" aria-label="Drop weapon">DROP</button>
+  <button id="t-board" aria-label="Scoreboard">TAB</button>
+  <button id="t-menu" aria-label="Pause menu">II</button>
+  <div id="t-rotate">Rotate your phone to landscape</div>
+</div>
+
 <section id="screen-title" class="screen">
   <div class="panel">
     <h1>STRIKE <span>ZONE</span></h1>
     <p class="sub">LAN tactical shooter</p>
     <label for="nick">Nickname</label>
     <input id="nick" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Player">
+    <label for="practice-map">Practice map</label>
+    <select id="practice-map"></select>
     <div class="row">
       <button id="btn-online" class="primary" disabled>Play online</button>
       <button id="btn-practice" disabled>Practice range</button>
     </div>
     <p id="title-status" class="status"></p>
-    <p class="hint">WASD move · Mouse aim · Space jump · Shift walk · R reload · 1/2/3 weapons · Tab scoreboard</p>
+    <p id="controls-hint" class="hint">WASD move · Mouse aim · Space jump · Shift walk · R reload · 1-4 weapons · E pick up · G drop · Right mouse scope · Tab scoreboard</p>
   </div>
 </section>
 
@@ -59,6 +77,7 @@
     <form id="create-form" class="grid">
       <label for="c-name">Name</label><input id="c-name" maxlength="24" autocomplete="off" value="Room 1">
       <label for="c-pass">Password</label><input id="c-pass" type="password" maxlength="32" autocomplete="off" placeholder="optional">
+      <label for="c-map">Map</label><select id="c-map"></select>
       <label for="c-max">Max players</label><select id="c-max"></select>
       <label for="c-time">Time limit (min)</label><input id="c-time" type="number" min="1" max="30" value="10">
       <label for="c-score">Score limit</label><input id="c-score" type="number" min="5" max="100" value="30">
@@ -70,7 +89,7 @@
 <section id="screen-pause" class="screen" hidden>
   <div class="panel">
     <h2 id="pause-title">Paused</h2>
-    <p class="hint">Click Resume to capture the mouse.</p>
+    <p id="pause-hint" class="hint">Click Resume to capture the mouse.</p>
     <div class="row"><button id="btn-resume" class="primary">Resume</button><button id="btn-leave">Leave</button></div>
     <div id="pause-team" class="row" hidden>
       <button id="btn-team-a" class="team-a-btn">Join Cobalt</button><button id="btn-team-b" class="team-b-btn">Join Ember</button>

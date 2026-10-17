@@ -1,6 +1,13 @@
 // Offline practice range: static + moving dummies, local hit detection (same math as the server).
 import { rayPlayer } from './physics.js';
 
+const SPOTS_BY_MAP = {
+  crossroads: [
+    { x: 0, z: -14 }, { x: -4, z: -10 }, { x: 4, z: -10 }, { x: 0, z: -3 },
+    { x: -16, z: 0 }, { x: 16, z: 0 },
+    { x: 0, z: -20, mx: 4, sp: 1.6 }, { x: 0, z: 12, mx: 4, sp: 2.2 },
+  ],
+};
 const SPOTS = [
   { x: 0, z: -14 },
   { x: -5, z: -12 },
@@ -12,10 +19,11 @@ const SPOTS = [
   { x: 0, z: 11, mx: 5, sp: 2.2 },
 ];
 
-const WEAPONS = [0, 0, 1, 2, 0, 1, 0, 2]; // dummies hold rifle / pistol / knife for variety
+const WEAPONS = [0, 0, 1, 2, 0, 3, 0, 2]; // dummies hold rifle / pistol / knife / sniper for variety
 
 export class Practice {
-  constructor(spec, map) {
+  constructor(spec, map, mapId = 'yard') {
+    this.spots = SPOTS_BY_MAP[mapId] || SPOTS;
     this.spec = spec;
     this.map = map;
     this.t = 0;
@@ -29,8 +37,9 @@ export class Practice {
     const sp = this.map.spawns.A[0];
     game.myTeam = 'A';
     game.loadout.reset();
+    this.giveSniper(game.loadout); // the range is for trying every weapon (online it is pickup-only)
     game.spawn(sp.x, 0, sp.z, sp.yaw);
-    this.targets = SPOTS.map((s, i) => {
+    this.targets = this.spots.map((s, i) => {
       const view = game.addRemote(i + 1, `T${i + 1}`, 'B', false);
       return { ...s, id: i + 1, view, hp: 100, alive: true, respawnAt: 0, px: s.x, pz: s.z, vx: 0 };
     });
@@ -40,6 +49,15 @@ export class Practice {
     game.hud.setPing(-1);
     game.hud.setBanner('');
     this.refresh(game);
+  }
+
+  giveSniper(lo) {
+    this.spec.weapons.forEach((w, i) => {
+      if (!w.pickupOnly) return;
+      lo.has[i] = true;
+      lo.mag[i] = w.magSize;
+      lo.res[i] = w.reserve;
+    });
   }
 
   onTick(cmd, res, game) {
@@ -83,21 +101,25 @@ export class Practice {
       game.hud.hitmarker(best.h.head);
       game.sfx.play(best.h.head ? 'headshot' : 'hit');
       game.puff(to, 0xcc2222);
+      game.decals.blood(to, d, best.h.head);
       if (best.tg.hp <= 0) {
         best.tg.alive = false;
         best.tg.respawnAt = this.t + this.spec.match.respawnSeconds;
         this.kills++;
         game.sfx.play('kill');
+        game.decals.bloodPool(best.tg.px, best.tg.pz);
       }
     } else if (t < w.range) {
       game.puff(to, 0xbbbbbb);
       game.playAt('impact', to);
+      if (!w.melee) game.decals.bulletHole(to, d);
     }
   }
 
   refresh(game) {
     const l = game.loadout;
-    game.hud.setWeapons(this.spec.weapons, l.cur);
+    game.hud.setWeapons(this.spec.weapons, l.cur, l.has);
+    game.hud.setPrompt('');
     game.hud.setAmmo(l.weapon, l.mag[l.cur], l.res[l.cur], l.reloading);
     const acc = this.shots ? Math.round((this.hits / this.shots) * 100) : 0;
     game.hud.setPractice(`Practice · kills ${this.kills} · hits ${this.hits} · headshots ${this.heads} · accuracy ${acc}%`);

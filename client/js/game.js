@@ -2,24 +2,32 @@
 import * as THREE from '../vendor/three.module.js';
 import { stepMove, createKin, aimDir, rayWorld } from './physics.js';
 import { Loadout } from './weapons.js';
-import { buildWorld, buildLights, buildEnvironment } from './world.js';
+import { buildWorld, buildLights, buildEnvironment, fitShadow } from './world.js';
+import { Pickups } from './pickups.js';
+import { isTouch } from './input.js';
+import { Decals } from './decals.js';
 import { Soldier, nameSprite, applyAnisotropy, flashTexture } from './models.js';
 import { clone } from '../vendor/SkeletonUtils.js';
 
 const INTERP_MS = 100;
-const FP_WEAPONS = ['rifle', 'pistol', 'knife'];
+const FP_WEAPONS = ['rifle', 'pistol', 'knife', 'sniper'];
+const BASE_FOV = 78;
 // first-person placement per weapon: camera-space position + scale + muzzle (model space) + ejection port
 const FP = {
   rifle: { pos: [0.2, -0.25, -0.66], scale: 0.8, muzzle: [0, 0.066, -0.7], port: [0.03, 0.085, -0.03] },
   pistol: { pos: [0.1, -0.13, -0.5], scale: 0.9, muzzle: [0, 0.062, -0.2], port: [0.017, 0.075, -0.03] },
   knife: { pos: [0.13, -0.12, -0.45], scale: 1.0, muzzle: null, port: null },
+  sniper: { pos: [0.2, -0.25, -0.66], scale: 0.8, muzzle: [0, 0.07, -0.99], port: [0.03, 0.085, -0.02] },
 };
 
+// Phones default to the cheap path (no shadows, 1x pixel ratio); an explicit stored choice wins.
 function readQuality() {
+  const dflt = isTouch ? 'low' : 'high';
   try {
-    return localStorage.getItem('sz.quality') === 'low' ? 'low' : 'high';
+    const q = localStorage.getItem('sz.quality');
+    return q === 'low' || q === 'high' ? q : dflt;
   } catch {
-    return 'high'; // skip: storage blocked, default quality is fine
+    return dflt; // skip: storage blocked, default quality is fine
   }
 }
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -42,7 +50,7 @@ export class RemoteView {
     this.stepDist = 0;
     this.last = null;
     this.t = 0;
-    this.char = new Soldier(game.assets[team === 'B' ? 'character_b' : 'character_a'], game.spec);
+    this.char = new Soldier(game.assets[team === 'B' ? 'character_b' : 'character_a'], game.spec, game.assets.sniper);
     this.group = this.char.group;
     game.scene.add(this.group);
     this.label = null;
@@ -144,8 +152,11 @@ export class Game {
     this.scene = new THREE.Scene();
     this.sun = buildLights(this.scene, env, true);
     this.sun.castShadow = this.quality === 'high';
-    this.scene.add(buildWorld(map, assets, this.aniso));
-    this.camera = new THREE.PerspectiveCamera(78, 1, 0.05, 200);
+    this.world = null;
+    this.decals = new Decals(this.scene, map);
+    this.pickups = new Pickups(this);
+    this.setMap('yard', map, assets.map.scene);
+    this.camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.05, 200);
     this.scene.add(this.camera);
     for (const k of ['character_a', 'character_b']) applyAnisotropy(assets[k].scene, this.aniso);
 
@@ -219,6 +230,8 @@ export class Game {
     this.last = 0;
     this.kick = 0;
     this.punch = 0;
+    this.scopeT = 0; // 0..1 zoom blend
+    this.scopeFov = BASE_FOV;
     this.sinceFire = 99;
     this.flashT = 0;
     this.swing = 0;
@@ -240,7 +253,7 @@ export class Game {
   // Compile every shader variant up front (characters, first-person models, shadows) so the first frame in a
   // match does not stall for seconds. Temporary soldiers are added to the scene only for the compile.
   async warmup() {
-    const tmp = ['character_a', 'character_b'].map((k) => new Soldier(this.assets[k], this.spec));
+    const tmp = ['character_a', 'character_b'].map((k) => new Soldier(this.assets[k], this.spec, this.assets.sniper));
     tmp.forEach((t) => this.scene.add(t.group));
     this.vm.forEach((g) => (g.visible = true));
     try {
@@ -258,6 +271,21 @@ export class Game {
         t.dispose();
       });
     }
+  }
+
+  // Swap the playable map (collision data + rendered glb). Safe only while no match is running.
+  setMap(id, map, glbScene) {
+    if (this.world) {
+      this.scene.remove(this.world); // geometry stays cached in the glb so switching back is instant
+    }
+    this.mapId = id;
+    this.map = map;
+    this.world = buildWorld(map, glbScene, this.aniso);
+    this.scene.add(this.world);
+    this.decals.map = map;
+    this.decals.clear();
+    this.pickups.clear();
+    fitShadow(this.sun, map);
   }
 
   pixelRatio() {
@@ -307,6 +335,8 @@ export class Game {
     if (this.mode && this.mode.stop) this.mode.stop();
     for (const r of this.remotes.values()) r.dispose();
     this.remotes.clear();
+    this.decals.clear();
+    this.pickups.clear();
     this.hud.show(false);
     this.mode = null;
   }
@@ -381,7 +411,7 @@ export class Game {
     cmd.yaw = this.input.yaw;
     cmd.pitch = this.input.pitch;
     if (!this.alive || (this.mode && this.mode.frozen)) {
-      Object.assign(cmd, { f: 0, s: 0, jump: false, fire: false, reload: false, weapon: -1 });
+      Object.assign(cmd, { f: 0, s: 0, jump: false, fire: false, reload: false, weapon: -1, scope: false });
     }
     this.prev = { ...this.kin };
     let res = null;
@@ -490,10 +520,12 @@ export class Game {
       this.camera.lookAt(...this.debugCam.look);
     }
 
+    this.updateScope(dt);
+
     // view model
     this.bob += dt * (this.alive && k.onGround ? this.speed : 0) * 1.6;
     const cur = this.loadout.cur;
-    this.vm.forEach((g, i) => (g.visible = this.alive && i === cur));
+    this.vm.forEach((g, i) => (g.visible = this.alive && i === cur && !this.scoped));
     const g = this.vm[cur];
     this.kick = Math.max(0, this.kick - dt * 9);
     this.swing = Math.max(0, this.swing - dt * 4.5);
@@ -539,7 +571,7 @@ export class Game {
     }
 
     this.flashT -= dt;
-    this.vmFlash.visible = this.alive && this.flashT > 0 && !!fp.muzzle;
+    this.vmFlash.visible = this.alive && !this.scoped && this.flashT > 0 && !!fp.muzzle;
     if (this.vmFlash.visible) {
       const m = new THREE.Vector3(fp.muzzle[0], fp.muzzle[1], fp.muzzle[2]).multiplyScalar(fp.scale).applyEuler(g.rotation).add(g.position);
       this.vmFlash.position.copy(m);
@@ -564,6 +596,8 @@ export class Game {
   }
 
   updateEffects(dt) {
+    this.decals.update(dt);
+    this.pickups.update(dt);
     for (const c of this.casings) {
       if (!c.visible) continue;
       c.userData.life -= dt;
@@ -587,11 +621,37 @@ export class Game {
     }
   }
 
+  // Looking through the scope (viewmodel hidden, overlay shown).
+  get scoped() {
+    return this.scopeT > 0.5;
+  }
+
+  // Scope zoom: hold right mouse (touch: SCOPE toggle) with a scoped weapon. Blends the camera FOV, scales look
+  // sensitivity with the zoom and drives the overlay. The server applies the accuracy bonus from the `scope` input.
+  updateScope(dt) {
+    const w = this.loadout.weapon;
+    const can = this.alive && w.scopeFov > 0 && !this.loadout.reloading;
+    if (this.input.touch && !can) this.input.scopeHeld = false; // toggle button: drop it when the scope stops being usable
+    const want = can && this.input.scopeHeld;
+    if (w.scopeFov > 0) this.scopeFov = w.scopeFov;
+    this.scopeT = Math.max(0, Math.min(1, this.scopeT + (want ? 1 : -1) * dt * 7));
+    if (!this.alive) this.scopeT = 0;
+    const e = this.scopeT * this.scopeT * (3 - 2 * this.scopeT);
+    const fov = BASE_FOV + (this.scopeFov - BASE_FOV) * e;
+    if (Math.abs(fov - this.camera.fov) > 1e-3) {
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+    }
+    this.input.sensScale = Math.tan((fov * Math.PI) / 360) / Math.tan((BASE_FOV * Math.PI) / 360);
+    this.hud.setScope(this.scopeT);
+  }
+
   // Direction for the player's shot (adds server-identical spread model).
   aimWithSpread(cmd) {
     const w = this.loadout.weapon;
     const hs = Math.min(1, this.speed / this.spec.player.runSpeed);
-    const sp = w.spread + w.moveSpread * (this.kin.onGround ? hs : 1);
+    const scoped = cmd.scope && w.scopeFov > 0;
+    const sp = (scoped ? w.scopedSpread : w.spread) + w.moveSpread * (this.kin.onGround ? hs : 1);
     let yaw = cmd.yaw;
     let pitch = cmd.pitch;
     if (sp > 0) {

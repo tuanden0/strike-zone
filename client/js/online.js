@@ -5,7 +5,8 @@ import { TEAM_NAMES } from './hud.js';
 const MAX_PENDING = 120;
 
 export class Online {
-  constructor({ spec, net, myId, room, team, hud, sfx }) {
+  constructor({ spec, net, myId, room, team, hud, sfx, pickups }) {
+    this.initialPickups = pickups || [];
     this.spec = spec;
     this.net = net;
     this.myId = myId;
@@ -35,7 +36,9 @@ export class Online {
     this.hud.setBanner('');
     this.hud.setPractice('');
     this.hud.setHealth(this.spec.player.maxHealth);
+    game.pickups.setList(this.initialPickups);
     this.offs = [
+      this.net.on('pk', (m) => game.pickups.setList(m.list)),
       this.net.on('snap', (m) => this.onSnap(m)),
       this.net.on('roster', (m) => this.onRoster(m)),
     ];
@@ -50,7 +53,7 @@ export class Online {
     this.seq++;
     this.net.send({
       t: 'in', seq: this.seq, f: cmd.f, s: cmd.s, yaw: cmd.yaw, pitch: cmd.pitch,
-      jump: cmd.jump, walk: cmd.walk, fire: cmd.fire, reload: cmd.reload, weapon: cmd.weapon,
+      jump: cmd.jump, walk: cmd.walk, fire: cmd.fire, reload: cmd.reload, weapon: cmd.weapon, drop: cmd.drop, use: cmd.use, scope: cmd.scope,
     });
     this.pending.push({ seq: this.seq, tick: game.tickNo, cmd: { ...cmd } });
     if (this.pending.length > MAX_PENDING) this.pending.shift();
@@ -61,8 +64,11 @@ export class Online {
     if (this.hudT > 0) return;
     this.hudT = 0.1;
     const l = game.loadout;
-    this.hud.setWeapons(this.spec.weapons, l.cur);
+    this.hud.setWeapons(this.spec.weapons, l.cur, l.has);
     this.hud.setAmmo(l.weapon, l.mag[l.cur], l.res[l.cur], l.reloading);
+    const pk = game.pickups.nearest;
+    const keys = this.game.input.touch ? 'tap USE' : '[E]';
+    this.hud.setPrompt(pk ? `${keys} Pick up ${this.spec.weapons[pk.w].name} (${pk.m}/${pk.r})` : '');
     this.hud.setPing(this.net.rtt);
   }
 
@@ -118,6 +124,7 @@ export class Online {
       this.state = m.st;
       this.hud.showBoard(this.frozen);
       if (this.frozen) this.sfx.play('end');
+      else game.decals.clear(); // new match
     }
     if (this.frozen) {
       this.hud.setBanner(m.win === 'draw' ? 'Draw' : `${TEAM_NAMES[m.win] || ''} wins!`);
@@ -176,11 +183,14 @@ export class Online {
           game.playAt(w.id, ev.from);
           if (!w.melee) game.tracer([ev.from[0], ev.from[1] - 0.2, ev.from[2]], ev.to);
         }
+        const dir = [ev.to[0] - ev.from[0], ev.to[1] - ev.from[1], ev.to[2] - ev.from[2]];
         if (ev.hit === 'wall') {
           game.puff(ev.to, 0xbbbbbb);
           game.playAt('impact', ev.to);
+          if (!w.melee) game.decals.bulletHole(ev.to, dir);
         } else if (ev.hit === 'body' || ev.hit === 'head') {
           game.puff(ev.to, 0xcc2222);
+          game.decals.blood(ev.to, dir, ev.hit === 'head');
         }
         break;
       }
@@ -198,6 +208,9 @@ export class Online {
         const k = this.nameOf(ev.by);
         const v = this.nameOf(ev.v);
         this.hud.addKill(k, v, this.spec.weapons[ev.w].name, ev.head);
+        const rv = game.remotes.get(ev.v);
+        if (rv) game.decals.bloodPool(rv.group.position.x, rv.group.position.z);
+        else if (ev.v === me) game.decals.bloodPool(game.kin.x, game.kin.z);
         if (ev.v === me) {
           this.killedBy = k.nick;
           this.sfx.play('death');

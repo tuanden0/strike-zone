@@ -5,9 +5,9 @@ import { applyAnisotropy } from './models.js';
 export const TEAM_COLORS = { A: 0x3b82f6, B: 0xef4444 };
 export const SHADOW_EXTENT = 32;
 
-export function buildWorld(map, assets, aniso) {
+export function buildWorld(map, glbScene, aniso) {
   const group = new THREE.Group();
-  const model = assets.map.scene;
+  const model = glbScene;
   model.traverse((o) => {
     if (o.isMesh) {
       o.castShadow = true;
@@ -18,18 +18,37 @@ export function buildWorld(map, assets, aniso) {
   applyAnisotropy(model, aniso);
   group.add(model);
 
-  // Team spawn zone markings (painted on the floor).
-  for (const [team, z] of [['A', 20], ['B', -20]]) {
+  // Team spawn zone markings (painted on the floor), sized from the spawn points of each team.
+  for (const team of ['A', 'B']) {
+    const sp = map.spawns[team];
+    const xs = sp.map((s) => s.x);
+    const zs = sp.map((s) => s.z);
+    const x0 = Math.min(...xs) - 2;
+    const x1 = Math.max(...xs) + 2;
+    const z0 = Math.min(...zs) - 2;
+    const z1 = Math.max(...zs) + 2;
     const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(26, 4),
-      new THREE.MeshBasicMaterial({ color: TEAM_COLORS[team], transparent: true, opacity: 0.22, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }),
+      new THREE.PlaneGeometry(x1 - x0, z1 - z0),
+      new THREE.MeshBasicMaterial({ color: TEAM_COLORS[team], transparent: true, opacity: 0.22, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }),
     );
     m.rotation.x = -Math.PI / 2;
-    m.position.set(0.5, 0.012, z);
+    m.position.set((x0 + x1) / 2, 0.02, (z0 + z1) / 2);
     m.renderOrder = 1;
     group.add(m);
   }
   return group;
+}
+
+// Fit the sun's shadow frustum to the map (diagonal of the bounds).
+export function fitShadow(sun, map) {
+  const b = map.bounds;
+  const ext = Math.hypot(Math.max(Math.abs(b.minX), b.maxX), Math.max(Math.abs(b.minZ), b.maxZ)) * 1.03;
+  const sc = sun.shadow.camera;
+  sc.left = -ext;
+  sc.right = ext;
+  sc.top = ext;
+  sc.bottom = -ext;
+  sc.updateProjectionMatrix();
 }
 
 // Procedural sky dome -> PMREM environment so metals/polymers get reflections (no HDR files needed).

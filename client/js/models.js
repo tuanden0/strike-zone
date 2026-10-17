@@ -2,9 +2,12 @@
 import * as THREE from '../vendor/three.module.js';
 import { clone } from '../vendor/SkeletonUtils.js';
 
-const WEAPON_IDS = ['rifle', 'pistol', 'knife'];
+const WEAPON_IDS = ['rifle', 'pistol', 'knife', 'sniper'];
+// The character glb carries rifle/pistol/knife and their arm clips; the sniper is attached at runtime in the rifle's hand slot
+// (same grip origin by design) and shares the rifle's hold/shoot clips.
+const CLIP_OF = { sniper: 'rifle' };
 // Muzzle position in each third-person weapon node's local (glTF) space: Blender (x,y,z) -> (x,z,-y).
-const MUZZLE = { rifle: [0, 0.066, -0.68], pistol: [0, 0.062, -0.18], knife: null };
+const MUZZLE = { rifle: [0, 0.066, -0.68], pistol: [0, 0.062, -0.18], knife: null, sniper: [0, 0.07, -0.99] };
 
 function clipMap(gltf) {
   const m = {};
@@ -39,7 +42,7 @@ export function applyAnisotropy(root, aniso) {
 }
 
 export class Soldier {
-  constructor(gltf, spec) {
+  constructor(gltf, spec, sniperGltf = null) {
     this.spec = spec;
     this.group = new THREE.Group();
     this.model = clone(gltf.scene);
@@ -53,6 +56,19 @@ export class Soldier {
       }
     });
     this.weapons = WEAPON_IDS.map((id) => this.model.getObjectByName('w_' + id));
+    const rifle = this.weapons[0];
+    if (sniperGltf && rifle && rifle.parent) {
+      const sn = clone(sniperGltf.scene);
+      sn.name = 'w_sniper';
+      sn.position.copy(rifle.position);
+      sn.quaternion.copy(rifle.quaternion);
+      sn.scale.copy(rifle.scale);
+      sn.traverse((o) => {
+        if (o.isMesh) o.castShadow = true;
+      });
+      rifle.parent.add(sn);
+      this.weapons[3] = sn;
+    }
     this.muzzles = WEAPON_IDS.map((id, i) => {
       const m = MUZZLE[id];
       if (!m || !this.weapons[i]) return null;
@@ -75,8 +91,8 @@ export class Soldier {
     };
     this.idle = act('idle');
     this.run = act('run');
-    this.hold = WEAPON_IDS.map((id) => act('hold_' + id));
-    this.shootA = WEAPON_IDS.map((id) => act('shoot_' + id, THREE.LoopOnce));
+    this.hold = WEAPON_IDS.map((id) => act('hold_' + (CLIP_OF[id] || id)));
+    this.shootA = WEAPON_IDS.map((id) => act('shoot_' + (CLIP_OF[id] || id), THREE.LoopOnce));
     this.death = act('death', THREE.LoopOnce);
     this.death.clampWhenFinished = true;
     this.idle.play();
@@ -103,10 +119,8 @@ export class Soldier {
   setWeapon(i) {
     if (i === this.cur) return;
     this.weapons.forEach((w, k) => w && (w.visible = k === i));
-    this.hold.forEach((a, k) => {
-      if (k === i) a.reset().setEffectiveWeight(1).play();
-      else a.stop();
-    });
+    this.hold.forEach((a) => a.stop()); // rifle and sniper share one action, so stop all before starting the new one
+    this.hold[i].reset().setEffectiveWeight(1).play();
     this.cur = i;
   }
 
