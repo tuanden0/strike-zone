@@ -2,6 +2,7 @@
 import { stepMove } from './physics.js';
 import { TEAM_NAMES } from './hud.js';
 import { weaponName } from './weapons.js';
+import { INTERP_MS } from './game.js';
 
 const MAX_PENDING = 120;
 
@@ -17,6 +18,7 @@ export class Online {
     this.sfx = sfx;
     this.seq = 0;
     this.pending = []; // {seq, tick, cmd}
+    this.snapLog = []; // {t: arrival time, k: server tick} of recent snapshots, for viewTick()
     this.roster = new Map();
     this.state = 'playing';
     this.frozen = false;
@@ -54,7 +56,7 @@ export class Online {
     this.seq++;
     this.net.send({
       t: 'in', seq: this.seq, f: cmd.f, s: cmd.s, yaw: cmd.yaw, pitch: cmd.pitch,
-      jump: cmd.jump, walk: cmd.walk, fire: cmd.fire, reload: cmd.reload, weapon: cmd.weapon, drop: cmd.drop, use: cmd.use, scope: cmd.scope, nade: cmd.nade, crouch: cmd.crouch,
+      jump: cmd.jump, walk: cmd.walk, fire: cmd.fire, reload: cmd.reload, weapon: cmd.weapon, drop: cmd.drop, use: cmd.use, scope: cmd.scope, nade: cmd.nade, crouch: cmd.crouch, vt: this.viewTick(),
     });
     this.pending.push({ seq: this.seq, tick: game.tickNo, cmd: { ...cmd } });
     if (this.pending.length > MAX_PENDING) this.pending.shift();
@@ -98,9 +100,26 @@ export class Online {
     for (const id of [...game.remotes.keys()]) if (!this.roster.has(id)) game.removeRemote(id);
   }
 
+  // The server tick that the other players on screen correspond to (they are drawn INTERP_MS in the past, between two snapshots):
+  // sent with every input so the server can lag-compensate hitscan. 0 until the first snapshots arrive.
+  viewTick() {
+    const log = this.snapLog;
+    if (log.length < 2) return 0;
+    const rt = performance.now() - INTERP_MS;
+    let i = log.length - 1;
+    while (i > 0 && log[i - 1].t > rt) i--;
+    if (i === 0) return log[0].k;
+    const a = log[i - 1];
+    const b = log[i];
+    if (rt >= b.t) return b.k;
+    return Math.round(a.k + ((rt - a.t) / (b.t - a.t)) * (b.k - a.k));
+  }
+
   onSnap(m) {
     const game = this.game;
     const now = performance.now();
+    this.snapLog.push({ t: now, k: m.k });
+    if (this.snapLog.length > 40) this.snapLog.shift();
     const you = m.you;
     if (you) {
       this.reconcile(you);

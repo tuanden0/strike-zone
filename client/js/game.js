@@ -11,7 +11,7 @@ import { PostFx } from './postfx.js';
 import { Soldier, nameSprite, applyAnisotropy, flashTexture } from './models.js';
 import { clone } from '../vendor/SkeletonUtils.js';
 
-const INTERP_MS = 100;
+export const INTERP_MS = 100; // remote players are drawn this far in the past (also what lag compensation rewinds to)
 const FP_WEAPONS = ['rifle', 'pistol', 'knife', 'sniper'];
 const BASE_FOV = 78;
 // first-person placement per weapon: camera-space position + scale + muzzle (model space) + ejection port

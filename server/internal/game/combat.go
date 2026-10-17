@@ -38,12 +38,17 @@ func (w *World) shoot(p *Player) {
 	}
 	var victim *Player
 	head := false
+	rewind := w.rewindTicks(p)
 	for _, id := range w.order {
 		o := w.players[id]
 		if o == p || !o.Alive || o.Team == p.Team || w.Tick < o.ProtectUntil {
 			continue
 		}
-		if t, h := w.rayPlayer(eye, dir, best, o); t >= 0 && t <= best {
+		then, wasAlive := w.kinAt(o, w.Tick-rewind)
+		if !wasAlive {
+			continue
+		}
+		if t, h := w.rayPlayer(eye, dir, best, then); t >= 0 && t <= best {
 			best, victim, head = t, o, h
 		}
 	}
@@ -73,10 +78,10 @@ func (w *World) shoot(p *Player) {
 }
 
 // rayPlayer returns the distance to the closer of head/body hitboxes (or -1) and whether it was the head.
-func (w *World) rayPlayer(o, d [3]float64, maxT float64, v *Player) (float64, bool) {
-	bs, hs := w.Spec.Boxes(v.Kin.Crouch)
-	body := [6]float64{v.Kin.X - bs.HalfWidth, v.Kin.Y + bs.Y0, v.Kin.Z - bs.HalfWidth, v.Kin.X + bs.HalfWidth, v.Kin.Y + bs.Y1, v.Kin.Z + bs.HalfWidth}
-	head := [6]float64{v.Kin.X - hs.HalfWidth, v.Kin.Y + hs.Y0, v.Kin.Z - hs.HalfWidth, v.Kin.X + hs.HalfWidth, v.Kin.Y + hs.Y1, v.Kin.Z + hs.HalfWidth}
+func (w *World) rayPlayer(o, d [3]float64, maxT float64, k Kin) (float64, bool) {
+	bs, hs := w.Spec.Boxes(k.Crouch)
+	body := [6]float64{k.X - bs.HalfWidth, k.Y + bs.Y0, k.Z - bs.HalfWidth, k.X + bs.HalfWidth, k.Y + bs.Y1, k.Z + bs.HalfWidth}
+	head := [6]float64{k.X - hs.HalfWidth, k.Y + hs.Y0, k.Z - hs.HalfWidth, k.X + hs.HalfWidth, k.Y + hs.Y1, k.Z + hs.HalfWidth}
 	th := RayBox(o, d, head, maxT)
 	tb := RayBox(o, d, body, maxT)
 	switch {

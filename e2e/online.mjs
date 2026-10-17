@@ -79,6 +79,10 @@ try {
   const corr = await a.evaluate(() => window.__sz.game.mode.maxCorr);
   check('prediction matches server (max correction < 5 cm)', corr < 0.05, `max ${corr.toFixed(4)} m`);
 
+  // Lag compensation hint: the view tick sent with inputs is a little behind the newest snapshot (remote players are drawn ~100 ms late)
+  const vt = await a.evaluate(() => { const m = window.__sz.game.mode; const k = m.snapLog.at(-1).k; return { vt: m.viewTick(), k }; });
+  check('inputs carry a view tick 1..10 ticks behind the newest snapshot (lag compensation)', vt.vt > 0 && vt.k - vt.vt >= 0 && vt.k - vt.vt <= 10, JSON.stringify(vt));
+
   // Client reaction to server events (synthetic events through the real handler).
   await b.evaluate(() => {
     const m = window.__sz.game.mode;

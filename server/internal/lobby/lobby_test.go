@@ -139,9 +139,15 @@ func TestCreateJoinLeave(t *testing.T) {
 	if bc.last("left") == nil || len(ac.last("roster")["players"].([]any)) != 1 {
 		t.Fatal("leave not reflected")
 	}
-	h.Unregister(a)
+	h.Unregister(a) // a dropped connection keeps its place for the resume grace period
+	if st := h.Stats(); len(st.Rooms) != 1 || st.Sessions != 2 {
+		t.Fatalf("dropped player should wait in limbo: %+v", st)
+	}
+	for i := 0; i < LimboTicks; i++ {
+		h.Tick()
+	}
 	if st := h.Stats(); len(st.Rooms) != 0 || st.Sessions != 1 {
-		t.Fatalf("room should be gone: %+v", st)
+		t.Fatalf("room should be gone after the grace period: %+v", st)
 	}
 }
 

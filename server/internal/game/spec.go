@@ -18,8 +18,15 @@ type Spec struct {
 	Weapons     []WeaponSpec  `json:"weapons"`
 	Pickups     PickupSpec    `json:"pickups"`
 	Recoil      RecoilSpec    `json:"recoil"`
+	LagComp     LagCompSpec   `json:"lagComp"`
 	Nades       NadeSpec      `json:"nades"`
 	Grenades    []GrenadeSpec `json:"grenades"`
+}
+
+// LagCompSpec: a shot is tested against where the other players were when the shooter's screen showed them (the `vt` the client
+// sends), at most MaxRewindTicks ticks back. 0 disables it.
+type LagCompSpec struct {
+	MaxRewindTicks int `json:"maxRewindTicks"`
 }
 
 // NadeSpec is the shared grenade physics.
@@ -344,6 +351,9 @@ func validateSpec(s *Spec) error {
 			w.ScopeFov < 0 || (w.ScopeFov > 0 && (w.ScopeFov < 2 || w.ScopeFov > 60)) || w.ScopedSpread < 0 || (w.ScopeFov > 0 && w.Melee) || w.RecoilScale < 0 || w.BloomScale < 0 {
 			return fmt.Errorf("spec: bad weapon %q", w.ID)
 		}
+	}
+	if s.LagComp.MaxRewindTicks < 0 || s.LagComp.MaxRewindTicks > histLen-2 {
+		return fmt.Errorf("spec: lagComp.maxRewindTicks must be 0..%d", histLen-2)
 	}
 	n := s.Nades
 	if n.CooldownTicks < 1 || n.CooldownTicks > 600 || n.Gravity < 0 || n.Gravity > 100 || n.Restitution < 0 || n.Restitution > 1 || n.Radius < 0.02 || n.Radius > 0.5 {

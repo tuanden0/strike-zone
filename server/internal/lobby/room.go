@@ -171,7 +171,7 @@ func (r *Room) Roster() []RosterEntry {
 	ps := r.World.Players()
 	out := make([]RosterEntry, 0, len(ps))
 	for _, p := range ps {
-		out = append(out, RosterEntry{ID: p.ID, Nick: p.Nick, Team: p.Team, Kills: p.Kills, Deaths: p.Deaths, Bot: p.IsBot})
+		out = append(out, RosterEntry{ID: p.ID, Nick: p.Nick, Team: p.Team, Kills: p.Kills, Deaths: p.Deaths, Bot: p.IsBot, Away: p.Away})
 	}
 	return out
 }

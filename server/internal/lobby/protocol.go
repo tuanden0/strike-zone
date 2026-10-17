@@ -82,6 +82,22 @@ type welcomeMsg struct {
 	ID       int    `json:"id"`
 	Nick     string `json:"nick"`
 	TickRate int    `json:"tickRate"`
+	Token    string `json:"token"` // secret for `resume` after a dropped connection; rotated on every resume
+}
+
+// resumedMsg answers a successful `resume`: same player id, new token, and the room the player is still in (if any).
+type resumedMsg struct {
+	T        string    `json:"t"`
+	ID       int       `json:"id"`
+	Nick     string    `json:"nick"`
+	TickRate int       `json:"tickRate"`
+	Token    string    `json:"token"`
+	Room     *RoomInfo `json:"room,omitempty"`
+	Team     string    `json:"team,omitempty"`
+}
+
+type resumeMsg struct {
+	Token string `json:"token"`
 }
 
 // RoomInfo is the public description of a room.
@@ -118,6 +134,7 @@ type RosterEntry struct {
 	Kills  int    `json:"kills"`
 	Deaths int    `json:"deaths"`
 	Bot    bool   `json:"bot,omitempty"`
+	Away   bool   `json:"away,omitempty"` // connection lost, can still resume
 }
 
 type rosterMsg struct {
@@ -160,4 +177,5 @@ const (
 	CodeTooManyRoom = "too_many_rooms"
 	CodeServerFull  = "server_full"
 	CodeNoBots      = "no_bots"
+	CodeBadToken    = "bad_token"
 )

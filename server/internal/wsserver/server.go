@@ -86,6 +86,9 @@ type wsConn struct {
 	cancel context.CancelFunc
 }
 
+// Close cuts the connection (used when a `resume` takes over a socket the server has not noticed is dead).
+func (c *wsConn) Close() { c.cancel() }
+
 // Send implements lobby.Conn: marshal now, enqueue without blocking; slow clients are dropped.
 func (c *wsConn) Send(v any) bool {
 	b, err := json.Marshal(v)

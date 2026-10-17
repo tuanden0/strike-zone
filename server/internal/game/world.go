@@ -47,6 +47,7 @@ type Input struct {
 	Weapon int     `json:"weapon"` // -1 = keep current; decode into Input{Weapon: -1}
 	Drop   bool    `json:"drop"`   // edge-detected server side: drop the current weapon
 	Crouch bool    `json:"crouch"` // Shift held: lowered stance (the server decides whether there is room to stand again)
+	VT     int     `json:"vt"`     // server tick the shooter's screen was showing the other players at (lag compensation; 0 = none)
 	Nade   int     `json:"nade"`   // throw grenade type Nade-1 (0 = none); cooldown + inventory enforced server side
 	Use    bool    `json:"use"`    // edge-detected server side: pick up the nearest weapon
 	Scope  bool    `json:"scope"`  // zoom held; only has an effect with a scoped weapon (see WeaponSpec.ScopeFov)
@@ -67,6 +68,8 @@ func (in *Input) Validate(nWeapons int) error {
 		return fmt.Errorf("%w: pitch out of range", ErrBadInput)
 	case in.Weapon < -1 || in.Weapon >= nWeapons:
 		return fmt.Errorf("%w: weapon index", ErrBadInput)
+	case in.VT < 0 || in.VT > 1<<31-1:
+		return fmt.Errorf("%w: view tick", ErrBadInput)
 	}
 	return nil
 }
@@ -94,6 +97,9 @@ type Player struct {
 	Burst      int // consecutive shots in the current burst (0 = none); drives spread bloom, mirrored in client/js/weapons.js
 	BurstUntil int // last tick at which the next shot still continues the burst
 	IsBot      bool
+	Away       bool // human whose connection dropped; the player stays in the match until the grace period ends
+	ViewTick   int  // vt of the last processed input
+	hist       [histLen]histEntry
 	bot        *Bot
 	Nades      []int // grenades left per spec.Grenades index
 	NextThrow  int   // tick when the next grenade may be thrown
@@ -345,6 +351,7 @@ func (w *World) Step() {
 			p.queue = p.queue[min(n, len(p.queue)):] // a fall death inside the loop already cleared the queue
 		}
 	}
+	w.recordHistory()
 	w.resolveShots()
 	w.stepGrenades()
 	w.stepPickups()
@@ -357,8 +364,12 @@ func (w *World) apply(p *Player, in Input) {
 	p.Yaw, p.Pitch = in.Yaw, in.Pitch
 	p.Speed = Step(w.Spec, w.Map, &p.Kin, MoveCmd{F: in.F, S: in.S, Yaw: in.Yaw, Jump: in.Jump, Walk: in.Walk, Crouch: in.Crouch})
 	p.LastSeq = in.Seq
+	p.ViewTick = in.VT
 	if p.Kin.Impact > w.Spec.Player.Fall.SafeSpeed {
 		w.fallDamage(p, p.Kin.Impact)
+		if !p.Alive {
+			return // died of the fall: no shot or throw from a dead player
+		}
 	}
 	w.weapons(p, in)
 }

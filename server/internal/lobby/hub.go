@@ -1,6 +1,8 @@
 package lobby
 
 import (
+	crand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,7 +41,20 @@ type Session struct {
 	hello   bool
 	badMsgs int
 	badPass int
+	token   string // resume secret (hex), set at hello
+	limbo   bool   // connection lost; waiting for `resume` until limboLeft ticks run out
 }
+
+// LimboTicks is how long (30 Hz ticks) a dropped player stays in the match waiting for `resume`: 30 s.
+const LimboTicks = 30 * 30
+
+// closer is implemented by connections that can be force-closed (used when a resume takes over a still-open old socket).
+type closer interface{ Close() }
+
+// deadConn swallows messages for a session whose socket is gone.
+type deadConn struct{}
+
+func (deadConn) Send(any) bool { return true }
 
 // Hub owns all rooms and sessions. All methods are safe for concurrent use.
 type Hub struct {
@@ -51,6 +66,8 @@ type Hub struct {
 	nextRoom int
 	nextID   int
 	seed     uint64
+	tokens   map[string]*Session // resume token -> session (active or in limbo)
+	limbo    map[int]int         // session id -> ticks left
 }
 
 // NewHub creates an empty hub serving a single map (the default id).
@@ -58,7 +75,7 @@ func NewHub(spec *game.Spec, m *game.Map) *Hub { return NewHubMaps(spec, game.On
 
 // NewHubMaps creates an empty hub serving every map in the set.
 func NewHubMaps(spec *game.Spec, maps *game.MapSet) *Hub {
-	return &Hub{spec: spec, maps: maps, rooms: map[int]*Room{}, sessions: map[int]*Session{}, nextRoom: 1, nextID: 1, seed: 1}
+	return &Hub{spec: spec, maps: maps, rooms: map[int]*Room{}, sessions: map[int]*Session{}, nextRoom: 1, nextID: 1, seed: 1, tokens: map[string]*Session{}, limbo: map[int]int{}}
 }
 
 // Register allocates a session for a new connection.
@@ -78,8 +95,31 @@ func (h *Hub) Register(c Conn) (*Session, error) {
 func (h *Hub) Unregister(s *Session) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.sessions[s.ID] != s { // this transport was already taken over by a resume: nothing left to clean up
+		return
+	}
+	// A player in a room keeps their place for LimboTicks so they can resume after a network drop.
+	if s.room != nil && s.token != "" && s.room.members[s.ID] == s {
+		s.Conn = deadConn{}
+		s.limbo = true
+		h.limbo[s.ID] = LimboTicks
+		if p := s.room.World.Player(s.ID); p != nil {
+			p.Away = true
+			s.room.World.Dirty = true
+		}
+		return
+	}
+	h.dropLocked(s)
+}
+
+// dropLocked removes a session for good.
+func (h *Hub) dropLocked(s *Session) {
 	h.leaveLocked(s)
 	delete(h.sessions, s.ID)
+	delete(h.limbo, s.ID)
+	if s.token != "" && h.tokens[s.token] == s {
+		delete(h.tokens, s.token)
+	}
 }
 
 // Stats is a point-in-time summary for the admin endpoint.
@@ -153,8 +193,12 @@ func (h *Hub) Handle(s *Session, raw []byte) error {
 			nick = fmt.Sprintf("Player%d", s.ID)
 		}
 		s.Nick, s.hello = nick, true
-		s.Conn.Send(welcomeMsg{T: "welcome", ID: s.ID, Nick: nick, TickRate: h.spec.TickRate})
+		s.token = h.newToken(s)
+		s.Conn.Send(welcomeMsg{T: "welcome", ID: s.ID, Nick: nick, TickRate: h.spec.TickRate, Token: s.token})
 		return nil
+	}
+	if env.T == "resume" {
+		return h.resume(s, raw)
 	}
 	if !s.hello {
 		return h.violation(s, CodeNotReady, "send hello first")
@@ -224,6 +268,59 @@ func (h *Hub) Handle(s *Session, raw []byte) error {
 		s.Conn.Send(simpleMsg{T: "left"})
 	default:
 		return h.violation(s, CodeBadRequest, "unknown message type")
+	}
+	return nil
+}
+
+func (h *Hub) newToken(s *Session) string {
+	var b [16]byte
+	if _, err := crand.Read(b[:]); err != nil {
+		panic(err) // no entropy: refuse to hand out guessable tokens (the connection's panic guard closes it)
+	}
+	t := hex.EncodeToString(b[:])
+	h.tokens[t] = s
+	return t
+}
+
+// resume attaches a fresh connection (session s, which has not said hello) to a player whose connection dropped, or is still half
+// open. The old session's identity (id, nick, room, team, score) moves to s; the token is rotated so a leaked one is useless.
+func (h *Hub) resume(s *Session, raw []byte) error {
+	var m resumeMsg
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return h.violation(s, CodeBadRequest, "bad resume")
+	}
+	if s.hello {
+		return h.violation(s, CodeBadRequest, "already introduced")
+	}
+	old := h.tokens[m.Token]
+	if len(m.Token) != 32 || old == nil || old == s {
+		return h.violation(s, CodeBadToken, "unknown or expired session")
+	}
+	if c, ok := old.Conn.(closer); ok && !old.limbo {
+		c.Close() // the old socket was never noticed as dead: cut it
+	}
+	delete(h.sessions, s.ID) // the temporary id of the new connection
+	delete(h.limbo, old.ID)
+	delete(h.tokens, old.token)
+	s.ID, s.Nick, s.hello, s.room = old.ID, old.Nick, true, old.room
+	old.room, old.limbo, old.token = nil, false, ""
+	h.sessions[s.ID] = s
+	s.token = h.newToken(s)
+	ack := resumedMsg{T: "resumed", ID: s.ID, Nick: s.Nick, TickRate: h.spec.TickRate, Token: s.token}
+	if r := s.room; r != nil {
+		r.members[s.ID] = s
+		info := r.Info()
+		ack.Room = &info
+		if p := r.World.Player(s.ID); p != nil {
+			p.Away = false
+			ack.Team = p.Team
+			r.World.Dirty = true
+		}
+	}
+	s.Conn.Send(ack)
+	if r := s.room; r != nil {
+		s.Conn.Send(pickupsMsg{T: "pk", List: r.World.Pickups()})
+		h.broadcastRoster(r)
 	}
 	return nil
 }
@@ -392,6 +489,16 @@ func (h *Hub) Tick() {
 	defer h.mu.Unlock()
 	for _, r := range h.rooms {
 		h.stepRoom(r)
+	}
+	for id, left := range h.limbo { // players who never came back
+		if left--; left > 0 {
+			h.limbo[id] = left
+			continue
+		}
+		if s := h.sessions[id]; s != nil {
+			h.dropLocked(s)
+		}
+		delete(h.limbo, id)
 	}
 }
 
