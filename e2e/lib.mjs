@@ -16,7 +16,7 @@ function findChromium() {
 // Software GL (no GPU in CI/sandboxes) cannot afford shadows + PBR at full size, so tests default to the game's
 // "low" graphics option; set E2E_QUALITY=high to exercise the shadow path (screenshots, perf).
 export async function launch() {
-  const quality = process.env.E2E_QUALITY === 'high' ? 'high' : 'low';
+  const quality = ['high', 'ultra'].includes(process.env.E2E_QUALITY) ? process.env.E2E_QUALITY : 'low';
   const b = await chromium.launch({
     executablePath: findChromium(),
     args: ['--no-proxy-server', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],

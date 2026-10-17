@@ -202,3 +202,26 @@ func TestBotsRespawnAndMatchesRunForLong(t *testing.T) {
 		t.Fatal("nobody respawned")
 	}
 }
+
+func TestBotsFightOnEveryMap(t *testing.T) {
+	spec, ms, err := LoadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range ms.Order {
+		w := NewWorld(spec, ms.Maps[id], MatchConfig{TimeLimitSec: 100000, ScoreLimit: 100000}, 13)
+		for i := 0; i < 3; i++ {
+			w.AddBot(10+i, "a", TeamA, SkillNormal)
+			w.AddBot(20+i, "b", TeamB, SkillNormal)
+		}
+		shots := 0
+		for i := 0; i < 30*120; i++ {
+			w.Step()
+			shots += len(eventsOf(w, EvShot))
+		}
+		t.Logf("%s: %d shots in 2 min, score %v", id, shots, w.Score)
+		if shots < 20 || w.Score[0]+w.Score[1] < 1 {
+			t.Errorf("%s: bots barely fight (%d shots, score %v)", id, shots, w.Score)
+		}
+	}
+}

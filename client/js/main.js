@@ -208,7 +208,7 @@ $('quality').addEventListener('change', (e) => {
 });
 try {
   const q = localStorage.getItem('sz.quality');
-  $('quality').value = q === 'low' || q === 'high' ? q : isTouch ? 'low' : 'high';
+  $('quality').value = q === 'low' || q === 'high' || q === 'ultra' ? q : isTouch ? 'low' : 'high';
 } catch {
   // skip: storage blocked, keep the default
 }

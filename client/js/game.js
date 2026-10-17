@@ -7,6 +7,7 @@ import { Pickups } from './pickups.js';
 import { isTouch } from './input.js';
 import { Decals } from './decals.js';
 import { Grenades } from './grenades.js';
+import { PostFx } from './postfx.js';
 import { Soldier, nameSprite, applyAnisotropy, flashTexture } from './models.js';
 import { clone } from '../vendor/SkeletonUtils.js';
 
@@ -26,7 +27,7 @@ function readQuality() {
   const dflt = isTouch ? 'low' : 'high';
   try {
     const q = localStorage.getItem('sz.quality');
-    return q === 'low' || q === 'high' ? q : dflt;
+    return q === 'low' || q === 'high' || q === 'ultra' ? q : dflt;
   } catch {
     return dflt; // skip: storage blocked, default quality is fine
   }
@@ -147,14 +148,15 @@ export class Game {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.autoClear = false;
     this.quality = readQuality();
-    this.renderer.shadowMap.enabled = this.quality === 'high';
+    this.renderer.shadowMap.enabled = this.quality !== 'low';
     this.renderer.setPixelRatio(this.pixelRatio());
+    this.postfx = null; // created on demand for Graphics = Ultra
     this.aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     const env = buildEnvironment(this.renderer);
 
     this.scene = new THREE.Scene();
     this.sun = buildLights(this.scene, env, true);
-    this.sun.castShadow = this.quality === 'high';
+    this.sun.castShadow = this.quality !== 'low';
     this.world = null;
     this.decals = new Decals(this.scene, map);
     this.pickups = new Pickups(this);
@@ -251,6 +253,7 @@ export class Game {
     this.myTeam = 'A';
     this.rng = Math.random;
 
+    this.syncPostfx(); // Graphics = Ultra stored from an earlier session
     this._onResize = () => this.resize();
     window.addEventListener('resize', this._onResize);
     this.resize();
@@ -296,13 +299,14 @@ export class Game {
   }
 
   pixelRatio() {
-    return this.quality === 'high' ? Math.min(window.devicePixelRatio || 1, 1.5) : 1;
+    return this.quality !== 'low' ? Math.min(window.devicePixelRatio || 1, 1.5) : 1;
   }
 
   setQuality(q) {
-    this.quality = q === 'low' ? 'low' : 'high';
-    this.renderer.shadowMap.enabled = this.quality === 'high';
-    this.sun.castShadow = this.quality === 'high';
+    this.quality = q === 'low' ? 'low' : q === 'ultra' ? 'ultra' : 'high';
+    this.renderer.shadowMap.enabled = this.quality !== 'low';
+    this.sun.castShadow = this.quality !== 'low';
+    this.syncPostfx();
     this.renderer.setPixelRatio(this.pixelRatio());
     this.scene.traverse((o) => {
       if (o.material) for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.needsUpdate = true; // shadow shader variants
@@ -315,10 +319,27 @@ export class Game {
     this.resize();
   }
 
+  // Ultra = post-processing; any failure (old GPU, missing float targets) falls back to the plain path instead of breaking the game.
+  syncPostfx() {
+    if (this.quality === 'ultra' && !this.postfx) {
+      try {
+        this.postfx = new PostFx(this.renderer, this.scene, this.camera);
+      } catch (e) {
+        console.warn('Ultra graphics unavailable, using High:', e);
+        this.quality = 'high';
+        this.postfx = null;
+      }
+    } else if (this.quality !== 'ultra' && this.postfx) {
+      this.postfx.dispose();
+      this.postfx = null;
+    }
+  }
+
   resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
     this.renderer.setSize(w, h, false);
+    if (this.postfx) this.postfx.resize(w, h);
     this.camera.aspect = this.viewCam.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.viewCam.updateProjectionMatrix();
@@ -499,8 +520,12 @@ export class Game {
     this.updateCamera(dt, alpha);
     this.updateEffects(dt);
 
-    this.renderer.clear();
-    this.renderer.render(this.scene, this.camera);
+    if (this.postfx) {
+      this.postfx.render(dt);
+    } else {
+      this.renderer.clear();
+      this.renderer.render(this.scene, this.camera);
+    }
     this.renderer.clearDepth();
     if (this.alive && !this.debugCam) this.renderer.render(this.viewScene, this.viewCam);
 
