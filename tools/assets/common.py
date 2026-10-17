@@ -248,11 +248,16 @@ class Builder:
                 ln[self.uv].uv = lo[puv].uv
         part.free()
 
-    def absorb(self, other):
-        """Copy all geometry of another Builder into this one (materials matched by name)."""
+    def absorb(self, other, bone=None):
+        """Copy all geometry of another Builder into this one (materials matched by name); optional rigid skin weight."""
+        if bone is not None and bone not in self.groups:
+            self.groups.append(bone)
+        gi = self.groups.index(bone) if bone is not None else None
         vmap = {}
         for v in other.bm.verts:
             vmap[v] = self.bm.verts.new(v.co)
+            if gi is not None:
+                vmap[v][self.dl][gi] = 1.0
         for f in other.bm.faces:
             mat = other.mats[f.material_index]
             if mat not in self.mats:

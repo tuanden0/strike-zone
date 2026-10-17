@@ -273,13 +273,11 @@ def build_body(team):
         for i, xo in enumerate((-0.03, -0.01, 0.01, 0.03)):
             sub = Builder("tmp")
             wp._chain(sub, W + R @ Vector((xo, 0.088, 0.0)), R, (0.034, 0.026), (35, 55), w0=0.02)
-            for _f in list(sub.bm.faces):
-                pass
-            b.absorb(sub)
+            b.absorb(sub, bone=f"hand.{sd}")
             sub.bm.free()
         sub = Builder("tmp")
         wp._chain(sub, W + R @ Vector((-side * 0.044, 0.02, -0.004)), R, (0.032, 0.026), (5, 30), w0=0.022)
-        b.absorb(sub)
+        b.absorb(sub, bone=f"hand.{sd}")
         sub.bm.free()
         b.add(cyl_between(W - f * 0.03, W + f * 0.012, 0.043, 0.043), "glove", (4, 4), bone=f"hand.{sd}")  # cuff
     return b
@@ -464,8 +462,8 @@ def build_team(team, preview):
     print(f"TRIS {name} body={tris} weapons={[(k, tri_count([w])) for k, w in weapon_objs]}")
     if preview and not NO_PREVIEW:
         rig.reset()
-        for k, w in weapon_objs:
-            w.hide_render = w.hide_viewport = k != "rifle"
+        for k, w in weapon_objs[1:]:  # already exported: drop the alternate weapons so poses show only the rifle
+            bpy.data.objects.remove(w, do_unlink=True)
         meshes = [mesh, weapon_objs[0][1]]
         render_previews(name, meshes, views=[("front", 200, 6), ("side", 115, 6), ("back", 25, 12)], size=(700, 900), samples=40, dist=4.6, focus=(0, 0.1, 0.9))
         # animation sanity renders: mid-stride run, crouch, and the death fall (arms in rifle hold unless the clip sets them)
