@@ -9,6 +9,7 @@ import { LobbyUI } from './lobby.js';
 import { Online } from './online.js';
 import { prepareMap } from './physics.js';
 import { loadAssets } from './assets.js';
+import { fitScreens, initFit } from './fit.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -24,9 +25,11 @@ state.sfx = sfx;
 const canvas = $('view');
 const input = new Input(canvas);
 const hud = new Hud();
+initFit();
 
 function show(screen) {
   for (const id of ['screen-title', 'screen-lobby', 'screen-pause']) $(id).hidden = id !== screen;
+  fitScreens();
 }
 
 function setStatus(id, msg, ok = false) {
