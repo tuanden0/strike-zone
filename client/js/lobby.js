@@ -19,6 +19,13 @@ export class LobbyUI {
     sel.replaceChildren();
     for (let n = 2; n <= spec.match.maxPlayers; n++) sel.append(new Option(String(n), String(n)));
     sel.value = String(spec.match.maxPlayers);
+    const fillBots = () => {
+      const keep = Math.min(Number($('c-bots').value) || 0, Number(sel.value) - 1);
+      $('c-bots').replaceChildren(...Array.from({ length: Number(sel.value) }, (_, n) => new Option(String(n), String(n))));
+      $('c-bots').value = String(keep);
+    };
+    sel.addEventListener('change', fillBots);
+    fillBots();
     const ms = $('c-map');
     ms.replaceChildren(...maps.map((m) => new Option(m.label, m.id)));
     $('create-form').addEventListener('submit', (e) => {
@@ -66,6 +73,8 @@ export class LobbyUI {
       timeLimit: Math.round(minutes * 60),
       scoreLimit: Number($('c-score').value),
       map: $('c-map').value,
+      bots: Number($('c-bots').value),
+      skill: $('c-skill').value,
       team: $('pref-team').value,
     });
   }
@@ -82,7 +91,7 @@ export class LobbyUI {
     for (const r of rooms) {
       const tr = el('tr');
       tr.append(el('td', '', (r.locked ? '[locked] ' : '') + r.name));
-      tr.append(el('td', '', `${r.players}/${r.max}`));
+      tr.append(el('td', '', `${r.players}/${r.max}${r.bots ? ` (${r.bots} bots)` : ''}`));
       const label = (this.maps.find((m) => m.id === r.map) || {}).label || r.map || '';
       tr.append(el('td', '', `${label} · ${Math.round(r.timeLimit / 60)} min · ${r.scoreLimit} kills`));
       tr.append(el('td', '', r.st === 'ended' ? 'intermission' : 'playing'));
@@ -97,7 +106,7 @@ export class LobbyUI {
         td.append(pw, ' ');
       }
       const btn = el('button', '', 'Join');
-      btn.disabled = r.players >= r.max;
+      btn.disabled = r.players >= r.max && !r.bots; // a human takes a bot's slot
       btn.addEventListener('click', () => this.join(r, pw ? pw.value : ''));
       td.append(btn);
       tr.append(td);

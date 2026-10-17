@@ -63,13 +63,17 @@ Copy **one file** to the host machine (the client is embedded) and run it:
 
 ### Controls
 
-`W A S D` move · mouse aim · `Space` jump · `Shift` walk (quiet) · `R` reload · `1` rifle `2` pistol `3` knife · left mouse fire/slash · `Tab` scoreboard · `E` pick up weapon · `G` drop weapon · `4` sniper (once picked up) · right click to scope in/out
+`W A S D` move · mouse aim · `Space` jump · `Shift` walk (quiet) · `R` reload · `1` rifle `2` pistol `3` knife · left mouse fire/slash · `Tab` scoreboard · `E` pick up weapon · `G` drop weapon · `X`/`C`/`V` frag/smoke/flash · `4` sniper (once picked up) · right click to scope in/out
 
 **Phones/tablets:** open the same URL in the mobile browser (landscape). Left thumb = move stick, right thumb = look, buttons: FIRE · JUMP · R (reload) · USE (pick up) · DROP · tap `1 2 3` to switch weapon, `TAB` scoreboard, `II` pause menu. Touch devices default to Graphics = Low; no Pointer Lock or HTTPS is needed. iOS Safari has no fullscreen API for pages, so add the page to the home screen for a full-screen view.
 
 **Weapons:** AR-7 rifle (auto), P-9 pistol, combat knife and the **SR-9 sniper** (bolt-action, one shot kills at any range on a body or head hit, 5 rounds, 1.4 s between shots). The sniper is *not* in the spawn loadout: pick one up from the purple-ringed spawn points (yard: two side lanes; crossroads: both ends of the cross street). **Right click** (touch: **SCOPE** button) toggles the zoom (~5.5x); click again to leave: look sensitivity drops with the zoom and shots are perfectly accurate while standing still; moving or hip-firing spreads them wide. Reloading, switching weapon, pausing or dying leaves the scope. Dying loses the sniper. Practice range gives you the sniper from the start.
 
 **Recoil:** a shot's view kick is proportional to the weapon's damage (sniper ≫ rifle > pistol; knife none). Holding the trigger ramps the kick up shot after shot and the server widens the spread (rifle: ~100 % of first shots hit a standing target at 30 m, ~20 % of shots 10+ of a spray). Short taps or pauses reset it, so burst-fire for accuracy; reloading or switching also resets it.
+
+**Grenades:** every spawn carries one HE (frag), one smoke and one flashbang: `X` / `C` / `V` (touch: **NADE** throws the selected type, tap the small label next to it to change). Grenades are simulated on the server, bounce off walls and floor and go off after 1.5–2 s. HE does up to 120 damage falling off to 0 at 7 m, needs a clear line to you, spares teammates and hurts the thrower by half; smoke makes a 14 s cloud; a flashbang whites out your screen (more when you look at it, none behind a wall). Online only (the practice range has no grenades).
+
+**Bots:** tick *Bots* + *Bot skill* when creating a room, or use **+ Bot Ember / + Bot Cobalt / - Bot** in the pause menu while playing. Bots navigate every map with A\* on a grid, see only what is in front of them with a clear line (not through smoke, blind when flashed), shoot in bursts (so recoil bloom applies to them too), take cover-less strafe fights, and throw the odd grenade. A human joining a room full of bots takes a bot's slot. Skill: easy (slow reactions, wide aim error), normal, hard.
 
 **Maps:** *Yard* (cover-rich arena) and *Crossroads* (empty four-way intersection with a building on each corner, inspired by classic crossroads maps). Choose it when creating a room or in Practice. Weapons lie at spawn points on each map and respawn 20 s after pick-up; dropped weapons vanish after 60 s.
 

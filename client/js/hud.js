@@ -15,6 +15,8 @@ export class Hud {
   constructor() {
     this.root = $('hud');
     this.scopeEl = $('scope');
+    this.flashEl = $('flash');
+    this.nadesEl = $('nades');
     this.hpFill = $('hp-fill');
     this.hpNum = $('hp-num');
     this.ammo = $('ammo');
@@ -157,6 +159,23 @@ export class Hud {
     this.scopeEl.style.opacity = String(v);
     this.scopeEl.hidden = v <= 0;
     this.root.classList.toggle('scoped', t > 0.5);
+  }
+
+  // counts: grenades left per type (online only; practice has none and hides the row)
+  setNades(defs, counts) {
+    const key = counts ? counts.join(',') : '';
+    if (key === this._nadeKey) return;
+    this._nadeKey = key;
+    const keys = ['X', 'C', 'V', 'B', 'N', 'M'];
+    this.nadesEl.hidden = !counts;
+    this.nadesEl.replaceChildren(...(counts ? defs.map((d, i) => el('span', counts[i] > 0 ? '' : 'empty', `${keys[i]} ${d.id} ${counts[i]}`)) : []));
+  }
+
+  // fl: ticks of flashbang blindness left (full white for the first part, then fades)
+  setFlash(fl) {
+    const a = Math.min(1, fl / 18);
+    this.flashEl.style.opacity = String(a);
+    this.flashEl.hidden = a <= 0;
   }
 
   setPrompt(text) {

@@ -31,6 +31,9 @@ export class Input {
     this.reload = false;
     this.drop = false;
     this.use = false;
+    this.nade = 0; // grenade type + 1 to throw this tick
+    this.nadeSel = 0; // touch: selected grenade type
+    this.nadeNames = [];
     this.weapon = -1;
     this.onLockChange = () => {};
     this.onScoreboard = () => {};
@@ -83,6 +86,9 @@ export class Input {
       if (e.code === 'KeyR') this.reload = true;
       if (e.code === 'KeyG') this.drop = true;
       if (e.code === 'KeyE') this.use = true;
+      if (e.code === 'KeyX') this.nade = 1;
+      if (e.code === 'KeyC') this.nade = 2;
+      if (e.code === 'KeyV') this.nade = 3;
       if (e.code === 'Digit1') this.weapon = 0;
       if (e.code === 'Digit2') this.weapon = 1;
       if (e.code === 'Digit3') this.weapon = 2;
@@ -175,6 +181,7 @@ export class Input {
       drop: live && this.drop,
       use: live && this.use,
       scope: live && this.scopeHeld,
+      nade: live ? this.nade : 0,
       weapon: live ? this.weapon : -1,
       yaw: this.yaw,
       pitch: this.pitch,
@@ -183,6 +190,7 @@ export class Input {
     this.reload = false;
     this.drop = false;
     this.use = false;
+    this.nade = 0;
     this.weapon = -1;
     return cmd;
   }

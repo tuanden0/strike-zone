@@ -24,6 +24,12 @@ export class TouchControls {
     this.bindHold('t-jump', (down) => input.setKey('Space', down));
     this.bindPress('t-reload', () => (input.reload = true));
     this.bindPress('t-use', () => (input.use = true));
+    this.bindPress('t-nade', () => (input.nade = input.nadeSel + 1));
+    this.bindPress('t-nadesel', () => {
+      if (!input.nadeNames.length) return;
+      input.nadeSel = (input.nadeSel + 1) % input.nadeNames.length;
+      $('t-nadesel').textContent = input.nadeNames[input.nadeSel].toUpperCase();
+    });
     this.bindPress('t-drop', () => (input.drop = true));
     this.bindPress('t-scope', () => {
       input.scopeHeld = !input.scopeHeld;

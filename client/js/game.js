@@ -6,6 +6,7 @@ import { buildWorld, buildLights, buildEnvironment, fitShadow } from './world.js
 import { Pickups } from './pickups.js';
 import { isTouch } from './input.js';
 import { Decals } from './decals.js';
+import { Grenades } from './grenades.js';
 import { Soldier, nameSprite, applyAnisotropy, flashTexture } from './models.js';
 import { clone } from '../vendor/SkeletonUtils.js';
 
@@ -155,6 +156,8 @@ export class Game {
     this.world = null;
     this.decals = new Decals(this.scene, map);
     this.pickups = new Pickups(this);
+    this.grenades = new Grenades(this);
+    this.shake = 0; // camera shake amount (explosions)
     this.setMap('yard', map, assets.map.scene);
     this.camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.05, 200);
     this.scene.add(this.camera);
@@ -285,6 +288,7 @@ export class Game {
     this.decals.map = map;
     this.decals.clear();
     this.pickups.clear();
+    this.grenades.clear();
     fitShadow(this.sun, map);
   }
 
@@ -337,6 +341,7 @@ export class Game {
     this.remotes.clear();
     this.decals.clear();
     this.pickups.clear();
+    this.grenades.clear();
     this.hud.show(false);
     this.mode = null;
   }
@@ -411,7 +416,7 @@ export class Game {
     cmd.yaw = this.input.yaw;
     cmd.pitch = this.input.pitch;
     if (!this.alive || (this.mode && this.mode.frozen)) {
-      Object.assign(cmd, { f: 0, s: 0, jump: false, fire: false, reload: false, weapon: -1, scope: false });
+      Object.assign(cmd, { f: 0, s: 0, jump: false, fire: false, reload: false, weapon: -1, scope: false, nade: 0 });
     }
     this.prev = { ...this.kin };
     let res = null;
@@ -515,7 +520,9 @@ export class Game {
     }
     this.camera.position.set(lerp(p.x, k.x, alpha), ey, lerp(p.z, k.z, alpha));
     this.camera.rotation.order = 'YXZ';
-    this.camera.rotation.set(this.input.pitch, this.input.yaw, this.alive ? 0 : this.deadT * 0.6);
+    this.shake *= Math.exp(-dt * 6);
+    const sh = this.shake > 0.01 ? this.shake * 0.05 : 0;
+    this.camera.rotation.set(this.input.pitch + (sh ? (Math.random() - 0.5) * sh : 0), this.input.yaw + (sh ? (Math.random() - 0.5) * sh : 0), this.alive ? 0 : this.deadT * 0.6);
     if (this.debugCam) { // free camera for screenshots/tests: {pos:[x,y,z], look:[x,y,z]}
       this.camera.position.set(...this.debugCam.pos);
       this.camera.lookAt(...this.debugCam.look);
@@ -599,6 +606,7 @@ export class Game {
   updateEffects(dt) {
     this.decals.update(dt);
     this.pickups.update(dt);
+    this.grenades.update(dt);
     for (const c of this.casings) {
       if (!c.visible) continue;
       c.userData.life -= dt;

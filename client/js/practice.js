@@ -44,6 +44,8 @@ export class Practice {
       return { ...s, id: i + 1, view, hp: 100, alive: true, respawnAt: 0, px: s.x, pz: s.z, vx: 0 };
     });
     game.hud.setHealth(this.spec.player.maxHealth);
+    game.hud.setNades(this.spec.grenades, null); // grenades are server-simulated: online only
+    game.hud.setFlash(0);
     game.hud.setScore(0, 0);
     game.hud.setTimer(-1);
     game.hud.setPing(-1);

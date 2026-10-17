@@ -166,6 +166,24 @@ export class Sfx {
       case 'impact':
         this._noise(v(0.4), t, 0.07, 3500, 600, 'bandpass', 1);
         break;
+      case 'throw':
+        this._noise(v(0.25), t, 0.12, 700, 2200, 'bandpass', 1);
+        break;
+      case 'boom': {
+        const o = v(1.4);
+        this._noise(o, t, 0.9, 1800, 60);
+        this._tone(o, t, 0.7, 90, 25, 'sine', 1.4);
+        break;
+      }
+      case 'flashbang': {
+        const o = v(1.0);
+        this._noise(o, t, 0.25, 9000, 1500, 'highpass', 0.7);
+        this._tone(o, t + 0.02, 1.2, 3200, 3000, 'sine', 0.25);
+        break;
+      }
+      case 'smoke':
+        this._noise(v(0.5), t, 1.4, 5000, 800, 'highpass', 0.5);
+        break;
       case 'end':
         this._tone(v(0.5), t, 0.6, 440, 220, 'triangle');
         break;

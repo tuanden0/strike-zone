@@ -1,6 +1,7 @@
 // Online game mode: sends inputs, predicts locally, reconciles with server snapshots.
 import { stepMove } from './physics.js';
 import { TEAM_NAMES } from './hud.js';
+import { weaponName } from './weapons.js';
 
 const MAX_PENDING = 120;
 
@@ -53,7 +54,7 @@ export class Online {
     this.seq++;
     this.net.send({
       t: 'in', seq: this.seq, f: cmd.f, s: cmd.s, yaw: cmd.yaw, pitch: cmd.pitch,
-      jump: cmd.jump, walk: cmd.walk, fire: cmd.fire, reload: cmd.reload, weapon: cmd.weapon, drop: cmd.drop, use: cmd.use, scope: cmd.scope,
+      jump: cmd.jump, walk: cmd.walk, fire: cmd.fire, reload: cmd.reload, weapon: cmd.weapon, drop: cmd.drop, use: cmd.use, scope: cmd.scope, nade: cmd.nade,
     });
     this.pending.push({ seq: this.seq, tick: game.tickNo, cmd: { ...cmd } });
     if (this.pending.length > MAX_PENDING) this.pending.shift();
@@ -105,6 +106,10 @@ export class Online {
       this.reconcile(you);
       this.me = you;
       this.hud.setHealth(you.hp, this.spec.player.maxHealth);
+      this.hud.setNades(this.spec.grenades, you.gn);
+      if (you.fl > 0 && !this.flashed) this.sfx.play('flashbang');
+      this.flashed = you.fl > 0;
+      this.hud.setFlash(you.fl || 0);
     }
     for (const p of m.ps) {
       if (p.i === this.myId) continue;
@@ -115,6 +120,8 @@ export class Online {
       }
       v.push(now, { x: p.x, y: p.y, z: p.z, yaw: p.yw, alive: p.a, w: p.w });
     }
+    game.grenades.setFlight(m.gr);
+    game.grenades.setSmokes(m.sm);
     for (const ev of m.ev || []) this.onEvent(ev);
 
     this.hud.setTimer(m.tl);
@@ -207,7 +214,7 @@ export class Online {
       case 'kill': {
         const k = this.nameOf(ev.by);
         const v = this.nameOf(ev.v);
-        this.hud.addKill(k, v, this.spec.weapons[ev.w].name, ev.head);
+        this.hud.addKill(k, v, weaponName(this.spec, ev.w), ev.head);
         const rv = game.remotes.get(ev.v);
         if (rv) game.decals.bloodPool(rv.group.position.x, rv.group.position.z);
         else if (ev.v === me) game.decals.bloodPool(game.kin.x, game.kin.z);
@@ -219,6 +226,16 @@ export class Online {
         }
         break;
       }
+      case 'throw':
+        if (ev.by === me) game.playAt('throw', null);
+        else {
+          const v = game.remotes.get(ev.by);
+          game.playAt('throw', v ? [v.group.position.x, v.group.position.y + 1.4, v.group.position.z] : null);
+        }
+        break;
+      case 'boom':
+        game.grenades.boom(ev);
+        break;
       default:
     }
   }

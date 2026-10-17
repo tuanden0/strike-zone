@@ -15,13 +15,14 @@
   <div id="hud-info"><span id="fps"></span> <span id="ping"></span></div>
   <div id="killfeed"></div>
   <div id="crosshair"></div>
+  <div id="flash" hidden></div>
   <div id="scope" hidden><div id="scope-h"></div><div id="scope-v"></div></div>
   <div id="prompt" hidden></div>
   <div id="hitmarker"></div>
   <div id="damage"></div>
   <div id="banner"></div>
   <div id="hud-bl"><div id="hp-label">HP</div><div id="hp-bar"><div id="hp-fill"></div></div><div id="hp-num">100</div></div>
-  <div id="hud-br"><div id="weapon-name"></div><div id="ammo"></div><div id="weapon-slots"></div></div>
+  <div id="hud-br"><div id="weapon-name"></div><div id="ammo"></div><div id="nades" hidden></div><div id="weapon-slots"></div></div>
   <div id="practice-stats" hidden></div>
   <div id="scoreboard" hidden></div>
 </div>
@@ -32,6 +33,8 @@
   <button id="t-fire" aria-label="Fire">FIRE</button>
   <button id="t-jump" aria-label="Jump">JUMP</button>
   <button id="t-scope" aria-label="Scope">SCOPE</button>
+  <button id="t-nade" aria-label="Throw grenade">NADE</button>
+  <button id="t-nadesel" aria-label="Choose grenade">HE</button>
   <button id="t-reload" aria-label="Reload">R</button>
   <button id="t-use" aria-label="Pick up weapon">USE</button>
   <button id="t-drop" aria-label="Drop weapon">DROP</button>
@@ -53,7 +56,7 @@
       <button id="btn-practice" disabled>Practice range</button>
     </div>
     <p id="title-status" class="status"></p>
-    <p id="controls-hint" class="hint">WASD move · Mouse aim · Space jump · Shift walk · R reload · 1-4 weapons · E pick up · G drop · Right click scope · Tab scoreboard</p>
+    <p id="controls-hint" class="hint">WASD move · Mouse aim · Space jump · Shift walk · R reload · 1-4 weapons · E pick up · G drop · Right click scope · X/C/V grenades · Tab scoreboard</p>
   </div>
 </section>
 
@@ -79,6 +82,8 @@
       <label for="c-pass">Password</label><input id="c-pass" type="password" maxlength="32" autocomplete="off" placeholder="optional">
       <label for="c-map">Map</label><select id="c-map"></select>
       <label for="c-max">Max players</label><select id="c-max"></select>
+      <label for="c-bots">Bots</label><select id="c-bots"></select>
+      <label for="c-skill">Bot skill</label><select id="c-skill"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
       <label for="c-time">Time limit (min)</label><input id="c-time" type="number" min="1" max="30" value="10">
       <label for="c-score">Score limit</label><input id="c-score" type="number" min="5" max="100" value="30">
       <span></span><button class="primary" type="submit">Create &amp; join</button>
@@ -93,6 +98,11 @@
     <div class="row"><button id="btn-resume" class="primary">Resume</button><button id="btn-leave">Leave</button></div>
     <div id="pause-team" class="row" hidden>
       <button id="btn-team-a" class="team-a-btn">Join Ember</button><button id="btn-team-b" class="team-b-btn">Join Cobalt</button>
+    </div>
+    <div id="pause-bots" hidden>
+      <div class="row"><button id="btn-bot-a">+ Bot Ember</button><button id="btn-bot-b">+ Bot Cobalt</button><button id="btn-bot-rm">- Bot</button></div>
+      <label for="bot-skill">New bot skill</label>
+      <select id="bot-skill"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
     </div>
     <label for="sens">Mouse sensitivity</label>
     <input id="sens" type="range" min="3" max="80" value="22">

@@ -65,6 +65,7 @@ function enterGame(mode, title, online) {
   if (game.running) game.stop();
   state.online = online;
   $('pause-team').hidden = !online;
+  $('pause-bots').hidden = !online;
   setStatus('pause-status', '');
   game.start(mode);
   $('pause-title').textContent = title;
@@ -177,7 +178,7 @@ $('btn-practice').addEventListener('click', async () => {
 });
 if (isTouch) {
   $('pause-hint').textContent = 'Tap Resume to play. Left side: move · right side: look · buttons: fire, jump, reload, use, drop.';
-  $('controls-hint').textContent = 'Touch: left thumb moves, right thumb aims · FIRE / JUMP / R reload · USE pick up · DROP · SCOPE (sniper) · tap the weapon list to switch';
+  $('controls-hint').textContent = 'Touch: left thumb moves, right thumb aims · FIRE / JUMP / R reload · USE pick up · DROP · NADE throws the chosen grenade (tap HE to change) · SCOPE (sniper) · tap the weapon list to switch';
   $('sens').previousElementSibling.textContent = 'Look sensitivity';
 }
 $('btn-online').addEventListener('click', goOnline);
@@ -187,6 +188,9 @@ $('btn-resume').addEventListener('click', () => {
   input.lock();
 });
 $('btn-leave').addEventListener('click', leaveGame);
+$('btn-bot-a').addEventListener('click', () => state.net && state.net.send({ t: 'addbot', team: 'A', skill: $('bot-skill').value }));
+$('btn-bot-b').addEventListener('click', () => state.net && state.net.send({ t: 'addbot', team: 'B', skill: $('bot-skill').value }));
+$('btn-bot-rm').addEventListener('click', () => state.net && state.net.send({ t: 'rmbot' }));
 $('btn-team-a').addEventListener('click', () => state.net && state.net.send({ t: 'team', team: 'A' }));
 $('btn-team-b').addEventListener('click', () => state.net && state.net.send({ t: 'team', team: 'B' }));
 $('sens').addEventListener('input', (e) => input.setSens(Number(e.target.value) / 10000));
@@ -216,6 +220,8 @@ try {
     const [spec, maps] = await Promise.all([fetchJson('shared/spec.json'), fetchJson('shared/maps.json')]);
     state.spec = spec;
     state.maps = maps;
+    input.nadeNames = spec.grenades.map((g) => g.id);
+    $('t-nadesel').textContent = input.nadeNames[0].toUpperCase();
     $('practice-map').replaceChildren(...maps.map((m) => new Option(m.label, m.id)));
     state.mapData[maps[0].id] = prepareMap(await fetchJson(`shared/${maps[0].file}`));
     state.map = state.mapData[maps[0].id];
