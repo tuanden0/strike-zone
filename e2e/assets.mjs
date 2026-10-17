@@ -30,11 +30,12 @@ try {
   });
   let total = 0;
   for (const [n, i] of Object.entries(info)) { total += i.bytes; console.log(`  ${n.padEnd(13)} tris=${String(i.tris).padStart(6)} bytes=${String(i.bytes).padStart(8)} clips=${i.clips.join(',')}`); }
-  check('all 9 glb models load', Object.keys(info).length === 9);
+  check('all 12 glb models load', Object.keys(info).length === 12, Object.keys(info).join(','));
   check('total asset size <= 20 MB', total <= 20 * 1024 * 1024, `${(total / 1048576).toFixed(2)} MB`);
   const charBody = info.character_a.tris - 1480 - 796 - 429; // minus the three low-poly weapons parented to the hand
   check('character body <= 5000 tris', charBody <= 5000, `${charBody}`);
   check('rifle <= 3000 tris', info.rifle.tris <= 3000, `${info.rifle.tris}`);
+  check('sniper <= 3000 tris', info.sniper.tris <= 3000, `${info.sniper.tris}`);
   check('pistol <= 1500 tris', info.pistol.tris <= 1500, `${info.pistol.tris}`);
   check('knife <= 800 tris', info.knife.tris <= 800, `${info.knife.tris}`);
   const need = ['idle', 'run', 'crouch', 'death', 'hold_rifle', 'hold_pistol', 'hold_knife', 'shoot_rifle', 'shoot_pistol', 'shoot_knife'];

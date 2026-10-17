@@ -63,7 +63,13 @@ Copy **one file** to the host machine (the client is embedded) and run it:
 
 ### Controls
 
-`W A S D` move · mouse aim · `Space` jump · `Shift` walk (quiet) · `R` reload · `1` rifle `2` pistol `3` knife · left mouse fire/slash · `Tab` scoreboard
+`W A S D` move · mouse aim · `Space` jump · `Shift` walk (quiet) · `R` reload · `1` rifle `2` pistol `3` knife · left mouse fire/slash · `Tab` scoreboard · `E` pick up weapon · `G` drop weapon · `4` sniper (once picked up) · hold right mouse to scope
+
+**Phones/tablets:** open the same URL in the mobile browser (landscape). Left thumb = move stick, right thumb = look, buttons: FIRE · JUMP · R (reload) · USE (pick up) · DROP · tap `1 2 3` to switch weapon, `TAB` scoreboard, `II` pause menu. Touch devices default to Graphics = Low; no Pointer Lock or HTTPS is needed. iOS Safari has no fullscreen API for pages, so add the page to the home screen for a full-screen view.
+
+**Weapons:** AR-7 rifle (auto), P-9 pistol, combat knife and the **SR-9 sniper** (bolt-action, one shot kills at any range on a body or head hit, 5 rounds, 1.4 s between shots). The sniper is *not* in the spawn loadout: pick one up from the purple-ringed spawn points (yard: two side lanes; crossroads: both ends of the cross street). Hold **right mouse** (touch: **SCOPE** button) to zoom ~5.5x: look sensitivity drops with the zoom and shots are perfectly accurate while standing still; moving or hip-firing spreads them wide. Reloading drops the scope. Dying loses the sniper. Practice range gives you the sniper from the start.
+
+**Maps:** *Yard* (cover-rich arena) and *Crossroads* (empty four-way intersection with a building on each corner, inspired by classic crossroads maps). Choose it when creating a room or in Practice. Weapons lie at spawn points on each map and respawn 20 s after pick-up; dropped weapons vanish after 60 s.
 
 **Practice range** (title screen) works offline with target dummies and needs no server connection once the page is loaded.
 
@@ -92,6 +98,7 @@ Nothing is required. Invalid values make the server exit at startup with a clear
 | Page loads but "Cannot reach the game server" | Reverse proxy without WebSocket upgrade, or the Origin was rejected: the server log prints `ws: rejected origin …`; add it to `ALLOWED_ORIGINS`. |
 | "too many connections" | More than `MAX_CONN_PER_IP` tabs/clients from one IP (e.g. everyone behind one NAT). Raise `MAX_CONN_PER_IP`. |
 | No sound | Browsers start audio only after a click: press **Resume**. Check the Volume slider. |
+| Phone: touch controls missing / page scrolls | Use landscape; tap **Resume** first. Add the page to the home screen on iOS for fullscreen. Touch mode is chosen from the primary pointer (`pointer: coarse`); `?touch=1` forces it. |
 | Mouse not captured | Click **Resume** (a click is required); a browser may refuse re-capture for ~1 s after `Esc`. |
 | Laggy / low FPS | Needs WebGL. Pause menu → **Graphics: Low** (no shadows, 1x pixel ratio). Close other tabs; enable hardware acceleration. FPS and ping are shown top-left. |
 | macOS "cannot be opened" | `xattr -d com.apple.quarantine <file>` or right-click → Open. |
@@ -102,7 +109,7 @@ Nothing is required. Invalid values make the server exit at startup with a clear
 go test -race ./...                 # unit + integration (real sockets); needs no browser
 ./scripts/check.sh                  # gofmt, vet, race tests, gitleaks (tree + history), govulncheck
 node scripts/gen-golden.mjs         # regenerate JS<->Go golden files after touching physics/weapons
-cd e2e && npm ci && node smoke.mjs && node online.mjs && node assets.mjs   # headless Chromium; server must be running (BASE_URL=http://host:port)
+cd e2e && npm ci && node smoke.mjs && node online.mjs && node assets.mjs && node extras.mjs && node mobile.mjs   # headless Chromium; server must be running (BASE_URL=http://host:port)
 pip install bpy==5.2.2 && python tools/assets/build_all.py   # regenerate every model + preview renders (or: blender -b -P tools/assets/build_all.py)
 ```
 
@@ -110,7 +117,7 @@ Layout:
 
 ```
 client/            static web client (ES modules, vendored three.js + GLTFLoader), embed.go (go:embed)
-  assets/models    generated .glb models (map, soldier x2 teams, rifle/pistol/knife + first-person variants)
+  assets/models    generated .glb models (maps, soldier x2 teams, rifle/sniper/pistol/knife + first-person variants)
   shared/          spec.json + map.json: ONE source for hitboxes, speeds, weapons, map (client and server)
 server/            main.go + internal/{config,netutil,game,lobby,wsserver,app}
   internal/game    pure simulation (no I/O): movement, weapons, hit detection, match
@@ -119,7 +126,7 @@ server/            main.go + internal/{config,netutil,game,lobby,wsserver,app}
 docs/PROTOCOL.md   wire protocol
 tools/assets/      Blender scripts that generate every .glb (see tools/assets/README.md, ASSETS.md)
 scripts/           run.sh, run.ps1, build-all.sh, check.sh, gen-golden.mjs
-e2e/               Playwright tests: smoke, online, xss, assets (hitbox fit), perf, screenshots
+e2e/               Playwright tests: smoke, online, xss, assets (hitbox fit), extras (decals, sniper scope, crossroads), mobile (touch emulation), perf, screenshots
 ```
 
 More: [ASSETS.md](ASSETS.md) (models, budgets, licences), [DECISIONS.md](DECISIONS.md), [SECURITY.md](SECURITY.md), [REPORT.md](REPORT.md) (asset overhaul status, tests, screenshots), [docs/REPORT_MVP.md](docs/REPORT_MVP.md) (original MVP report).

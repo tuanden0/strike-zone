@@ -87,3 +87,27 @@ is **stylised low-poly, not truly realistic**: limbs are rigid segments, faces a
 * Aim-pitch (spine/chest rotation) and a crouch mechanic to use the existing clip; foot IK to remove sliding.
 * Replace procedural noise with painted/baked detail (or a CC0 pack in `client/assets/third_party/` with licence notes), add normal-mapped face and skin.
 * Optional: dropped-weapon pickups using the world models `rifle.glb/pistol.glb/knife.glb` (currently unused at runtime), decals, dust, tracers as meshes.
+
+---
+
+# Gameplay extras (branch `feature/gameplay-extras`)
+
+Requested after the asset overhaul: bullet holes / blood, weapon drop + pick-up + map weapon spawns, a four-way "crossroads" map,
+phone support, a sniper rifle with scope logic. **These change the protocol and server (additively)**, unlike the asset task; see DECISIONS.md #34–42.
+
+| Feature | Where | Verified by |
+|---------|-------|-------------|
+| Bullet holes on walls/floor/crates, blood splats + pools + spray on characters | `client/js/decals.js` (client-only cosmetics) | `e2e/extras.mjs` (hole/blood counts), screenshots `docs/screenshots/decals_*.jpg` |
+| Drop (`G`), pick up (`E`), swap, expiry 60 s, map spawn points respawn 20 s | `server/internal/game/pickups.go`, `client/js/pickups.js`, `pk` message | `pickups_test.go`, `lobby/maps_pickups_test.go`, `e2e/mobile.mjs` (drop + pick up online) |
+| Crossroads map: empty four-way intersection, four enterable corner buildings, no vehicles/obstacles; map choice per room and in practice | `tools/assets/gen_crossroads_map.py`, `crossroads_kit.py`, `shared/maps.json`, `MapSet` | `maps_test.go` (BFS: every spawn/pickup mutually reachable), `e2e/extras.mjs`, previews `docs/previews/crossroads_*.jpg`, `docs/screenshots/crossroads_*.jpg` |
+| Phone/tablet browser: floating stick, drag-to-look, FIRE/JUMP/R/USE/DROP/SCOPE buttons, weapon list taps, pause button, landscape hint, Graphics Low by default | `client/js/touch.js`, `input.js` touch mode, CSS | `e2e/mobile.mjs` (Chromium touch emulation, 800x360): stick, look, fire (no double fire), slot tap, menu, online drop/use, portrait hint; screenshots `docs/screenshots/mobile_*.jpg` |
+| SR-9 sniper (pickup-only, one-shot kill, bolt cycle) + scope (right mouse / SCOPE): FOV 78→14°, sensitivity scaled, overlay, server-side accuracy | `spec.json`, `weapons.go`, `combat.go`, `game.js updateScope`, `sniper.py` | `sniper_test.go` (incl. scoped = 60/60 hits vs hip fire misses; mutation-checked), `e2e/extras.mjs`, `docs/screenshots/{fp_sniper,scope_view,tp_sniper*}.jpg` |
+
+Test status when this was written: `scripts/check.sh` (gofmt, vet, `go test -race ./...`, gitleaks tree + history) all OK, govulncheck skipped (no network);
+e2e against a local server: smoke, online, xss, assets, extras, mobile — all checks passed (software GL, Graphics Low except extras/screenshots at High).
+
+**Not verified / limits**
+* Touch controls were tested with Chromium touch *emulation*, not on a physical phone (no device here); iOS Safari has no Fullscreen API for pages and was not tested at all.
+* No movement slowdown while scoped, and other players do not see who is scoped (not requested).
+* Blood and holes are local: two clients see different splat shapes in the same place.
+* The Firefox "Permission denied to access object" error reported earlier is still unconfirmed (diagnostics + fallback are in, see git log).
