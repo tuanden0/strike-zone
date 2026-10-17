@@ -51,7 +51,7 @@ try {
     window.__cmds = []; // spy on the commands the game simulates
     const inp = window.__sz.input;
     const orig = inp.sample.bind(inp);
-    inp.sample = () => { const c = orig(); window.__cmds.push(c); return c; };
+    inp.sample = () => { const c = orig(); window.__cmds.push({ ...c }); return c; }; // a copy: the game rewrites the live command (nadeKey is consumed)
   });
   check('no pad plugged in: no pad hint on the pause screen', await g(() => document.getElementById('pause-pad').hidden));
   await frames(3);
