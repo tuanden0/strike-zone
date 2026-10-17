@@ -9,6 +9,8 @@ import { Decals } from './decals.js';
 import { Grenades } from './grenades.js';
 import { NadeHold } from './nadehold.js';
 import { PostFx } from './postfx.js';
+import { Footsteps } from './footsteps.js';
+import { Radar } from './radar.js';
 import { Soldier, nameSprite, applyAnisotropy, flashTexture } from './models.js';
 import { clone } from '../vendor/SkeletonUtils.js';
 
@@ -72,6 +74,7 @@ export class RemoteView {
     this.buf = [];
     this.alive = true;
     this.stepDist = 0;
+    this.foot = 0;
     this.last = null;
     this.t = 0;
     this.char = new Soldier(game.assets[team === 'B' ? 'character_b' : 'character_a'], game.spec, game.assets.sniper);
@@ -122,17 +125,9 @@ export class RemoteView {
     this.t += dt;
     let speed = 0;
     if (this.last && dt > 0) {
-      const dx = s.x - this.last.x;
-      const dz = s.z - this.last.z;
-      const d = Math.hypot(dx, dz);
+      const d = Math.hypot(s.x - this.last.x, s.z - this.last.z);
       speed = d / dt;
-      if (this.alive && s.y < 0.05 && speed > 3.5) {
-        this.stepDist += d;
-        if (this.stepDist > 2.4) {
-          this.stepDist = 0;
-          this.game.playAt('step', [s.x, s.y, s.z]);
-        }
-      }
+      this.game.footsteps.remote(this, s, d, dt); // surface-specific, positional, audible up to ~25 m
     }
     this.last = { x: s.x, y: s.y, z: s.z };
     this.char.update(dt, this.alive && s.y < 0.05 ? speed : 0);
@@ -184,6 +179,7 @@ export class Game {
     this.pickups = new Pickups(this);
     this.grenades = new Grenades(this);
     this.shake = 0; // camera shake amount (explosions)
+    this.radar = new Radar(this); // minimap (before the first setMap: it pre-renders the map layer)
     this.setMap('yard', map, assets.map.scene);
     this.camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.05, 200);
     this.scene.add(this.camera);
@@ -252,6 +248,7 @@ export class Game {
     });
 
     this.loadout = new Loadout(spec);
+    this.input.cycleWeapon = (dir) => this.cycleWeapon(dir); // gamepad: next / previous weapon
     this.kin = createKin();
     this.eyeOff = spec.player.eyeHeight;
     this.prev = { ...this.kin };
@@ -270,7 +267,7 @@ export class Game {
     this.swingTick = -1e9; // tick of the last knife swing; a pause of 27 ticks (0.9 s) restarts the combo
     this.switchT = 0;
     this.bob = 0;
-    this.stepDist = 0;
+    this.footsteps = new Footsteps(this);
     this.deadT = 0;
     this.frames = 0;
     this.fpsT = 0;
@@ -321,6 +318,7 @@ export class Game {
     this.pickups.clear();
     this.grenades.clear();
     fitShadow(this.sun, map);
+    this.radar.setMap(map);
   }
 
   pixelRatio() {
@@ -474,24 +472,31 @@ export class Game {
     let res = null;
     if (this.alive) {
       const wasGround = this.kin.onGround;
+      const fallVy = this.kin.vy; // vertical speed before the step (landing loudness)
       stepMove(this.spec, this.map, this.kin, cmd);
       const dx = this.kin.x - this.prev.x;
       const dz = this.kin.z - this.prev.z;
       const d = Math.hypot(dx, dz);
       this.speed = d * this.spec.tickRate;
-      if (this.kin.onGround && !wasGround && this.prev.y - this.kin.y > 0.05) this.playAt('land', this.eye());
       if (cmd.jump && wasGround && !this.kin.onGround) this.playAt('jump', this.eye());
-      if (this.kin.onGround && !cmd.walk && !this.kin.crouch) { // walking and crouching are silent
-        this.stepDist += d;
-        if (this.stepDist > 2.2) {
-          this.stepDist = 0;
-          this.playAt('step', this.eye());
-        }
-      }
+      this.footsteps.local(cmd, this.kin, d, this.speed, wasGround, fallVy); // steps by surface, stride and landing thuds
       res = this.loadout.step(cmd, this.tickNo);
       this.onLocalWeapon(res, cmd);
     }
     if (this.mode && this.mode.onTick) this.mode.onTick(cmd, res, this);
+  }
+
+  // Select the next (dir 1) / previous (-1) weapon you own.
+  cycleWeapon(dir) {
+    const l = this.loadout;
+    const n = this.spec.weapons.length;
+    for (let i = 1; i < n; i++) {
+      const j = (((l.cur + dir * i) % n) + n) % n;
+      if (l.has[j]) {
+        this.input.weapon = j;
+        return;
+      }
+    }
   }
 
   onLocalWeapon(res, cmd) {
@@ -550,6 +555,7 @@ export class Game {
     for (const r of this.remotes.values()) r.update(nowMs, dt);
     this.updateCamera(dt, alpha);
     this.updateEffects(dt);
+    this.radar.frame(dt);
 
     if (this.postfx) {
       this.postfx.render(dt);
@@ -723,6 +729,10 @@ export class Game {
     const can = this.alive && w.scopeFov > 0 && !this.loadout.reloading && this.nadeHold.eq < 0;
     if (!can) this.input.scopeHeld = false; // toggled state ends when the scope stops being usable (reload, switch, death)
     const want = can && this.input.scopeHeld;
+    if (want !== !!this._scopeWant) { // edge only: scope turned on / off (also by reload, weapon switch or pause)
+      this._scopeWant = want;
+      if (this.alive) this.sfx.play(want ? 'scope_in' : 'scope_out'); // local and non-positional
+    }
     if (w.scopeFov > 0) this.scopeFov = w.scopeFov;
     this.scopeT = Math.max(0, Math.min(1, this.scopeT + (want ? 1 : -1) * dt * 7));
     if (!this.alive) this.scopeT = 0;

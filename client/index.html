@@ -14,6 +14,7 @@
 <div id="hud" hidden>
   <div id="hud-top"><span id="score-a" class="team-a">0</span><span id="timer">--:--</span><span id="score-b" class="team-b">0</span></div>
   <div id="hud-info"><span id="fps"></span> <span id="ping"></span></div>
+  <canvas id="radar" aria-label="Radar"></canvas>
   <div id="killfeed"></div>
   <div id="crosshair"></div>
   <div id="flash" hidden></div>
@@ -33,8 +34,6 @@
   <div id="t-zone"></div>
   <div id="t-stick"><div id="t-knob"></div></div>
   <div id="t-lstick"><div id="t-lknob"></div></div>
-  <button id="t-fire" aria-label="Fire">FIRE</button>
-  <button id="t-fire2" aria-label="Fire (left hand)">FIRE</button>
   <button id="t-jump" aria-label="Jump">JUMP</button>
   <button id="t-crouch" aria-label="Crouch">DUCK</button>
   <button id="t-scope" aria-label="Scope">SCOPE</button>
@@ -61,7 +60,7 @@
       <button id="btn-practice" disabled>Practice range</button>
     </div>
     <p id="title-status" class="status"></p>
-    <p id="controls-hint" class="hint">WASD move · Mouse aim · Space jump · Shift crouch · Alt walk · R reload · 1-4 weapons · E pick up · G drop · Right click scope · X/C/V grenades · Tab scoreboard</p>
+    <p id="controls-hint" class="hint">WASD move · Mouse aim · Space jump · Shift crouch · Alt walk · R reload · 1-4 weapons · E pick up · G drop · Right click scope · X/C/V grenades · Tab scoreboard · M radar · gamepad supported</p>
   </div>
 </section>
 
@@ -100,6 +99,7 @@
   <div class="panel">
     <h2 id="pause-title">Paused</h2>
     <p id="pause-hint" class="hint">Click Resume to capture the mouse.</p>
+    <p id="pause-pad" class="hint pad-hint" hidden>Gamepad connected: press A or Start to resume (Start pauses). Sticks move and aim, RT fire, LT scope, A jump, B crouch, X reload, Y/LB/RB weapons, D-pad grenades and drop, R3 use, Back scoreboard.</p>
     <div class="row"><button id="btn-resume" class="primary">Resume</button><button id="btn-leave">Leave</button></div>
     <div id="pause-team" class="row" hidden>
       <button id="btn-team-a" class="team-a-btn">Join Ember</button><button id="btn-team-b" class="team-b-btn">Join Cobalt</button>

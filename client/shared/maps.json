@@ -3,42 +3,49 @@
   "id": "yard",
   "label": "Crossfire Yard",
   "file": "map.json",
-  "model": "map.glb"
+  "model": "map.glb",
+  "floor": "concrete"
  },
  {
   "id": "crossroads",
   "label": "Crossroads",
   "file": "map_crossroads.json",
-  "model": "map_crossroads.glb"
+  "model": "map_crossroads.glb",
+  "floor": "concrete"
  },
  {
   "id": "piazza",
   "label": "Piazza",
   "file": "map_piazza.json",
-  "model": "map_piazza.glb"
+  "model": "map_piazza.glb",
+  "floor": "stone"
  },
  {
   "id": "pyramid",
   "label": "Sandstone Pyramid",
   "file": "map_pyramid.json",
-  "model": "map_pyramid.glb"
+  "model": "map_pyramid.glb",
+  "floor": "sand"
  },
  {
   "id": "canyon",
   "label": "Canyon Run",
   "file": "map_canyon.json",
-  "model": "map_canyon.glb"
+  "model": "map_canyon.glb",
+  "floor": "sand"
  },
  {
   "id": "harbor",
   "label": "Harbor",
   "file": "map_harbor.json",
-  "model": "map_harbor.glb"
+  "model": "map_harbor.glb",
+  "floor": "concrete"
  },
  {
   "id": "bunker",
   "label": "Bunker",
   "file": "map_bunker.json",
-  "model": "map_bunker.glb"
+  "model": "map_bunker.glb",
+  "floor": "concrete"
  }
 ]

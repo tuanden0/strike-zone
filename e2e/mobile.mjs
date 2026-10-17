@@ -26,6 +26,9 @@ const tap = (page, sel) => page.tap(sel, { force: true });
 // (the first tap worked); a DOM click is the same handler without that race
 const click = (page, sel) => page.evaluate((s) => document.querySelector(s).click(), sel);
 const sz = (page, fn, arg) => page.evaluate(fn, arg);
+const wait = (page, ms) => page.evaluate((t) => new Promise((r) => setTimeout(r, t)), ms); // real time on purpose: the hold-to-fire window is 300 ms
+const mag = (page, w = 0) => sz(page, (i) => window.__sz.game.loadout.mag[i], w);
+const ticks = (page, n) => page.evaluate((n) => new Promise((r) => { const t = window.__sz.game.tickNo; const f = () => (window.__sz.game.tickNo >= t + n ? r() : requestAnimationFrame(f)); f(); }), n);
 
 try {
   const { page: p, touch } = await phone();
@@ -56,8 +59,9 @@ try {
   check('touch-action none on page + controls, pan-y on menus', zoom.html === 'none' && zoom.body === 'none' && zoom.layer === 'none' && zoom.menu === 'pan-y', JSON.stringify(zoom));
   check('gesture + double-tap events are cancelled; two-finger touches are left alone (CSS touch-action stops the pinch, and the two thumbs must not be cancelled)', zoom.gesture && zoom.dbl && zoom.pinch === false);
   check('inputs are 16 px (no iOS focus zoom)', zoom.input === '16px', zoom.input);
-  for (let i = 0; i < 12; i++) await p.tap('#t-fire', { force: true });
-  check('12 rapid FIRE taps: page scale stays 1 and the HUD is still reachable', await p.evaluate(() => (!window.visualViewport || window.visualViewport.scale === 1) && window.__sz.input.locked && !document.getElementById('touch').hidden));
+  check('the old FIRE buttons are gone (fire lives in the aim control)', await sz(p, () => !document.getElementById('t-fire') && !document.getElementById('t-fire2')));
+  for (let i = 0; i < 12; i++) await p.touchscreen.tap(560, 150); // rapid taps on the aim zone must not zoom the page
+  check('12 rapid taps on the aim zone: page scale stays 1 and the HUD is still reachable', await p.evaluate(() => (!window.visualViewport || window.visualViewport.scale === 1) && window.__sz.input.locked && !document.getElementById('touch').hidden));
 
   // DUCK button toggles the crouch stance
   await tap(p, '#t-crouch');
@@ -79,6 +83,8 @@ try {
 
   // Right thumb = aim stick: hold right of the touch point -> the view keeps turning right; release -> it stops.
   const sampleYaw = () => sz(p, () => window.__sz.input.yaw);
+  await sz(p, () => { window.__sz.input.touchUi.holdMs = 2500; }); // pure steering tests: no hold-fire however late the browser delivers the touch
+  await p.waitForFunction(() => window.__sz.game.punch < 1e-4 && window.__sz.game.sinceFire > 0.5); // earlier test taps leave view recoil that recovers over time
   const y0 = await sampleYaw();
   await touch('touchStart', [[600, 200, 5]]);
   await touch('touchMove', [[670, 200, 5]]);
@@ -100,28 +106,86 @@ try {
   await p.waitForFunction(() => new Promise((r) => setTimeout(() => r(true), 500)));
   check('a tiny nudge (dead zone) does not turn the view', (await sampleYaw()) === yEnd);
   await touch('touchEnd', []);
-  // Left FIRE button works too
-  const mL = await sz(p, () => window.__sz.game.loadout.mag[0]);
-  await tap(p, '#t-fire2');
-  await p.waitForFunction((a) => window.__sz.game.loadout.mag[0] < a, mL);
-  check('the left FIRE button shoots', true);
+  await ticks(p, 10); // the nudge above ended as a tap: let its shot (and recoil) happen before the ammo is reset
+  await p.waitForFunction(() => window.__sz.game.punch < 1e-4 && window.__sz.game.sinceFire > 0.5);
+  await sz(p, () => { window.__sz.game.loadout.mag[0] = 30; window.__sz.input.touchUi.holdMs = 2500; }); // taps/steers must not turn into a hold when the browser delivers the touch late
+  // Aim control = fire: a short tap shoots exactly once (no double fire from the synthesized mouse events), the ring flashes
+  await touch('touchStart', [[600, 200, 7]]);
+  await touch('touchEnd', []);
+  await p.waitForFunction(() => window.__sz.game.loadout.mag[0] < 30);
+  await ticks(p, 12);
+  check('a tap on the right half fires exactly one shot', (await mag(p)) === 29, `mag ${await mag(p)}`);
+  check('a tap leaves no sticky fire state', await sz(p, () => !window.__sz.input.mouseDown && !document.getElementById('t-lstick').classList.contains('fire')));
+  // rapid repeated taps = repeated shots
+  for (let i = 0; i < 4; i++) {
+    await touch('touchStart', [[600, 200, 8 + i]]);
+    await touch('touchEnd', []);
+    await ticks(p, 5);
+  }
+  await ticks(p, 5);
+  check('four quick taps fire four shots', (await mag(p)) === 25, `mag ${await mag(p)}`);
+  // a tap that leaves the dead zone is a steer, not a shot
+  const y1 = await sampleYaw();
+  await touch('touchStart', [[600, 200, 20]]);
+  await touch('touchMove', [[670, 200, 20]]);
+  await p.waitForFunction((y) => Math.abs(window.__sz.input.yaw - y) > 0.2, y1);
+  await wait(p, 450); // well past the 300 ms hold window
+  check('pushing out of the dead zone steers and never fires', (await mag(p)) === 25 && (await sz(p, () => !window.__sz.input.mouseDown)), `mag ${await mag(p)}`);
+  await touch('touchEnd', []);
+  await ticks(p, 6);
+  check('lifting a steering finger does not shoot', (await mag(p)) === 25);
+  // hold still in the dead zone: auto-fire engages after ~300 ms, ring turns red
+  await sz(p, () => { window.__sz.input.touchUi.holdMs = 300; });
+  await touch('touchStart', [[600, 200, 21]]);
+  await p.waitForFunction(() => window.__sz.input.mouseDown && document.getElementById('t-lstick').classList.contains('fire'));
+  await p.waitForFunction(() => window.__sz.game.loadout.mag[0] <= 22);
+  check('holding still in the dead zone auto-fires and the aim ring turns red', true);
+  if (SHOTS) {
+    mkdirSync(SHOTS, { recursive: true });
+    await p.screenshot({ path: `${SHOTS}/touch_aim_fire.jpg`, type: 'jpeg', quality: 80 });
+  }
+  // keeps firing while steering, until the finger lifts
+  const yh = await sampleYaw();
+  await touch('touchMove', [[670, 200, 21]]);
+  await p.waitForFunction((y) => Math.abs(window.__sz.input.yaw - y) > 0.3, yh);
+  const mh = await mag(p);
+  await p.waitForFunction((m) => window.__sz.game.loadout.mag[0] < m, mh);
+  check('auto-fire stays on while the thumb then steers', await sz(p, () => window.__sz.input.mouseDown));
+  await touch('touchEnd', []);
+  await p.waitForFunction(() => !window.__sz.input.mouseDown && !document.getElementById('t-lstick').classList.contains('fire'));
+  await ticks(p, 6);
+  const mEnd = await mag(p);
+  await ticks(p, 10);
+  check('lifting the thumb stops the fire', (await mag(p)) === mEnd);
+  await sz(p, () => { window.__sz.input.touchUi.holdMs = 2500; });
+  // semi-auto pistol: every tap is its own shot (server edge detection)
+  await sz(p, () => { window.__sz.game.loadout.cur = 1; window.__sz.game.loadout.nextFire = 0; window.__sz.game.loadout.mag[1] = 12; });
+  for (let i = 0; i < 3; i++) {
+    await touch('touchStart', [[600, 200, 30 + i]]);
+    await touch('touchEnd', []);
+    await ticks(p, 8);
+  }
+  check('three taps with the semi-auto pistol fire three shots', (await mag(p, 1)) === 9, `mag ${await mag(p, 1)}`);
+  await sz(p, () => { window.__sz.game.loadout.cur = 0; window.__sz.game.loadout.nextFire = 0; });
   // Swipe mode (pause menu option) still available
   await sz(p, () => window.__sz.input.touchUi.setMode('drag'));
 
   // Right thumb: drag to look.
   const yaw0 = await sz(p, () => window.__sz.input.yaw);
+  const swipeMag = await mag(p);
   await touch('touchStart', [[600, 150, 2]]);
   await touch('touchMove', [[680, 150, 2]]);
   await touch('touchEnd', []);
   const yaw1 = await sz(p, () => window.__sz.input.yaw);
   check('swipe mode: dragging the right half turns the view', Math.abs(yaw1 - yaw0) > 0.1, `${yaw0.toFixed(3)} -> ${yaw1.toFixed(3)}`);
+  await ticks(p, 6);
+  check('swipe mode: a drag does not shoot', (await mag(p)) === swipeMag);
+  const tm = await mag(p);
+  await touch('touchStart', [[600, 150, 3]]);
+  await touch('touchEnd', []);
+  await p.waitForFunction((m) => window.__sz.game.loadout.mag[0] < m, tm);
+  check('swipe mode: a tap shoots too', true);
   await sz(p, () => window.__sz.input.touchUi.setMode('stick'));
-
-  // Fire button (hold with one finger while another looks).
-  const m0 = await sz(p, () => window.__sz.game.loadout.mag[0]);
-  await tap(p, '#t-fire');
-  await p.waitForFunction((a) => window.__sz.game.loadout.mag[0] < a, m0);
-  check('FIRE button shoots exactly via touch (no double fire from synthesized mouse)', await sz(p, (a) => a - window.__sz.game.loadout.mag[0] <= 2, m0));
 
   // Weapon slot tap, jump, reload.
   const slot = await p.locator('#weapon-slots span').nth(1).boundingBox();

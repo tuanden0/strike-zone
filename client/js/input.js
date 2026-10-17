@@ -1,6 +1,7 @@
 // Keyboard/mouse + Pointer Lock. Pointer Lock works on plain http:// (no secure context needed).
 
 import { TouchControls, lockPageZoom } from './touch.js';
+import { GamepadInput } from './gamepad.js';
 
 const SENS_KEY = 'sz.sens';
 
@@ -28,6 +29,7 @@ export class Input {
     }
     this.mouseDown = false;
     this.tap = false;
+    this.firePulse = 0; // extra fire ticks after a touch tap (see touch.js)
     this.reload = false;
     this.drop = false;
     this.use = false;
@@ -40,10 +42,15 @@ export class Input {
     this.enabled = false;
     this.touch = isTouch;
     this.touchLocked = false;
+    this.padLocked = false; // playing with a gamepad (Pointer Lock cannot be requested from a pad button), see gamepad.js
+    this.cycleWeapon = () => {}; // (dir) -> select the next / previous owned weapon (set by Game)
+    this.onPadConnect = () => {}; // (connected) -> pause screen hint
+    this.hudTap = null; // touch: (x, y) => true when a tap hit a HUD widget (the radar)
     this.mv = { f: 0, s: 0 }; // touch stick axes
     this.crouchHeld = false; // touch CROUCH toggle
     this.scopeHeld = false; // scope toggled on (right click / touch SCOPE button)
     this.sensScale = 1; // < 1 while zoomed (set by Game.updateScope)
+    this.pad = new GamepadInput(this, (c) => this.onPadConnect(c));
     if (this.touch) {
       document.body.classList.add('touch');
       document.documentElement.classList.add('touch');
@@ -52,15 +59,17 @@ export class Input {
     }
 
     document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement !== this.canvas) this.padLocked = false; // Esc while the mouse had taken over: pause
       if (!this.locked) this.scopeHeld = false; // pause / Esc leaves the scope
       this.onLockChange(this.locked);
     });
     document.addEventListener('mousemove', (e) => {
-      if (!this.locked || this.touch) return;
+      if (document.pointerLockElement !== this.canvas || this.touch) return; // (a pad-locked game has no pointer lock: the cursor must not steer)
       this.turn(e.movementX, e.movementY);
     });
     document.addEventListener('mousedown', (e) => {
       if (!this.locked || this.touch) return; // touch: synthesized mouse events would double-fire
+      if (this.padLocked && document.pointerLockElement !== this.canvas) this.lockPointer(); // a click while playing with the pad: mouse + keyboard take over too
       if (e.button === 2 && !e.repeat) this.scopeHeld = !this.scopeHeld; // toggle: click to scope in, click again to leave
       if (e.button !== 0) return;
       this.mouseDown = true;
@@ -84,6 +93,7 @@ export class Input {
         this.onScoreboard(true);
         return;
       }
+      if (e.code === 'Escape' && this.padLocked && document.pointerLockElement !== this.canvas) this.unlock(); // pad mode has no pointer lock to leave
       if (e.repeat) return;
       this.keys.add(e.code);
       if (e.code === 'KeyR') this.reload = true;
@@ -108,7 +118,7 @@ export class Input {
   }
 
   get locked() {
-    return this.touch ? this.touchLocked : document.pointerLockElement === this.canvas;
+    return (this.touch ? this.touchLocked : document.pointerLockElement === this.canvas) || this.padLocked;
   }
 
   setKey(code, down) {
@@ -142,12 +152,23 @@ export class Input {
       this.onLockChange(true);
       return;
     }
+    this.lockPointer();
+  }
+
+  lockPointer() {
     try {
       const p = this.canvas.requestPointerLock();
       if (p && p.catch) p.catch(() => {}); // skip: user may press Esc immediately; overlay stays visible
     } catch {
       // skip: browser refused lock; pause overlay remains so user can click again
     }
+  }
+
+  // Resume with the gamepad (A / Start on the pause screen).
+  padLock() {
+    if (this.locked) return;
+    this.padLocked = true;
+    this.onLockChange(true);
   }
 
   unlock() {
@@ -158,7 +179,11 @@ export class Input {
       Promise.resolve().then(() => this.onLockChange(false)); // async like pointerlockchange
       return;
     }
-    if (this.locked) document.exitPointerLock();
+    if (this.padLocked) {
+      this.padLocked = false;
+      if (document.pointerLockElement !== this.canvas) Promise.resolve().then(() => this.onLockChange(false)); // async like pointerlockchange
+    }
+    if (document.pointerLockElement === this.canvas) document.exitPointerLock();
   }
 
   setSens(s) {
@@ -176,12 +201,12 @@ export class Input {
     const k = this.keys;
     const live = this.locked && this.enabled;
     const cmd = {
-      f: live ? Math.max(-1, Math.min(1, (k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0) + this.mv.f)) : 0,
-      s: live ? Math.max(-1, Math.min(1, (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0) + this.mv.s)) : 0,
-      jump: live && k.has('Space'),
+      f: live ? Math.max(-1, Math.min(1, (k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0) + this.mv.f + this.pad.move.f)) : 0,
+      s: live ? Math.max(-1, Math.min(1, (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0) + this.mv.s + this.pad.move.s)) : 0,
+      jump: live && (k.has('Space') || this.pad.jump),
       walk: live && (k.has('AltLeft') || k.has('AltRight')), // Alt = quiet slow walk
-      crouch: live && (k.has('ShiftLeft') || k.has('ShiftRight') || this.crouchHeld), // Shift = crouch (touch: CROUCH toggle)
-      fire: live && (this.mouseDown || this.tap),
+      crouch: live && (k.has('ShiftLeft') || k.has('ShiftRight') || this.crouchHeld || this.pad.crouch), // Shift = crouch (touch: CROUCH toggle)
+      fire: live && (this.mouseDown || this.tap || this.pad.fire || this.firePulse > 0),
       reload: live && this.reload,
       drop: live && this.drop,
       use: live && this.use,
@@ -193,6 +218,7 @@ export class Input {
       pitch: this.pitch,
     };
     this.tap = false;
+    if (this.firePulse > 0) this.firePulse--;
     this.reload = false;
     this.drop = false;
     this.use = false;

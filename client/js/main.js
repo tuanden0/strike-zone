@@ -9,6 +9,7 @@ import { LobbyUI } from './lobby.js';
 import { Online } from './online.js';
 import { prepareMap } from './physics.js';
 import { loadAssets } from './assets.js';
+import { fitScreens, initFit } from './fit.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -24,9 +25,11 @@ state.sfx = sfx;
 const canvas = $('view');
 const input = new Input(canvas);
 const hud = new Hud();
+initFit();
 
 function show(screen) {
   for (const id of ['screen-title', 'screen-lobby', 'screen-pause']) $(id).hidden = id !== screen;
+  fitScreens();
 }
 
 function setStatus(id, msg, ok = false) {
@@ -52,6 +55,7 @@ async function applyMap(id) {
   }
   const game = ensureGame();
   if (game.mapId !== entry.id) game.setMap(entry.id, state.mapData[entry.id], state.mapGlb[entry.id].scene);
+  game.footsteps.setFloor(entry.floor); // default footstep surface of the map (maps.json "floor")
   return entry.id;
 }
 
@@ -174,7 +178,9 @@ function leaveGame() {
   }
 }
 
+input.onPadConnect = (c) => ($('pause-pad').hidden = !c);
 input.onLockChange = (locked) => {
+  if (locked) sfx.unlock(); // (resuming with a gamepad button has no click handler)
   if (!state.game || !state.game.running) return;
   show(locked ? '' : 'screen-pause');
   if (!locked) hud.showBoard(false);
@@ -195,8 +201,8 @@ $('btn-practice').addEventListener('click', async () => {
   }
 });
 if (isTouch) {
-  $('pause-hint').textContent = 'Tap Resume to play. Left stick: move · right stick: aim (hold the thumb down and steer; the pause menu can switch it to swipe) · buttons: fire (right and left), jump, duck, reload, use, drop.';
-  $('controls-hint').textContent = 'Touch: left stick moves, right stick aims (change to swipe-aim in the pause menu); a second FIRE sits under the left thumb · FIRE / JUMP / R reload · USE pick up · DROP · NADE throws the chosen grenade (tap HE to change) · SCOPE (sniper) · tap the weapon list to switch';
+  $('pause-hint').textContent = 'Tap Resume to play. Left stick: move · right thumb: aim and fire (tap = one shot, hold still = auto-fire, push = turn; hold and push to fire while turning) · buttons: jump, duck, reload, use, drop.';
+  $('controls-hint').textContent = 'Touch: left stick moves; the right thumb aims AND fires: tap = shoot, hold still = keep shooting, push = turn (swipe-aim in the pause menu) · JUMP / R reload · USE pick up · DROP · NADE throws the chosen grenade (tap HE to change) · SCOPE (sniper) · tap the weapon list to switch';
   $('sens').previousElementSibling.textContent = 'Look sensitivity (also scales the aim stick)';
   $('pause-look').hidden = false;
   $('look-mode').value = input.touchUi.mode;

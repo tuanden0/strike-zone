@@ -36,7 +36,7 @@ export class Sfx {
   }
 
   // listener: {x,y,z,yaw}; pos: [x,y,z]. Returns output node (gain+pan) or null.
-  _out(pos, listener, vol) {
+  _out(pos, listener, vol, panOff = 0) {
     const c = this.ctx;
     const g = c.createGain();
     let node = g;
@@ -56,13 +56,18 @@ export class Sfx {
         g.connect(pan);
         node = pan;
       }
+    } else if (panOff && c.createStereoPanner) { // non-positional but panned (own footsteps: left / right foot)
+      const pan = c.createStereoPanner();
+      pan.pan.value = panOff;
+      g.connect(pan);
+      node = pan;
     }
     g.gain.value = gain;
     node.connect(this.master);
     return g;
   }
 
-  _noise(out, t0, dur, f0, f1, type = 'lowpass', q = 1) {
+  _noise(out, t0, dur, f0, f1, type = 'lowpass', q = 1, vol = 1) {
     const c = this.ctx;
     const src = c.createBufferSource();
     src.buffer = this.noiseBuf;
@@ -72,7 +77,7 @@ export class Sfx {
     f.frequency.setValueAtTime(f0, t0);
     f.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t0 + dur);
     const e = c.createGain();
-    e.gain.setValueAtTime(1, t0);
+    e.gain.setValueAtTime(vol, t0);
     e.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
     src.connect(f).connect(e).connect(out);
     src.start(t0, Math.random() * 0.5);
@@ -93,11 +98,45 @@ export class Sfx {
     o.stop(t0 + dur + 0.02);
   }
 
-  play(name, pos = null, listener = null) {
+  // One footfall on a surface (footsteps.js picks the surface). p = pitch factor (left / right foot, hard landings go lower).
+  _stepSound(surface, o, t, p) {
+    switch (surface) {
+      case 'sand': // soft crunch: long low-passed hiss with a bit of grit
+        this._noise(o, t, 0.16, 1600 * p, 350 * p, 'lowpass', 1, 0.9);
+        this._noise(o, t + 0.02, 0.09, 3500 * p, 1800 * p, 'bandpass', 0.8, 0.35);
+        this._tone(o, t, 0.08, 90 * p, 60 * p, 'sine', 0.3);
+        break;
+      case 'stone': // hard tock with a sharp click on top
+        this._tone(o, t, 0.05, 240 * p, 120 * p, 'sine', 0.6);
+        this._noise(o, t, 0.045, 3000 * p, 1200 * p, 'bandpass', 2.5, 0.9);
+        this._noise(o, t, 0.012, 6000, 4000, 'highpass', 0.7, 0.35);
+        break;
+      case 'wood': // hollow knock
+        this._tone(o, t, 0.1, 200 * p, 120 * p, 'triangle', 0.8);
+        this._tone(o, t, 0.06, 400 * p, 250 * p, 'sine', 0.35);
+        this._noise(o, t, 0.06, 1000 * p, 550 * p, 'bandpass', 3, 0.6);
+        break;
+      case 'metal': // clank: ringing partials + thump
+        this._tone(o, t, 0.22, 640 * p, 600 * p, 'sine', 0.35);
+        this._tone(o, t, 0.16, 1230 * p, 1180 * p, 'sine', 0.25);
+        this._noise(o, t, 0.03, 3200 * p, 2200 * p, 'bandpass', 1.5, 0.7);
+        this._tone(o, t, 0.08, 110 * p, 70 * p, 'sine', 0.6);
+        break;
+      default: // concrete / asphalt: dry heel tap
+        this._tone(o, t, 0.06, 140 * p, 70 * p, 'sine', 0.8);
+        this._noise(o, t, 0.07, 1800 * p, 700 * p, 'bandpass', 1.2, 0.8);
+        this._noise(o, t, 0.015, 4500, 3000, 'highpass', 0.7, 0.3);
+    }
+  }
+
+  // opts (optional): {gain, pitch, pan, surface} - used by footsteps.js (gain multiplies the sound, pan offsets non-positional sounds)
+  play(name, pos = null, listener = null, opts = null) {
     const c = this.ctx;
     if (!c || c.state !== 'running') return;
     const t = c.currentTime;
-    const v = (x) => this._out(pos, listener, x);
+    const gm = opts && opts.gain !== undefined ? opts.gain : 1;
+    const pit = (opts && opts.pitch) || 1;
+    const v = (x) => this._out(pos, listener, x * gm, (opts && opts.pan) || 0);
     switch (name) {
       case 'rifle': {
         const o = v(0.9);
@@ -151,12 +190,21 @@ export class Sfx {
       case 'spawn':
         this._tone(v(0.4), t, 0.3, 200, 800, 'sine');
         break;
-      case 'step':
-        this._noise(v(0.25), t, 0.06, 500, 150);
+      case 'step': // generic footfall (the game plays step_<surface>)
+      case 'step_concrete':
+      case 'step_sand':
+      case 'step_stone':
+      case 'step_wood':
+      case 'step_metal':
+        this._stepSound(name === 'step' ? 'concrete' : name.slice(5), v(0.6), t, pit);
         break;
-      case 'land':
-        this._noise(v(0.35), t, 0.1, 350, 80);
+      case 'land': { // thud (louder / deeper for harder landings) + the surface's own sound
+        this._stepSound((opts && opts.surface) || 'concrete', v(0.45), t, pit * 0.85);
+        const o = v(0.8);
+        this._noise(o, t, 0.14, 700 * pit, 110, 'lowpass', 1, 0.9);
+        this._tone(o, t, 0.16, 95 * pit, 38, 'sine', 1.0);
         break;
+      }
       case 'jump':
         this._noise(v(0.15), t, 0.08, 900, 300, 'bandpass', 1);
         break;
@@ -184,6 +232,20 @@ export class Sfx {
       case 'smoke':
         this._noise(v(0.5), t, 1.4, 5000, 800, 'highpass', 0.5);
         break;
+      case 'scope_in': { // servo whirr rising, then the lens-lock click
+        const o = v(0.35);
+        this._tone(o, t, 0.2, 260, 820, 'triangle', 0.5);
+        this._noise(o, t, 0.2, 1200, 3200, 'bandpass', 2.5);
+        this._tone(o, t + 0.2, 0.025, 2000, 900, 'square', 0.4);
+        break;
+      }
+      case 'scope_out': { // click, then the whirr falling away
+        const o = v(0.3);
+        this._tone(o, t, 0.025, 1500, 700, 'square', 0.4);
+        this._tone(o, t + 0.02, 0.16, 780, 240, 'triangle', 0.4);
+        this._noise(o, t + 0.02, 0.16, 3000, 1000, 'bandpass', 2.5);
+        break;
+      }
       case 'end':
         this._tone(v(0.5), t, 0.6, 440, 220, 'triangle');
         break;
