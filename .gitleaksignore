@@ -1,0 +1,2 @@
+# test fixture: a well-formed but never issued resume token (the literal was replaced afterwards, the old commit stays in history)
+e4f6ed7b0a7a1e5474608beb16a0f9838e593e26:server/internal/lobby/resume_test.go:generic-api-key:151

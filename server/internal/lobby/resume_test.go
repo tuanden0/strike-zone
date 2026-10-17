@@ -2,6 +2,7 @@ package lobby
 
 import (
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -148,7 +149,7 @@ func TestResumeFailsAfterTheGracePeriodAndOnGarbage(t *testing.T) {
 	s3, _ := freshConn(t, h)
 	var err error
 	for i := 0; i < 20 && err == nil; i++ {
-		err = send(t, h, s3, map[string]any{"t": "resume", "token": "0123456789abcdef0123456789abcdef"})
+		err = send(t, h, s3, map[string]any{"t": "resume", "token": strings.Repeat("ab", 16)}) // well-formed but never issued
 	}
 	if err == nil {
 		t.Fatal("token guessing must end in a disconnect")
