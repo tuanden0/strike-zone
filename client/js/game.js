@@ -225,6 +225,7 @@ export class Game {
     });
 
     this.loadout = new Loadout(spec);
+    this.input.cycleWeapon = (dir) => this.cycleWeapon(dir); // gamepad: next / previous weapon
     this.kin = createKin();
     this.eyeOff = spec.player.eyeHeight;
     this.prev = { ...this.kin };
@@ -456,6 +457,19 @@ export class Game {
       this.onLocalWeapon(res, cmd);
     }
     if (this.mode && this.mode.onTick) this.mode.onTick(cmd, res, this);
+  }
+
+  // Select the next (dir 1) / previous (-1) weapon you own.
+  cycleWeapon(dir) {
+    const l = this.loadout;
+    const n = this.spec.weapons.length;
+    for (let i = 1; i < n; i++) {
+      const j = (((l.cur + dir * i) % n) + n) % n;
+      if (l.has[j]) {
+        this.input.weapon = j;
+        return;
+      }
+    }
   }
 
   onLocalWeapon(res, cmd) {

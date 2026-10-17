@@ -15,6 +15,7 @@ h2, h3 { margin: 4px 0; }
 .hint { color: var(--mut); font-size: 13px; margin: 4px 0; }
 .status { min-height: 1.4em; margin: 0; color: #ff8a80; }
 .status.ok { color: #7bd88f; }
+.pad-hint { color: #7bd88f; }
 label { color: var(--mut); font-size: 13px; }
 input, select, button { font: inherit; color: var(--fg); background: #1b2029; border: 1px solid #333b4a; border-radius: 6px; padding: 8px 10px; }
 input:focus, select:focus, button:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }

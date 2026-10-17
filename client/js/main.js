@@ -160,7 +160,9 @@ function leaveGame() {
   }
 }
 
+input.onPadConnect = (c) => ($('pause-pad').hidden = !c);
 input.onLockChange = (locked) => {
+  if (locked) sfx.unlock(); // (resuming with a gamepad button has no click handler)
   if (!state.game || !state.game.running) return;
   show(locked ? '' : 'screen-pause');
   if (!locked) hud.showBoard(false);
