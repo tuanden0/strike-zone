@@ -29,7 +29,13 @@ def lin(c):
 
 # Team colour is only an accent (helmet stripe, patch, shoulder tabs); both teams wear the same olive fatigues.
 TEAMS = {"a": (0.86, 0.16, 0.14), "b": (0.15, 0.42, 0.92)}  # team A red #DB2924 (HUD #ef4444) / team B blue #266BEB (HUD #3b82f6)
-UNIFORM = (0.40, 0.44, 0.34)  # sRGB, lifted from #4A5448 so it reads under the map lighting
+# Outfits (sRGB, lifted so they read under the map lighting): A = dark navy tactical police, B = arctic white/grey with a knit cap.
+OUTFIT = {
+    "a": dict(uniform=(0.15, 0.19, 0.29), trousers=(0.12, 0.15, 0.23), vest=(0.07, 0.08, 0.10), pouch=(0.11, 0.12, 0.15), webbing=(0.09, 0.10, 0.12),
+              helmet=(0.07, 0.08, 0.10), gaiter=(0.05, 0.05, 0.06), lens=(0.10, 0.12, 0.16)),
+    "b": dict(uniform=(0.80, 0.82, 0.85), trousers=(0.62, 0.65, 0.69), vest=(0.52, 0.55, 0.58), pouch=(0.42, 0.45, 0.46), webbing=(0.48, 0.50, 0.52),
+              helmet=(0.30, 0.33, 0.36), gaiter=(0.86, 0.87, 0.89), lens=(0.55, 0.32, 0.08)),
+}
 
 # ------------------------------------------------------------------------------------------------ rest pose
 S_R = Vector((0.205, 0.0, 1.40))
@@ -168,19 +174,22 @@ class Rig:
 # ------------------------------------------------------------------------------------------------ geometry
 def materials(team):
     col = lin(TEAMS[team])
-    uni = lin(UNIFORM)
+    o = OUTFIT[team]
+    uni, tro = lin(o["uniform"]), lin(o["trousers"])
     material("uniform_team_" + team, tex="fabric_camo", color=(uni[0] * 1.15, uni[1] * 1.15, uni[2] * 1.15, 1), normal_strength=1.6)
-    material("trousers_team_" + team, tex="fabric_camo", color=(uni[0] * 0.9, uni[1] * 0.9, uni[2] * 0.9, 1), normal_strength=1.6)
-    material("webbing", tex="nylon", tex_kwargs={"color": (0.20, 0.21, 0.16)}, size=256)
+    material("trousers_team_" + team, tex="fabric_camo", color=(tro[0] * 0.9, tro[1] * 0.9, tro[2] * 0.9, 1), normal_strength=1.6)
+    material("webbing", tex="nylon", tex_kwargs={"color": o["webbing"]}, size=256)
     material("patch_" + team, color=(col[0], col[1], col[2], 1), roughness=0.8)
-    material("vest", tex="nylon", tex_kwargs=dict(color=(0.14, 0.15, 0.13)), size=256)
-    material("pouch", tex="nylon", tex_kwargs=dict(color=(0.22, 0.23, 0.18)), size=256)
-    material("helmet", tex="polymer", tex_kwargs=dict(color=(0.20, 0.23, 0.18)), size=256)
+    material("vest", tex="nylon", tex_kwargs=dict(color=o["vest"]), size=256)
+    material("pouch", tex="nylon", tex_kwargs=dict(color=o["pouch"]), size=256)
+    material("helmet", tex="polymer", tex_kwargs=dict(color=o["helmet"]), size=256)
+    material("beanie", tex="nylon", tex_kwargs=dict(color=o["helmet"]), size=256)
     material("boot", tex="leather", size=256)
     material("sole", tex="rubber", size=256)
     material("skin", tex="skin")
-    material("gaiter", tex="nylon", tex_kwargs=dict(color=(0.09, 0.09, 0.10)), size=256)
-    material("goggle_lens", color=(0.55, 0.32, 0.08, 1), roughness=0.08, metallic=0.0)
+    material("gaiter", tex="nylon", tex_kwargs=dict(color=o["gaiter"]), size=256)
+    lens = lin(o["lens"])
+    material("goggle_lens", color=(lens[0], lens[1], lens[2], 1), roughness=0.08, metallic=0.0)
     wp.weapon_materials()
 
 
@@ -208,18 +217,23 @@ def build_body(team):
     b.add(box((0.19, 0.21, 0.035), (0, 0.0, 1.667), bevel=0.01, segs=1), "gaiter", (4, 4), bone="head")  # goggle strap
     b.add(box((0.15, 0.03, 0.052), (0, 0.108, 1.667), bevel=0.01, segs=1), "rubber", (6, 6), bone="head")  # goggle frame
     b.add(box((0.125, 0.006, 0.036), (0, 0.126, 1.667), bevel=0.0), "goggle_lens", (1, 1), bone="head")
-    helmet = lathe([(0.119, 1.705), (0.122, 1.72), (0.12, 1.745), (0.107, 1.775), (0.07, 1.795), (0.0, 1.80)], segs=12, scale=(1.0, 1.13, 1.0))
-    b.add(helmet, "helmet", (3, 3), bone="head")
-    b.add(box((0.05, 0.03, 0.035), (0, 0.133, 1.757), bevel=0.006, segs=1), "gunmetal", (6, 6), bone="head")  # NVG mount
-    b.add(box((0.2, 0.05, 0.1), (0, -0.115, 1.66), bevel=0.012), "helmet", (3, 3), bone="head")  # rear skirt
-    b.add(box((0.2, 0.23, 0.02), (0, -0.0, 1.703), bevel=0.006, segs=1), "helmet", (3, 3), bone="head")  # brim
-    for sx in (-1, 1):
-        b.add(box((0.012, 0.09, 0.03), (sx * 0.123, 0.0, 1.735), bevel=0.003, segs=1), "gunmetal", (6, 6), bone="head")  # side rails
-        b.add(box((0.03, 0.09, 0.09), (sx * 0.1, -0.01, 1.64), bevel=0.01, segs=1), "helmet", (3, 3), bone="head")  # ear guards
-    b.add(box((0.02, 0.012, 0.05), (0, 0.136, 1.73), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="head")  # front team stripe
-    for sx in (-1, 1):
-        b.add(box((0.012, 0.03, 0.03), (sx * 0.123, -0.07, 1.735), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="head")  # helmet side tabs
-    b.add(box((0.05, 0.012, 0.03), (0, -0.138, 1.735), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="head")  # rear tab
+    if team == "b":  # knit cap with a folded cuff, no helmet hardware
+        b.add(lathe([(0.115, 1.69), (0.12, 1.715), (0.118, 1.745), (0.1, 1.78), (0.05, 1.797), (0.0, 1.80)], segs=12, scale=(1.0, 1.13, 1.0)), "beanie", (3, 3), bone="head")
+        b.add(lathe([(0.124, 1.69), (0.128, 1.70), (0.128, 1.718), (0.124, 1.726)], segs=12, scale=(1.0, 1.13, 1.0)), "beanie", (6, 6), bone="head")
+        b.add(box((0.05, 0.012, 0.03), (0, 0.145, 1.708), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="head")  # team tab on the cuff
+    else:
+        helmet = lathe([(0.119, 1.705), (0.122, 1.72), (0.12, 1.745), (0.107, 1.775), (0.07, 1.795), (0.0, 1.80)], segs=12, scale=(1.0, 1.13, 1.0))
+        b.add(helmet, "helmet", (3, 3), bone="head")
+        b.add(box((0.05, 0.03, 0.035), (0, 0.133, 1.757), bevel=0.006, segs=1), "gunmetal", (6, 6), bone="head")  # NVG mount
+        b.add(box((0.2, 0.05, 0.1), (0, -0.115, 1.66), bevel=0.012), "helmet", (3, 3), bone="head")  # rear skirt
+        b.add(box((0.2, 0.23, 0.02), (0, -0.0, 1.703), bevel=0.006, segs=1), "helmet", (3, 3), bone="head")  # brim
+        for sx in (-1, 1):
+            b.add(box((0.012, 0.09, 0.03), (sx * 0.123, 0.0, 1.735), bevel=0.003, segs=1), "gunmetal", (6, 6), bone="head")  # side rails
+            b.add(box((0.03, 0.09, 0.09), (sx * 0.1, -0.01, 1.64), bevel=0.01, segs=1), "helmet", (3, 3), bone="head")  # ear guards
+        b.add(box((0.02, 0.012, 0.05), (0, 0.136, 1.73), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="head")  # front team stripe
+        for sx in (-1, 1):
+            b.add(box((0.012, 0.03, 0.03), (sx * 0.123, -0.07, 1.735), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="head")  # helmet side tabs
+        b.add(box((0.05, 0.012, 0.03), (0, -0.138, 1.735), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="head")  # rear tab
     # --- neck (bone neck) -----------------------------------------------------------------------
     b.add(cyl(0.05, 0.056, 0.14, (0, 0.005, 1.5), (0, 0, 0), 8), "gaiter", (3, 3), bone="neck")
     # --- torso ---------------------------------------------------------------------------------
