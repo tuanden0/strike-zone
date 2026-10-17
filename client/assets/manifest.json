@@ -1,0 +1,22 @@
+{
+  "_doc": "Third-party / imported props. Optional: a missing, broken or unsupported entry is skipped and the generated map is unchanged. See docs/ASSET_WORKFLOW.md.",
+  "props": [
+    {
+      "id": "waterbottle",
+      "file": "models/props/waterbottle.glb",
+      "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/WaterBottle",
+      "license": "CC0-1.0",
+      "licenseFile": "third_party/waterbottle/LICENSE.md",
+      "pivot": "bottom-center",
+      "scale": 1,
+      "expectedSize": [0.109, 0.26, 0.109],
+      "materials": "metal-rough PBR: baseColor + occlusionRoughnessMetal + normal + emissive, 512 px webp",
+      "animations": [],
+      "fallback": "prop is skipped (nothing replaces it)",
+      "placements": [
+        { "map": "yard", "pos": [-13, 1.4, -9], "yaw": 0.6 },
+        { "map": "yard", "pos": [13, 1.4, 9], "yaw": -0.9 }
+      ]
+    }
+  ]
+}

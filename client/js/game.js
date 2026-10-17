@@ -125,8 +125,9 @@ export class RemoteView {
 }
 
 export class Game {
-  constructor({ canvas, spec, map, sfx, hud, input, assets }) {
+  constructor({ canvas, spec, map, sfx, hud, input, assets, props = null }) {
     this.assets = assets;
+    this.props = props; // optional imported props (props.js)
     this.canvas = canvas;
     this.spec = spec;
     this.map = map;
@@ -281,6 +282,7 @@ export class Game {
     this.mapId = id;
     this.map = map;
     this.world = buildWorld(map, glbScene, this.aniso);
+    if (this.props) this.world.add(this.props.build(id, this.aniso));
     this.scene.add(this.world);
     this.decals.map = map;
     this.decals.clear();

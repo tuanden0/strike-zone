@@ -9,6 +9,7 @@ import { LobbyUI } from './lobby.js';
 import { Online } from './online.js';
 import { prepareMap } from './physics.js';
 import { loadAssets } from './assets.js';
+import { Props } from './props.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -18,7 +19,7 @@ async function fetchJson(url) {
   return r.json();
 }
 
-const state = { spec: null, map: null, maps: [], mapData: {}, mapGlb: {}, safeImages: false, assets: null, game: null, net: null, lobby: null, nick: '', online: false };
+const state = { props: null, spec: null, map: null, maps: [], mapData: {}, mapGlb: {}, safeImages: false, assets: null, game: null, net: null, lobby: null, nick: '', online: false };
 const sfx = new Sfx();
 state.sfx = sfx;
 const canvas = $('view');
@@ -56,7 +57,7 @@ async function applyMap(id) {
 }
 
 function ensureGame() {
-  if (!state.game) state.game = new Game({ canvas, spec: state.spec, map: state.map, sfx, hud, input, assets: state.assets });
+  if (!state.game) state.game = new Game({ canvas, spec: state.spec, map: state.map, sfx, hud, input, assets: state.assets, props: state.props });
   return state.game;
 }
 
@@ -231,6 +232,8 @@ try {
       state.safeImages = true;
       state.assets = await loadAssets(undefined, progress, { safeImages: true });
     }
+    // optional imported props: never blocks or fails startup; ?noprops=1 turns them off (A/B + fallback check)
+    state.props = new URLSearchParams(location.search).has('noprops') ? null : await Props.load();
     stage = 'renderer (WebGL)';
     setStatus('title-status', 'Preparing graphics…', true);
     state.mapGlb[maps[0].id] = state.assets.map;

@@ -109,7 +109,7 @@ Nothing is required. Invalid values make the server exit at startup with a clear
 go test -race ./...                 # unit + integration (real sockets); needs no browser
 ./scripts/check.sh                  # gofmt, vet, race tests, gitleaks (tree + history), govulncheck
 node scripts/gen-golden.mjs         # regenerate JS<->Go golden files after touching physics/weapons
-cd e2e && npm ci && node smoke.mjs && node online.mjs && node assets.mjs && node extras.mjs && node mobile.mjs   # headless Chromium; server must be running (BASE_URL=http://host:port)
+cd e2e && npm ci && node smoke.mjs && node online.mjs && node assets.mjs && node extras.mjs && node mobile.mjs && node props.mjs   # headless Chromium; server must be running (BASE_URL=http://host:port)
 pip install bpy==5.2.2 && python tools/assets/build_all.py   # regenerate every model + preview renders (or: blender -b -P tools/assets/build_all.py)
 ```
 
