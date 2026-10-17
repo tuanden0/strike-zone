@@ -168,21 +168,30 @@ try {
 }
 
 (async () => {
+  let stage = 'game data';
   try {
     setStatus('title-status', 'Loading game data…', true);
     const [spec, mapJson] = await Promise.all([fetchJson('shared/spec.json'), fetchJson('shared/map.json')]);
     state.spec = spec;
     state.map = prepareMap(mapJson);
+    stage = 'models';
     state.assets = await loadAssets(undefined, (p) => setStatus('title-status', `Loading models… ${Math.round(p * 100)}%`, true));
+    stage = 'renderer (WebGL)';
     setStatus('title-status', 'Preparing graphics…', true);
-    await ensureGame().warmup();
+    const game = ensureGame();
+    stage = 'shader warm-up';
+    try {
+      await game.warmup();
+    } catch (e) {
+      console.warn('shader warm-up failed (continuing, first frame may stall):', e); // non-fatal
+    }
     window.__sz = state; // debug/e2e hook
     window.__sz.sfx = sfx;
     setStatus('title-status', '');
     $('btn-online').disabled = false;
     $('btn-practice').disabled = false;
   } catch (e) {
-    console.error(e);
-    setStatus('title-status', `Failed to load game data: ${e.message}`);
+    console.error(`startup failed at stage "${stage}"`, e);
+    setStatus('title-status', `Failed to load (${stage}): ${e && e.name ? e.name + ': ' : ''}${e && e.message ? e.message : e}. See the browser console (F12) for details.`);
   }
 })();
