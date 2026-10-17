@@ -17,6 +17,8 @@ export class Hud {
     this.scopeEl = $('scope');
     this.flashEl = $('flash');
     this.nadesEl = $('nades');
+    this.powerEl = $('nade-power');
+    this.powerFill = $('nade-power-fill');
     this.hpFill = $('hp-fill');
     this.hpNum = $('hp-num');
     this.ammo = $('ammo');
@@ -55,6 +57,20 @@ export class Hud {
     this.hpFill.style.background = h > 60 ? '#4ade80' : h > 30 ? '#facc15' : '#f87171';
   }
 
+  // Holding a grenade (def) instead of a weapon: name + count in the weapon box, a power bar while charging (charge 0..1, -1 = not charging).
+  setNadeHold(def, charge, counts, eq) {
+    this.nadeDef = def;
+    this.nadeEq = def ? eq : -1;
+    this.nadeCount = def && counts ? counts[eq] : 0;
+    const on = !!def && charge >= 0;
+    this.powerEl.hidden = !on;
+    if (on) this.powerFill.style.width = `${Math.round(charge * 100)}%`;
+    if (def) {
+      this.wname.textContent = def.name;
+      this.ammo.replaceChildren(`${this.nadeCount} `, el('small', '', 'hold FIRE to charge, release to throw'));
+    }
+  }
+
   setWeapons(weapons, cur, has) {
     const key = `${weapons.length}:${cur}:${has ? has.join('') : ''}`;
     if (key !== this._slotsKey) {
@@ -63,10 +79,11 @@ export class Hud {
         ...weapons.map((w, i) => el('span', `${i === cur ? 'cur' : ''}${has && !has[i] ? ' empty' : ''}`.trim(), `${i + 1} ${w.id}`)),
       );
     }
-    this.wname.textContent = weapons[cur].name;
+    if (!this.nadeDef) this.wname.textContent = weapons[cur].name;
   }
 
   setAmmo(w, mag, res, reloading) {
+    if (this.nadeDef) return;
     this.ammo.replaceChildren();
     if (w.magSize === 0) {
       this.ammo.textContent = '—';
@@ -163,12 +180,12 @@ export class Hud {
 
   // counts: grenades left per type (online only; practice has none and hides the row)
   setNades(defs, counts) {
-    const key = counts ? counts.join(',') : '';
+    const key = `${counts ? counts.join(',') : ''}:${this.nadeEq}`;
     if (key === this._nadeKey) return;
     this._nadeKey = key;
     const keys = ['X', 'C', 'V', 'B', 'N', 'M'];
     this.nadesEl.hidden = !counts;
-    this.nadesEl.replaceChildren(...(counts ? defs.map((d, i) => el('span', counts[i] > 0 ? '' : 'empty', `${keys[i]} ${d.id} ${counts[i]}`)) : []));
+    this.nadesEl.replaceChildren(...(counts ? defs.map((d, i) => el('span', (counts[i] > 0 ? '' : 'empty') + (i === this.nadeEq ? ' cur' : ''), `${keys[i]} ${d.id} ${counts[i]}`)) : []));
   }
 
   // fl: ticks of flashbang blindness left (full white for the first part, then fades)

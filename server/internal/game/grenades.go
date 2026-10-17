@@ -43,7 +43,9 @@ type SmokeState struct {
 // nadeWeaponIndex is the weapon index reported in hit/kill events for grenade damage (after the real weapons).
 func (w *World) nadeWeaponIndex(g int) int { return len(w.Spec.Weapons) + g }
 
-func (w *World) throwNade(p *Player, g int) {
+// throwNade launches grenade type g. power in (0,1] scales the launch speed from Nades.MinPower of full speed up to full speed
+// (0 = full), so the thrower picks a short lob or a long throw.
+func (w *World) throwNade(p *Player, g int, power float64) {
 	if !p.Alive || g < 0 || g >= len(w.Spec.Grenades) || p.Nades[g] <= 0 || w.Tick < p.NextThrow {
 		return
 	}
@@ -54,10 +56,15 @@ func (w *World) throwNade(p *Player, g int) {
 	if w.Map.RayWorld(eye, dir, 0.6) >= 0.6 { // not throwing at a wall right in front of the face
 		start = [3]float64{eye[0] + dir[0]*0.5, eye[1] + dir[1]*0.5, eye[2] + dir[2]*0.5}
 	}
+	if power == 0 {
+		power = 1
+	}
+	k := w.Spec.Nades.MinPower + (1-w.Spec.Nades.MinPower)*power
+	sp := gs.Speed * k
 	w.nextNade++
 	w.grenades = append(w.grenades, &Grenade{
 		ID: w.nextNade, G: g, Owner: p.ID, Pos: start,
-		Vel:  [3]float64{dir[0] * gs.Speed, dir[1]*gs.Speed + gs.UpBias, dir[2] * gs.Speed},
+		Vel:  [3]float64{dir[0] * sp, dir[1]*sp + gs.UpBias*k, dir[2] * sp},
 		Fuse: gs.FuseTicks,
 	})
 	p.Nades[g]--

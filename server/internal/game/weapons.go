@@ -37,7 +37,7 @@ func (w *World) weapons(p *Player, in Input) {
 		w.usePickup(p)
 	}
 	if in.Nade > 0 {
-		w.throwNade(p, in.Nade-1)
+		w.throwNade(p, in.Nade-1, in.NP)
 	}
 	ws := &w.Spec.Weapons[p.Cur]
 	if p.ReloadDone > 0 && w.Tick >= p.ReloadDone {

@@ -14,7 +14,12 @@ async function throwUntil(p, key, ready, effect, tries = 6) {
   for (let i = 0; i < tries; i++) {
     await p.waitForFunction(() => window.__sz.game.mode.me.a, null, { timeout: 60000 });
     await p.evaluate(ready);
-    await p.keyboard.press(key);
+    const type = { KeyX: 0, KeyC: 1, KeyV: 2 }[key];
+    if ((await p.evaluate(() => window.__sz.game.nadeHold.eq)) !== type) await p.keyboard.press(key); // equip (the grenade is no longer thrown by the key)
+    await p.waitForFunction((t) => window.__sz.game.nadeHold.eq === t, type);
+    await p.mouse.down(); // hold to charge, release to throw
+    await p.waitForFunction(() => window.__sz.game.nadeHold.charge > 0.4);
+    await p.mouse.up();
     if (await p.waitForFunction(effect, null, { timeout: 12000 }).then(() => true, () => false)) return true;
   }
   return false;

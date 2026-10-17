@@ -71,7 +71,7 @@ export class TouchControls {
       $('t-crouch').classList.toggle('down', input.crouchHeld);
     });
     this.bindPress('t-use', () => (input.use = true));
-    this.bindPress('t-nade', () => (input.nade = input.nadeSel + 1));
+    this.bindPress('t-nade', () => (input.nadeKey = input.nadeSel + 1)); // equip; then hold FIRE to charge, release to throw
     this.bindPress('t-nadesel', () => {
       if (!input.nadeNames.length) return;
       input.nadeSel = (input.nadeSel + 1) % input.nadeNames.length;

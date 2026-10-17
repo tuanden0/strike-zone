@@ -49,6 +49,7 @@ type Input struct {
 	Crouch bool    `json:"crouch"` // Shift held: lowered stance (the server decides whether there is room to stand again)
 	VT     int     `json:"vt"`     // server tick the shooter's screen was showing the other players at (lag compensation; 0 = none)
 	Nade   int     `json:"nade"`   // throw grenade type Nade-1 (0 = none); cooldown + inventory enforced server side
+	NP     float64 `json:"np"`     // throw power 0 < np <= 1 for Nade (0 or missing = full power); scales the throw speed
 	Use    bool    `json:"use"`    // edge-detected server side: pick up the nearest weapon
 	Scope  bool    `json:"scope"`  // zoom held; only has an effect with a scoped weapon (see WeaponSpec.ScopeFov)
 }
@@ -68,6 +69,8 @@ func (in *Input) Validate(nWeapons int) error {
 		return fmt.Errorf("%w: pitch out of range", ErrBadInput)
 	case in.Weapon < -1 || in.Weapon >= nWeapons:
 		return fmt.Errorf("%w: weapon index", ErrBadInput)
+	case !finite(in.NP) || in.NP < 0 || in.NP > 1:
+		return fmt.Errorf("%w: throw power", ErrBadInput)
 	case in.VT < 0 || in.VT > 1<<31-1:
 		return fmt.Errorf("%w: view tick", ErrBadInput)
 	}

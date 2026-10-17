@@ -34,7 +34,7 @@
   },
   "recoil": { "perDamage": 0.00045, "yawRatio": 0.35, "bloomRatio": 0.25, "rampPerShot": 0.08, "maxShots": 12, "graceTicks": 6 },
   "lagComp": { "maxRewindTicks": 10 },
-  "nades": { "cooldownTicks": 30, "gravity": 18, "restitution": 0.35, "radius": 0.12 },
+  "nades": { "cooldownTicks": 30, "gravity": 18, "restitution": 0.35, "radius": 0.12, "minPower": 0.3, "chargeSeconds": 1.1 },
   "grenades": [
     { "id": "frag", "name": "HE Grenade", "kind": "frag", "fuseTicks": 60, "speed": 14, "upBias": 3, "radius": 7, "damage": 120, "duration": 0, "count": 1 },
     { "id": "smoke", "name": "Smoke Grenade", "kind": "smoke", "fuseTicks": 54, "speed": 14, "upBias": 3, "radius": 3.6, "damage": 0, "duration": 14, "count": 1 },

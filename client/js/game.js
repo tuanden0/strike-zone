@@ -7,6 +7,7 @@ import { Pickups } from './pickups.js';
 import { isTouch } from './input.js';
 import { Decals } from './decals.js';
 import { Grenades } from './grenades.js';
+import { NadeHold } from './nadehold.js';
 import { PostFx } from './postfx.js';
 import { Soldier, nameSprite, applyAnisotropy, flashTexture } from './models.js';
 import { clone } from '../vendor/SkeletonUtils.js';
@@ -32,6 +33,7 @@ function knifePose(keys, t) {
   return [0, 0, 0, 0, 0, 0];
 }
 
+const NADE_POS = [0.15, -0.17, -0.56]; // held grenade in the view-model scene
 const FP_WEAPONS = ['rifle', 'pistol', 'knife', 'sniper'];
 const BASE_FOV = 78;
 // first-person placement per weapon: camera-space position + scale + muzzle (model space) + ejection port
@@ -212,6 +214,7 @@ export class Game {
       this.viewScene.add(g);
       return g;
     });
+    this.nadeHold = new NadeHold(this);
     this.vmFlash = new THREE.Mesh(
       new THREE.PlaneGeometry(0.24, 0.24),
       new THREE.MeshBasicMaterial({ map: flashTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }),
@@ -368,6 +371,7 @@ export class Game {
   }
 
   start(mode) {
+    this.nadeHold.reset();
     this.mode = mode;
     this.running = true;
     this.input.enabled = true;
@@ -462,6 +466,7 @@ export class Game {
     const cmd = this.input.sample();
     cmd.yaw = this.input.yaw;
     cmd.pitch = this.input.pitch;
+    this.nadeHold.tick(cmd, this.mode && this.mode.nades, this.tickNo);
     if (!this.alive || (this.mode && (this.mode.frozen || this.mode.offline))) {
       Object.assign(cmd, { f: 0, s: 0, jump: false, fire: false, reload: false, weapon: -1, scope: false, nade: 0 });
     }
@@ -593,7 +598,8 @@ export class Game {
     // view model
     this.bob += dt * (this.alive && k.onGround ? this.speed : 0) * 1.6;
     const cur = this.loadout.cur;
-    this.vm.forEach((g, i) => (g.visible = this.alive && i === cur && !this.scoped));
+    const holdingNade = this.nadeHold.eq >= 0;
+    this.vm.forEach((g, i) => (g.visible = this.alive && i === cur && !this.scoped && !holdingNade));
     const g = this.vm[cur];
     this.kick = Math.max(0, this.kick - dt * 9);
     this.swing = Math.max(0, this.swing - dt * 2.4); // a full swing takes ~0.42 s, about the knife's cooldown
@@ -650,8 +656,11 @@ export class Game {
       if (u.bolt) u.bolt.position.z = u.boltRest.z + (this.loadout.reloading ? 0.04 * Math.max(0, r - 0.5) * 2 : 0);
     }
 
+    this.nadeHold.frame(dt, NADE_POS, drop, this.bob);
+    this.hud.setNadeHold(holdingNade ? this.spec.grenades[this.nadeHold.eq] : null, this.nadeHold.charging ? this.nadeHold.charge : -1, this.mode && this.mode.nades, this.nadeHold.eq);
+
     this.flashT -= dt;
-    this.vmFlash.visible = this.alive && !this.scoped && this.flashT > 0 && !!fp.muzzle;
+    this.vmFlash.visible = this.alive && !this.scoped && !holdingNade && this.flashT > 0 && !!fp.muzzle;
     if (this.vmFlash.visible) {
       const m = new THREE.Vector3(fp.muzzle[0], fp.muzzle[1], fp.muzzle[2]).multiplyScalar(fp.scale).applyEuler(g.rotation).add(g.position);
       this.vmFlash.position.copy(m);
@@ -711,7 +720,7 @@ export class Game {
   // sensitivity with the zoom and drives the overlay. The server applies the accuracy bonus from the `scope` input.
   updateScope(dt) {
     const w = this.loadout.weapon;
-    const can = this.alive && w.scopeFov > 0 && !this.loadout.reloading;
+    const can = this.alive && w.scopeFov > 0 && !this.loadout.reloading && this.nadeHold.eq < 0;
     if (!can) this.input.scopeHeld = false; // toggled state ends when the scope stops being usable (reload, switch, death)
     const want = can && this.input.scopeHeld;
     if (w.scopeFov > 0) this.scopeFov = w.scopeFov;

@@ -261,3 +261,38 @@ func TestSpecRejectsBadGrenades(t *testing.T) {
 		}
 	}
 }
+
+func TestThrowPowerScalesTheLaunchSpeed(t *testing.T) {
+	speed := func(np float64) float64 {
+		w, p := pkWorld(t)
+		p.Pitch = 0
+		send(t, w, Input{Weapon: -1, Nade: gFrag + 1, NP: np})
+		if len(w.grenades) != 1 {
+			t.Fatalf("np=%v: no grenade", np)
+		}
+		v := w.grenades[0].Vel
+		return math.Hypot(v[0], v[2]) // horizontal speed (the grenade already moved one tick; drag is only on contact)
+	}
+	full, weak, def := speed(1), speed(0.01), speed(0)
+	w0, _ := pkWorld(t)
+	gs := &w0.Spec.Grenades[gFrag]
+	min := w0.Spec.Nades.MinPower
+	if math.Abs(full-gs.Speed) > 0.2 || def != full {
+		t.Fatalf("full power / default speed %v / %v, want %v", full, def, gs.Speed)
+	}
+	if weak > gs.Speed*(min+0.02) || weak < gs.Speed*min-0.1 {
+		t.Fatalf("weakest throw speed %v, want about %v", weak, gs.Speed*min)
+	}
+	if mid := speed(0.5); !(mid > weak+1 && mid < full-1) {
+		t.Fatalf("half power %v not between %v and %v", mid, weak, full)
+	}
+}
+
+func TestThrowPowerIsValidated(t *testing.T) {
+	w, _ := pkWorld(t)
+	for i, np := range []float64{-0.1, 1.01, math.NaN(), math.Inf(1)} {
+		if err := w.QueueInput(1, Input{Seq: uint32(9000 + i), Weapon: -1, Nade: 1, NP: np}); err == nil {
+			t.Fatalf("throw power %v accepted", np)
+		}
+	}
+}

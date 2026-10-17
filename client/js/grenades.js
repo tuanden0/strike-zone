@@ -2,6 +2,8 @@
 // `throw`/`boom`); this only draws it. Purely visual: nothing here feeds back into the simulation.
 import * as THREE from '../vendor/three.module.js';
 
+import { rayWorld } from './physics.js';
+
 const KIND_COLOR = { frag: 0x3c4a2e, smoke: 0x8a8f94, flash: 0xd8d8e8 };
 
 function glow(stops) {
@@ -17,6 +19,50 @@ function glow(stops) {
   return t;
 }
 
+function hitsBox(c, r, b) {
+  const dx = c[0] - Math.min(Math.max(c[0], b[0]), b[3]);
+  const dy = c[1] - Math.min(Math.max(c[1], b[1]), b[4]);
+  const dz = c[2] - Math.min(Math.max(c[2], b[2]), b[5]);
+  return dx * dx + dy * dy + dz * dz < r * r;
+}
+
+// One tick of the server's grenade integration (grenades.go moveNade): gravity, per-axis box bounce, floor, bounds.
+function stepNade(map, n, pos, vel, dt) {
+  vel[1] -= n.gravity * dt;
+  for (let ax = 0; ax < 3; ax++) {
+    const old = pos[ax];
+    pos[ax] += vel[ax] * dt;
+    if (map.boxes.some((b) => hitsBox(pos, n.radius, b))) {
+      pos[ax] = old;
+      vel[ax] = -vel[ax] * n.restitution;
+      vel[0] *= 0.85;
+      vel[2] *= 0.85;
+    }
+  }
+  if (pos[1] < n.radius) {
+    pos[1] = n.radius;
+    if (vel[1] < 0) {
+      vel[1] = -vel[1] * n.restitution;
+      if (vel[1] < 1) vel[1] = 0;
+    }
+    vel[0] *= 0.8;
+    vel[2] *= 0.8;
+  }
+  if (pos[1] <= n.radius + 1e-9 && vel[1] === 0) {
+    vel[0] *= 0.94;
+    vel[2] *= 0.94;
+  }
+  const bd = map.bounds;
+  if (pos[0] < bd.minX + n.radius || pos[0] > bd.maxX - n.radius) {
+    pos[0] = Math.min(Math.max(pos[0], bd.minX + n.radius), bd.maxX - n.radius);
+    vel[0] = -vel[0] * n.restitution;
+  }
+  if (pos[2] < bd.minZ + n.radius || pos[2] > bd.maxZ - n.radius) {
+    pos[2] = Math.min(Math.max(pos[2], bd.minZ + n.radius), bd.maxZ - n.radius);
+    vel[2] = -vel[2] * n.restitution;
+  }
+}
+
 export class Grenades {
   constructor(game) {
     this.game = game;
@@ -26,9 +72,55 @@ export class Grenades {
     this.clouds = new Map(); // key -> {sprites, left, total}
     this.fx = []; // short explosion sprites/lights
     this.ball = new THREE.SphereGeometry(0.07, 10, 8);
+    // predicted throw path (see preview())
+    this.arcGeo = new THREE.BufferGeometry();
+    this.arcGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 200), 3));
+    this.arcMat = new THREE.LineBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.85 });
+    this.arc = new THREE.Line(this.arcGeo, this.arcMat);
+    this.arc.frustumCulled = false;
+    this.arc.visible = false;
+    this.arcEnd = new THREE.Mesh(new THREE.RingGeometry(0.15, 0.22, 20), new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }));
+    this.arcEnd.visible = false;
+    this.group.add(this.arc, this.arcEnd);
     this.texFire = glow([[0, 'rgba(255,250,220,1)'], [0.25, 'rgba(255,170,60,0.95)'], [0.6, 'rgba(200,60,10,0.5)'], [1, 'rgba(60,20,0,0)']]);
     this.texFlash = glow([[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(235,240,255,0.8)'], [1, 'rgba(200,210,255,0)']]);
     this.texSmoke = glow([[0, 'rgba(205,208,212,0.95)'], [0.55, 'rgba(165,170,176,0.7)'], [1, 'rgba(140,145,150,0)']]);
+  }
+
+  // Draw where a thrown grenade would go: same launch rules and integration as the server (world.go throwNade / grenades.go moveNade),
+  // up to its fuse. preview(null) hides it. k = speed factor from the throw power; bright = a throw is being charged.
+  preview(eye, yaw, pitch, gs, k, bright) {
+    if (!eye) {
+      this.arc.visible = this.arcEnd.visible = false;
+      return;
+    }
+    const game = this.game;
+    const n = game.spec.nades;
+    const map = game.map;
+    const dt = 1 / game.spec.tickRate;
+    const cp = Math.cos(pitch);
+    const dir = [-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp];
+    let pos = [eye[0], eye[1], eye[2]];
+    if (rayWorld(map, pos, dir, 0.6) >= 0.6) pos = [pos[0] + dir[0] * 0.5, pos[1] + dir[1] * 0.5, pos[2] + dir[2] * 0.5];
+    const sp = gs.speed * k;
+    const vel = [dir[0] * sp, dir[1] * sp + gs.upBias * k, dir[2] * sp];
+    const a = this.arcGeo.attributes.position;
+    let count = 0;
+    const put = () => {
+      a.setXYZ(count++, pos[0], pos[1], pos[2]);
+    };
+    put();
+    for (let tick = 0; tick < gs.fuseTicks && count < 199; tick++) {
+      stepNade(map, n, pos, vel, dt);
+      put();
+    }
+    a.needsUpdate = true;
+    this.arcGeo.setDrawRange(0, count);
+    this.arc.visible = true;
+    this.arcMat.opacity = bright ? 0.95 : 0.4;
+    this.arcEnd.visible = true;
+    this.arcEnd.position.set(pos[0], Math.max(0.03, pos[1] - n.radius + 0.03), pos[2]);
+    this.arcEnd.rotation.x = -Math.PI / 2;
   }
 
   kindOf(g) {

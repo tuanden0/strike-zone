@@ -56,10 +56,15 @@ export class Online {
     this.seq++;
     this.net.send({
       t: 'in', seq: this.seq, f: cmd.f, s: cmd.s, yaw: cmd.yaw, pitch: cmd.pitch,
-      jump: cmd.jump, walk: cmd.walk, fire: cmd.fire, reload: cmd.reload, weapon: cmd.weapon, drop: cmd.drop, use: cmd.use, scope: cmd.scope, nade: cmd.nade, crouch: cmd.crouch, vt: this.viewTick(),
+      jump: cmd.jump, walk: cmd.walk, fire: cmd.fire, reload: cmd.reload, weapon: cmd.weapon, drop: cmd.drop, use: cmd.use, scope: cmd.scope, nade: cmd.nade, np: cmd.np, crouch: cmd.crouch, vt: this.viewTick(),
     });
     this.pending.push({ seq: this.seq, tick: game.tickNo, cmd: { ...cmd } });
     if (this.pending.length > MAX_PENDING) this.pending.shift();
+  }
+
+  // grenades left per type (null = this mode has none)
+  get nades() {
+    return this.me ? this.me.gn : null;
   }
 
   onFrame(dt, now, game) {

@@ -33,8 +33,10 @@ type LagCompSpec struct {
 type NadeSpec struct {
 	CooldownTicks int     `json:"cooldownTicks"` // between two throws by one player
 	Gravity       float64 `json:"gravity"`
-	Restitution   float64 `json:"restitution"` // bounce energy kept
-	Radius        float64 `json:"radius"`      // collision sphere
+	Restitution   float64 `json:"restitution"`   // bounce energy kept
+	Radius        float64 `json:"radius"`        // collision sphere
+	MinPower      float64 `json:"minPower"`      // launch speed at the weakest throw, as a fraction of the grenade's speed
+	ChargeSeconds float64 `json:"chargeSeconds"` // client: holding fire this long reaches full power (the server only takes the resulting power)
 }
 
 // GrenadeSpec describes one throwable (Kind: frag | smoke | flash). Radius is the damage radius (frag), cloud radius (smoke) or
@@ -356,7 +358,7 @@ func validateSpec(s *Spec) error {
 		return fmt.Errorf("spec: lagComp.maxRewindTicks must be 0..%d", histLen-2)
 	}
 	n := s.Nades
-	if n.CooldownTicks < 1 || n.CooldownTicks > 600 || n.Gravity < 0 || n.Gravity > 100 || n.Restitution < 0 || n.Restitution > 1 || n.Radius < 0.02 || n.Radius > 0.5 {
+	if n.CooldownTicks < 1 || n.CooldownTicks > 600 || n.Gravity < 0 || n.Gravity > 100 || n.Restitution < 0 || n.Restitution > 1 || n.Radius < 0.02 || n.Radius > 0.5 || n.MinPower <= 0 || n.MinPower > 1 || n.ChargeSeconds < 0.2 || n.ChargeSeconds > 5 {
 		return fmt.Errorf("spec: bad nades section")
 	}
 	if len(s.Grenades) > 6 {

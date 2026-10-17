@@ -107,8 +107,10 @@ body.touch #practice-stats { top: 70px; }
 
 /* ---- grenades, flash, bots ---- */
 #flash { position: absolute; inset: 0; background: #fff; pointer-events: none; }
+#nade-power { position: absolute; left: 50%; top: calc(50% + 46px); width: 180px; height: 10px; transform: translateX(-50%); border: 1px solid rgba(255,255,255,.7); border-radius: 5px; background: rgba(0,0,0,.45); overflow: hidden; }
+#nade-power-fill { height: 100%; width: 0; background: linear-gradient(90deg, #ffd34d, #ff6a3d); }
 #nades { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; font-size: 12px; }
-#nades span { padding: 1px 8px; border-radius: 4px; background: rgba(0,0,0,.45); color: #cfd6e2; } #nades span.empty { opacity: .35; }
+#nades span { padding: 1px 8px; border-radius: 4px; background: rgba(0,0,0,.45); color: #cfd6e2; } #nades span.empty { opacity: .35; } #nades span.cur { outline: 1px solid #ffd34d; color: #ffd34d; }
 #t-nade { right: calc(210px + env(safe-area-inset-right)); bottom: calc(150px + env(safe-area-inset-bottom)); width: 54px !important; height: 54px !important; font-size: 10px !important; }
 #t-nadesel { right: calc(276px + env(safe-area-inset-right)); bottom: calc(158px + env(safe-area-inset-bottom)); width: 40px !important; height: 40px !important; font-size: 10px !important; }
 body.touch #nades { justify-content: center; }
