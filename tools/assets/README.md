@@ -14,6 +14,7 @@ python tools/assets/rifle.py --no-preview    # skip the Cycles preview renders (
 |--------|--------|
 | `map_kit.py` | `map.glb` — one prop per collision box in `client/shared/map.json` (so visuals == collision) |
 | `gen_crossroads_map.py` + `crossroads_kit.py` | `client/shared/map_crossroads.json` and `map_crossroads.glb` (empty four-way intersection) |
+| `gen_<id>_map.py` + `<id>_kit.py` for `piazza`, `pyramid`, `canyon`, `harbor`, `bunker` | `client/shared/map_<id>.json` (pure python, deterministic; also validates spawns/pickups) and `map_<id>.glb` (Blender, one prop per collision box). Run `python tools/assets/gen_piazza_map.py && /tmp/bpyenv/bin/python tools/assets/piazza_kit.py [--no-preview]` (any python with `bpy`). Set `MAP_PNG_DIR=/some/dir` on a generator to also write a top-down PNG of the layout. |
 | `rifle.py` | `rifle.glb`, `rifle_fp.glb` (first person, with gloved hands) |
 | `sniper.py` | `sniper.glb`, `sniper_fp.glb` (bolt-action scoped rifle; held by characters via the rifle's hand slot) |
 | `pistol.py` | `pistol.glb`, `pistol_fp.glb` |
@@ -21,7 +22,10 @@ python tools/assets/rifle.py --no-preview    # skip the Cycles preview renders (
 | `character.py` | `character_a.glb`, `character_b.glb` (team colours; armature + animations) |
 
 Shared code: `common.py` (bmesh builders, materials, glTF export, preview renders), `texgen.py` (numpy procedural
-textures: concrete, wood, corrugated metal, burlap, fabric, nylon, polymer, gunmetal …; tileable; JPEG in the glb),
+textures: concrete, wood, corrugated metal, burlap, fabric, nylon, polymer, gunmetal, stucco, terracotta, sandstone, sand,
+rock strata, cobble …; tileable; JPEG in the glb), `mapgen_common.py` (grid-authored maps: ASCII/Canvas drawing of the team A
+half, 180-degree rotation for team B, legend -> collision boxes, validator + top-down PNG) and `mapkit_common.py` (generic
+Blender builder: one styled prop per collision box from a per-map theme),
 `weapon_parts.py` (generic fictional weapon designs).
 
 Texture note: textures are generated with numpy and written into Blender images (not baked from Blender shader
