@@ -8,6 +8,7 @@ import { isTouch } from './input.js';
 import { Decals } from './decals.js';
 import { Grenades } from './grenades.js';
 import { PostFx } from './postfx.js';
+import { Footsteps } from './footsteps.js';
 import { Soldier, nameSprite, applyAnisotropy, flashTexture } from './models.js';
 import { clone } from '../vendor/SkeletonUtils.js';
 
@@ -50,6 +51,7 @@ export class RemoteView {
     this.buf = [];
     this.alive = true;
     this.stepDist = 0;
+    this.foot = 0;
     this.last = null;
     this.t = 0;
     this.char = new Soldier(game.assets[team === 'B' ? 'character_b' : 'character_a'], game.spec, game.assets.sniper);
@@ -100,17 +102,9 @@ export class RemoteView {
     this.t += dt;
     let speed = 0;
     if (this.last && dt > 0) {
-      const dx = s.x - this.last.x;
-      const dz = s.z - this.last.z;
-      const d = Math.hypot(dx, dz);
+      const d = Math.hypot(s.x - this.last.x, s.z - this.last.z);
       speed = d / dt;
-      if (this.alive && s.y < 0.05 && speed > 3.5) {
-        this.stepDist += d;
-        if (this.stepDist > 2.4) {
-          this.stepDist = 0;
-          this.game.playAt('step', [s.x, s.y, s.z]);
-        }
-      }
+      this.game.footsteps.remote(this, s, d, dt); // surface-specific, positional, audible up to ~25 m
     }
     this.last = { x: s.x, y: s.y, z: s.z };
     this.char.update(dt, this.alive && s.y < 0.05 ? speed : 0);
@@ -245,7 +239,7 @@ export class Game {
     this.swing = 0;
     this.switchT = 0;
     this.bob = 0;
-    this.stepDist = 0;
+    this.footsteps = new Footsteps(this);
     this.deadT = 0;
     this.frames = 0;
     this.fpsT = 0;
@@ -447,20 +441,14 @@ export class Game {
     let res = null;
     if (this.alive) {
       const wasGround = this.kin.onGround;
+      const fallVy = this.kin.vy; // vertical speed before the step (landing loudness)
       stepMove(this.spec, this.map, this.kin, cmd);
       const dx = this.kin.x - this.prev.x;
       const dz = this.kin.z - this.prev.z;
       const d = Math.hypot(dx, dz);
       this.speed = d * this.spec.tickRate;
-      if (this.kin.onGround && !wasGround && this.prev.y - this.kin.y > 0.05) this.playAt('land', this.eye());
       if (cmd.jump && wasGround && !this.kin.onGround) this.playAt('jump', this.eye());
-      if (this.kin.onGround && !cmd.walk && !this.kin.crouch) { // walking and crouching are silent
-        this.stepDist += d;
-        if (this.stepDist > 2.2) {
-          this.stepDist = 0;
-          this.playAt('step', this.eye());
-        }
-      }
+      this.footsteps.local(cmd, this.kin, d, this.speed, wasGround, fallVy); // steps by surface, stride and landing thuds
       res = this.loadout.step(cmd, this.tickNo);
       this.onLocalWeapon(res, cmd);
     }

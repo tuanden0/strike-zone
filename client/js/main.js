@@ -55,6 +55,7 @@ async function applyMap(id) {
   }
   const game = ensureGame();
   if (game.mapId !== entry.id) game.setMap(entry.id, state.mapData[entry.id], state.mapGlb[entry.id].scene);
+  game.footsteps.setFloor(entry.floor); // default footstep surface of the map (maps.json "floor")
   return entry.id;
 }
 

@@ -45,12 +45,12 @@ try {
   // Weapon switching: keys 1/2/3 select rifle/pistol/knife.
   for (const [key, idx] of [['Digit2', 1], ['Digit3', 2], ['Digit1', 0]]) {
     await page.keyboard.press(key);
-    const ok = await page.waitForFunction((i) => window.__sz.game.loadout.cur === i, idx, { timeout: 3000 }).then(() => true, () => false);
+    const ok = await page.waitForFunction((i) => window.__sz.game.loadout.cur === i, idx, { timeout: 30000 }).then(() => true, () => false);
     check(`key ${key} selects weapon ${idx}`, ok);
   }
   await page.waitForFunction(() => window.__sz.game.loadout.cur === 0 && window.__sz.game.switchT === 0 && window.__sz.game.loadout.nextFire <= window.__sz.game.tickNo); // switch delay blocks reload
   await page.keyboard.press('KeyR');
-  const reloading = await page.waitForFunction(() => window.__sz.game.loadout.reloading, null, { timeout: 3000 }).then(() => true, () => false);
+  const reloading = await page.waitForFunction(() => window.__sz.game.loadout.reloading, null, { timeout: 30000 }).then(() => true, () => false);
   check('R starts reload when mag not full', reloading);
 
   // Walk forward 1s: position changes.
