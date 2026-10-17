@@ -27,7 +27,9 @@ def lin(c):
     return tuple(((v + 0.055) / 1.055) ** 2.4 if v > 0.04045 else v / 12.92 for v in c)
 
 
-TEAMS = {"a": (0.20, 0.45, 0.88), "b": (0.86, 0.25, 0.22)}  # same hues as the HUD (#3b82f6 / #ef4444)
+# Team colour is only an accent (helmet stripe, patch, shoulder tabs); both teams wear the same olive fatigues.
+TEAMS = {"a": (0.31, 0.49, 0.56), "b": (0.76, 0.34, 0.18)}  # #4F7D8F / #C2562F
+UNIFORM = (0.40, 0.44, 0.34)  # sRGB, lifted from #4A5448 so it reads under the map lighting
 
 # ------------------------------------------------------------------------------------------------ rest pose
 S_R = Vector((0.205, 0.0, 1.40))
@@ -166,8 +168,10 @@ class Rig:
 # ------------------------------------------------------------------------------------------------ geometry
 def materials(team):
     col = lin(TEAMS[team])
-    material("uniform_team_" + team, tex="fabric_camo", color=(col[0] * 1.05, col[1] * 1.05, col[2] * 1.05, 1))
-    material("trousers_team_" + team, tex="fabric_camo", color=(col[0] * 0.55, col[1] * 0.55, col[2] * 0.55, 1))
+    uni = lin(UNIFORM)
+    material("uniform_team_" + team, tex="fabric_camo", color=(uni[0] * 1.15, uni[1] * 1.15, uni[2] * 1.15, 1), normal_strength=1.6)
+    material("trousers_team_" + team, tex="fabric_camo", color=(uni[0] * 0.9, uni[1] * 0.9, uni[2] * 0.9, 1), normal_strength=1.6)
+    material("webbing", tex="nylon", tex_kwargs={"color": (0.20, 0.21, 0.16)}, size=256)
     material("patch_" + team, color=(col[0], col[1], col[2], 1), roughness=0.8)
     material("vest", tex="nylon", tex_kwargs=dict(color=(0.14, 0.15, 0.13)), size=256)
     material("pouch", tex="nylon", tex_kwargs=dict(color=(0.22, 0.23, 0.18)), size=256)
@@ -213,6 +217,9 @@ def build_body(team):
         b.add(box((0.012, 0.09, 0.03), (sx * 0.123, 0.0, 1.735), bevel=0.003, segs=1), "gunmetal", (6, 6), bone="head")  # side rails
         b.add(box((0.03, 0.09, 0.09), (sx * 0.1, -0.01, 1.64), bevel=0.01, segs=1), "helmet", (3, 3), bone="head")  # ear guards
     b.add(box((0.02, 0.012, 0.05), (0, 0.136, 1.73), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="head")  # front team stripe
+    for sx in (-1, 1):
+        b.add(box((0.012, 0.03, 0.03), (sx * 0.123, -0.07, 1.735), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="head")  # helmet side tabs
+    b.add(box((0.05, 0.012, 0.03), (0, -0.138, 1.735), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="head")  # rear tab
     # --- neck (bone neck) -----------------------------------------------------------------------
     b.add(cyl(0.05, 0.056, 0.14, (0, 0.005, 1.5), (0, 0, 0), 8), "gaiter", (3, 3), bone="neck")
     # --- torso ---------------------------------------------------------------------------------
@@ -231,6 +238,17 @@ def build_body(team):
         b.add(box((0.085, 0.24, 0.04), (sx * 0.11, 0.0, 1.427), (0, 0, 0), bevel=0.008, segs=1), "vest", (3, 3), bone="chest")  # shoulder straps
         b.add(box((0.06, 0.07, 0.11), (sx * 0.215, 0.05, 1.22), bevel=0.01, segs=1), "pouch", (4, 4), bone="chest")  # side pouch
     b.add(box((0.07, 0.04, 0.1), (-0.14, 0.17, 1.40), bevel=0.008, segs=1), "gunmetal", (4, 4), bone="chest")  # radio
+    b.add(box((0.2, 0.012, 0.05), (0, 0.181, 1.4), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="chest")  # chest ID strip
+    b.add(box((0.2, 0.012, 0.05), (0, -0.2, 1.4), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="chest")  # back ID strip
+    b.add(box((0.1, 0.035, 0.07), (0.1, 0.19, 1.39), bevel=0.008, segs=1), "pouch", (4, 4), bone="chest")  # admin pouch
+    for z in (1.17, 1.215, 1.26, 1.305, 1.35):  # MOLLE webbing rows across the front plate and cummerbund
+        b.add(box((0.3, 0.012, 0.012), (0, 0.183, z), bevel=0.003, segs=1), "webbing", (4, 4), bone="chest")
+        for sx in (-1, 1):
+            b.add(box((0.012, 0.19, 0.012), (sx * 0.2, 0.05, z - 0.03), bevel=0.003, segs=1), "webbing", (4, 4), bone="chest")
+    b.add(box((0.2, 0.09, 0.14), (0, -0.215, 1.12), bevel=0.016), "pouch", (4, 4), bone="chest")  # dump pouch on the pack
+    b.add(cyl(0.01, 0.01, 0.2, (0.12, -0.2, 1.35), (0, 0, 0), 6), "rubber", (2, 2), bone="chest")  # hydration tube
+    for sx in (-1, 1):
+        b.add(box((0.05, 0.05, 0.006), (sx * 0.11, 0.0, 1.447), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone="chest")  # shoulder tab
     # belt, hips
     b.add(box((0.355, 0.235, 0.055), (0, 0, 1.0), bevel=0.012, segs=1), "vest", (3, 3), bone="spine")
     for sx in (-1, 1):
@@ -247,6 +265,12 @@ def build_body(team):
         shin = loft([ring((x, 0, 0.5), (1, 0, 0), (0, 1, 0), 0.125, 0.14), ring((x, 0, 0.3), (1, 0, 0), (0, 1, 0), 0.10, 0.115), ring((x, 0, 0.14), (1, 0, 0), (0, 1, 0), 0.098, 0.11)])
         b.add(shin, T, (2, 2), bone=f"shin.{sd}")
         b.add(box((0.105, 0.065, 0.12), (x, 0.07, 0.5), bevel=0.014), "vest", (4, 4), bone=f"shin.{sd}")  # knee pad
+        b.add(sphere(0.5, (0.115, 0.15, 0.24), (x, -0.035, 0.37), segs=8, rings=6), T, (2, 2), bone=f"shin.{sd}")  # calf
+        b.add(box((0.11, 0.03, 0.025), (x, 0.07, 0.43), bevel=0.004, segs=1), "webbing", (4, 4), bone=f"shin.{sd}")  # knee-pad strap
+        b.add(box((0.115, 0.04, 0.03), (x, 0.0, 0.2), bevel=0.006, segs=1), "webbing", (4, 4), bone=f"shin.{sd}")  # trouser cuff blouse
+        if sd == "R":
+            b.add(box((0.04, 0.1, 0.2), (x + 0.115, 0.02, 0.66), bevel=0.01, segs=1), "pouch", (4, 4), bone=f"thigh.{sd}")  # drop-leg holster
+            b.add(box((0.03, 0.12, 0.1), (x + 0.12, 0.02, 0.78), bevel=0.008, segs=1), "webbing", (4, 4), bone=f"thigh.{sd}")  # holster platform
         b.add(box((0.108, 0.13, 0.14), (x, 0.0, 0.14), bevel=0.012), "boot", (3, 3), bone=f"foot.{sd}")  # ankle
         b.add(box((0.105, 0.27, 0.075), (x, 0.065, 0.06), bevel=0.018), "boot", (3, 3), bone=f"foot.{sd}")
         b.add(box((0.1, 0.07, 0.07), (x, 0.17, 0.05), bevel=0.02), "boot", (3, 3), bone=f"foot.{sd}")  # toe cap
@@ -256,10 +280,13 @@ def build_body(team):
         b.add(sphere(0.5, (0.104, 0.104, 0.104), tuple(S), segs=8, rings=6), U, (2, 2), bone=f"upper_arm.{sd}")
         b.add(cyl_between(S, E, 0.052, 0.045), U, (2, 2), bone=f"upper_arm.{sd}")
         b.add(box((0.085, 0.095, 0.04), tuple(S + Vector((side * 0.0, 0, 0.026))), bevel=0.01, segs=1), "vest", (3, 3), bone=f"upper_arm.{sd}")  # shoulder armour
+        b.add(cyl_between(S + (E - S) * 0.5, S + (E - S) * 0.75, 0.064, 0.063), "patch_" + team, (1, 1), bone=f"upper_arm.{sd}")  # team armband, readable from any side
         if sd == "R":
             b.add(box((0.012, 0.06, 0.06), tuple(S + (E - S) * 0.4 + Vector((side * 0.052, 0, 0))), bevel=0.003, segs=1), "patch_" + team, (1, 1), bone=f"upper_arm.{sd}")  # team patch
         b.add(sphere(0.5, (0.095, 0.095, 0.095), tuple(E), segs=8, rings=6), U, (2, 2), bone=f"forearm.{sd}")
         b.add(cyl_between(E, W, 0.044, 0.037), U, (2, 2), bone=f"forearm.{sd}")
+        b.add(cyl_between(E + (W - E) * 0.08, E + (W - E) * 0.6, 0.05, 0.048), U, (2, 2), bone=f"forearm.{sd}")  # forearm bulk
+        b.add(cyl_between(S + (E - S) * 0.15, S + (E - S) * 0.7, 0.06, 0.056), U, (2, 2), bone=f"upper_arm.{sd}")  # bicep and deltoid bulk
         b.add(box((0.07, 0.07, 0.07), tuple(E + Vector((0, 0, -0.02)) + (W - E).normalized() * 0.02), bevel=0.012, segs=1), "vest", (4, 4), bone=f"forearm.{sd}")  # elbow pad
         # glove hand along the forearm direction
         f = (W - E).normalized()
