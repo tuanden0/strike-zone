@@ -113,6 +113,8 @@ Not tested with a real controller (only a fake pad in `e2e/gamepad.mjs`).
 
 **Crouch:** hold `Shift` (touch: **DUCK** toggle). Crouching lowers your eye (0.98 m) and hitboxes (1.15 m tall: a shot at standing head height passes over you), slows you to 2.2 m/s, makes no footstep noise and forbids jumping. Releasing Shift under a low ceiling keeps you crouched until there is room to stand. Other players see the crouch pose. This replaces the old Shift=walk binding; walking is now `Alt`.
 
+**Kill medals:** when you kill someone, a medal pops up under the crosshair: **HEADSHOT** (gold), **KNIFE KILL**, **GRENADE KILL** or **KILL**, with the victim's name; kills within 4 s of each other add DOUBLE / TRIPLE / MULTI KILL. Works online and on the practice range (no medal for killing yourself).
+
 **Stairs, ramps, falls:** you walk up ledges of up to 0.45 m (stairs, the Canyon Run ramp and ledge) without jumping. Landing faster than 9 m/s hurts (about 11 HP per extra m/s: a drop of ~4 m costs ~25 HP, ~7 m is fatal; kill feed says "Fall").
 
 **Lag compensation and reconnect:** the server tests your shots against where the targets were on your screen (up to 333 ms back), so Wi-Fi play does not need lead aiming. If your connection drops during a match a red "Reconnecting" bar appears; the client re-dials for up to 25 s and puts you back in the same seat (the server holds your player, standing still, for 30 s). A page reload or closing the tab cannot resume.

@@ -136,6 +136,7 @@ export class Practice {
         best.tg.respawnAt = this.t + this.spec.match.respawnSeconds;
         this.kills++;
         game.sfx.play('kill');
+        game.hud.killMedal(best.h.head ? 'head' : w.melee ? 'knife' : 'body', 'Dummy');
         game.decals.bloodPool(best.tg.px, best.tg.pz);
       }
     } else if (t < w.range) {

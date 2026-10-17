@@ -46,6 +46,16 @@ td input { width: 120px; padding: 4px 6px; }
 #damage { position: absolute; inset: 0; box-shadow: inset 0 0 120px 30px rgba(255,0,0,.75); opacity: 0; transition: opacity .35s; }
 #damage.on { opacity: 1; transition: none; }
 #conn { position: fixed; top: 0; left: 0; right: 0; z-index: 60; padding: 10px 16px; text-align: center; font-weight: 600; background: rgba(160,40,30,.92); color: #fff; }
+#medal { position: absolute; left: 0; right: 0; top: 62%; text-align: center; opacity: 0; pointer-events: none; text-shadow: 0 2px 6px #000; }
+#medal.on { animation: medal 1.6s ease-out forwards; }
+#medal .m-main { font-size: 34px; font-weight: 800; letter-spacing: 3px; color: #ff5a4a; }
+#medal .m-main.head { color: #ffd34d; font-size: 40px; }
+#medal .m-main.knife, #medal .m-main.nade { color: #7fd1ff; }
+#medal .m-multi { font-size: 22px; font-weight: 700; letter-spacing: 2px; color: #fff; }
+#medal .m-sub { font-size: 14px; color: #cfd6e2; font-weight: 400; }
+@keyframes medal { 0% { opacity: 0; transform: scale(1.6); } 12% { opacity: 1; transform: scale(1); } 75% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #medal.on { animation: none; opacity: 1; } }
+body.touch #medal .m-main { font-size: 24px; } body.touch #medal .m-main.head { font-size: 28px; }
 #banner { position: absolute; top: 28%; width: 100%; text-align: center; font-size: 28px; }
 #hud-bl { position: absolute; left: 20px; bottom: 20px; display: flex; align-items: center; gap: 10px; font-size: 22px; }
 #hp-label { color: #cfd6e2; font-size: 14px; }

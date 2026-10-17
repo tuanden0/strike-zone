@@ -250,6 +250,10 @@ export class Online {
         } else if (ev.by === me) {
           this.sfx.play('kill');
         }
+        if (ev.by === me && ev.v !== me) {
+          const nade = ev.w >= this.spec.weapons.length;
+          this.hud.killMedal(ev.head ? 'head' : nade ? 'nade' : this.spec.weapons[ev.w].melee ? 'knife' : 'body', v.nick);
+        }
         break;
       }
       case 'throw':

@@ -11,6 +11,8 @@ function el(tag, cls, text) {
 
 export const TEAM_NAMES = { A: 'Ember', B: 'Cobalt' };
 
+const STREAK_MS = 4000;
+
 export class Hud {
   constructor() {
     this.root = $('hud');
@@ -29,6 +31,8 @@ export class Hud {
     this.sb = $('score-b');
     this.feed = $('killfeed');
     this.hit = $('hitmarker');
+    this.medalEl = $('medal');
+    this.streak = { n: 0, t: 0 };
     this.dmg = $('damage');
     this.banner = $('banner');
     this.board = $('scoreboard');
@@ -124,6 +128,23 @@ export class Hud {
     this.hit.classList.add('on');
     clearTimeout(this._hitT);
     this._hitT = setTimeout(() => this.hit.classList.remove('on'), 90);
+  }
+
+  // Centre-screen medal for a kill you made: HEADSHOT / KNIFE KILL / GRENADE KILL / KILL, plus DOUBLE / TRIPLE / MULTI KILL when
+  // kills follow each other within 4 s. how = 'head' | 'knife' | 'nade' | 'body'; victim = nick shown under it.
+  killMedal(how, victim) {
+    const now = performance.now();
+    this.streak.n = now - this.streak.t < STREAK_MS ? this.streak.n + 1 : 1;
+    this.streak.t = now;
+    const base = { head: 'HEADSHOT', knife: 'KNIFE KILL', nade: 'GRENADE KILL', body: 'KILL' }[how] || 'KILL';
+    const multi = this.streak.n >= 4 ? 'MULTI KILL' : this.streak.n === 3 ? 'TRIPLE KILL' : this.streak.n === 2 ? 'DOUBLE KILL' : '';
+    const m = this.medalEl;
+    m.replaceChildren(el('div', `m-main ${how}`, base), ...(multi ? [el('div', 'm-multi', `${multi}`)] : []), el('div', 'm-sub', victim));
+    m.classList.remove('on');
+    void m.offsetWidth; // restart the CSS animation
+    m.classList.add('on');
+    clearTimeout(this._medalT);
+    this._medalT = setTimeout(() => m.classList.remove('on'), 1600);
   }
 
   damageFlash() {

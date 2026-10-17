@@ -92,6 +92,8 @@ try {
   check('hitmarker shown on hit event', await b.evaluate(() => document.getElementById('hitmarker').classList.contains('on')));
   const feed = await b.textContent('#killfeed');
   check('killfeed shows killer, weapon, headshot and victim', feed.includes('Bob') && feed.includes('Alice') && feed.includes('HS'), feed);
+  const medal = await b.evaluate(() => document.getElementById('medal').innerText.replace(/\s+/g, ' ').trim());
+  check('kill medal shows HEADSHOT and the victim', medal.startsWith('HEADSHOT') && medal.includes('Alice'), medal);
   check('HUD shows ping', (await a.textContent('#ping')).includes('ping'));
   // Crouch: Alice holds Shift; Bob must see her crouch (stance goes through the server), and prediction must still match
   await a.keyboard.down('ShiftLeft');
