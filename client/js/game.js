@@ -258,6 +258,7 @@ export class Game {
     this.last = 0;
     this.kick = 0;
     this.punch = 0;
+    this.camLag = 0; // radians the camera still trails behind input.pitch after a kick (visual only)
     this.scopeT = 0; // 0..1 zoom blend
     this.scopeFov = BASE_FOV;
     this.sinceFire = 99;
@@ -404,6 +405,7 @@ export class Game {
     this.alive = true;
     this.deadT = 0;
     this.punch = 0;
+    this.camLag = 0;
     this.sfx.play('spawn');
   }
 
@@ -525,6 +527,8 @@ export class Game {
       this.input.pitch = Math.min(1.55, this.input.pitch + rp);
       this.input.yaw += (Math.random() - 0.5) * 2 * rp * this.spec.recoil.yawRatio;
       this.punch += rp;
+      this.camLag += rp; // the camera climbs over a few frames instead of snapping (aim itself already moved)
+      if (w.scopeFov > 0) this.shake = Math.max(this.shake, this.scoped ? 0.9 : 0.5); // bolt-action thump
     }
   }
 
@@ -593,7 +597,8 @@ export class Game {
     this.camera.rotation.order = 'YXZ';
     this.shake *= Math.exp(-dt * 6);
     const sh = this.shake > 0.01 ? this.shake * 0.05 : 0;
-    this.camera.rotation.set(this.input.pitch + (sh ? (Math.random() - 0.5) * sh : 0), this.input.yaw + (sh ? (Math.random() - 0.5) * sh : 0), this.alive ? 0 : this.deadT * 0.6);
+    this.camLag *= Math.exp(-dt * 28);
+    this.camera.rotation.set(this.input.pitch - this.camLag + (sh ? (Math.random() - 0.5) * sh : 0), this.input.yaw + (sh ? (Math.random() - 0.5) * sh : 0), this.alive ? 0 : this.deadT * 0.6);
     if (this.debugCam) { // free camera for screenshots/tests: {pos:[x,y,z], look:[x,y,z]}
       this.camera.position.set(...this.debugCam.pos);
       this.camera.lookAt(...this.debugCam.look);

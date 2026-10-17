@@ -66,6 +66,13 @@ try {
   await p.waitForFunction(() => window.__sz.game.__kicks.length >= 1);
   const sk = await p.evaluate(() => window.__sz.game.__kicks[0]);
   check('sniper shot kicks harder than a rifle shot (damage 100 vs 30)', sk.dp > rifle.kick * 2.5, `${sk.dp.toFixed(4)} vs ${rifle.kick.toFixed(4)}`);
+  // the sniper's kick is a visible jolt: aim climbs >= 4 degrees, the camera trails behind the aim at first (no snap), shakes, then settles back
+  check('sniper kick is at least 4 degrees', sk.dp > 0.07, `${(sk.dp * 57.3).toFixed(1)} deg`);
+  const vis = await p.evaluate(() => { const g = window.__sz.game; return { lag: g.camLag, shake: g.shake, punch: g.punch }; });
+  check('right after the shot the camera trails the aim and the view shakes', vis.shake > 0.1 && vis.punch > 0.05, JSON.stringify(vis));
+  await p.waitForFunction(() => window.__sz.game.punch < 0.001, null, { timeout: 60000 });
+  const settled = await p.evaluate(() => window.__sz.game.camLag);
+  check('the kick settles: aim and camera come back', settled < 0.002, `lag ${settled}`);
   check('no JS errors', errors.length === 0, errors.join(' | '));
 } catch (e) {
   check('recoil run', false, String(e));

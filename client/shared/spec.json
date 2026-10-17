@@ -60,7 +60,7 @@
     {
       "id": "sniper", "name": "SR-9 Sniper", "damage": 100, "headMult": 4, "range": 400,
       "intervalTicks": 42, "auto": false, "magSize": 5, "reserve": 15, "reloadTicks": 96,
-      "spread": 0.045, "moveSpread": 0.07, "melee": false, "recoilScale": 1, "bloomScale": 0,
+      "spread": 0.045, "moveSpread": 0.07, "melee": false, "recoilScale": 2, "bloomScale": 0,
       "scopeFov": 14, "scopedSpread": 0, "pickupOnly": true
     }
   ]
