@@ -89,6 +89,8 @@ type Player struct {
 	Has        []bool // weapon slots the player owns (drop/pickup change this)
 	PrevDrop   bool
 	PrevUse    bool
+	Burst      int  // consecutive shots in the current burst (0 = none); drives spread bloom, mirrored in client/js/weapons.js
+	BurstUntil int  // last tick at which the next shot still continues the burst
 	Scoped     bool // scope held with a scoped weapon and not reloading, as of the last input
 	Mag, Res   []int
 	NextFire   int

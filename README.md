@@ -69,6 +69,8 @@ Copy **one file** to the host machine (the client is embedded) and run it:
 
 **Weapons:** AR-7 rifle (auto), P-9 pistol, combat knife and the **SR-9 sniper** (bolt-action, one shot kills at any range on a body or head hit, 5 rounds, 1.4 s between shots). The sniper is *not* in the spawn loadout: pick one up from the purple-ringed spawn points (yard: two side lanes; crossroads: both ends of the cross street). **Right click** (touch: **SCOPE** button) toggles the zoom (~5.5x); click again to leave: look sensitivity drops with the zoom and shots are perfectly accurate while standing still; moving or hip-firing spreads them wide. Reloading, switching weapon, pausing or dying leaves the scope. Dying loses the sniper. Practice range gives you the sniper from the start.
 
+**Recoil:** a shot's view kick is proportional to the weapon's damage (sniper ≫ rifle > pistol; knife none). Holding the trigger ramps the kick up shot after shot and the server widens the spread (rifle: ~100 % of first shots hit a standing target at 30 m, ~20 % of shots 10+ of a spray). Short taps or pauses reset it, so burst-fire for accuracy; reloading or switching also resets it.
+
 **Maps:** *Yard* (cover-rich arena) and *Crossroads* (empty four-way intersection with a building on each corner, inspired by classic crossroads maps). Choose it when creating a room or in Practice. Weapons lie at spawn points on each map and respawn 20 s after pick-up; dropped weapons vanish after 60 s.
 
 **Practice range** (title screen) works offline with target dummies and needs no server connection once the page is loaded.

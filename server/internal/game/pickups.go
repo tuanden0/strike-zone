@@ -106,6 +106,7 @@ func (w *World) dropWeapon(p *Player) {
 		}
 	}
 	p.ReloadDone = 0
+	p.Burst = 0
 	p.NextFire = max(p.NextFire, w.Tick+w.Spec.SwitchTicks)
 }
 
@@ -153,5 +154,6 @@ func (w *World) usePickup(p *Player) {
 	p.Mag[slot], p.Res[slot] = taken.Mag, taken.Res
 	p.Cur = slot
 	p.ReloadDone = 0
+	p.Burst = 0
 	p.NextFire = max(p.NextFire, w.Tick+w.Spec.SwitchTicks)
 }

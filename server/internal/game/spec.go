@@ -17,6 +17,19 @@ type Spec struct {
 	Match       MatchSpec    `json:"match"`
 	Weapons     []WeaponSpec `json:"weapons"`
 	Pickups     PickupSpec   `json:"pickups"`
+	Recoil      RecoilSpec   `json:"recoil"`
+}
+
+// RecoilSpec derives recoil from damage: one shot kicks the view PerDamage*Damage*RecoilScale radians (so a harder-hitting
+// weapon kicks harder). Consecutive shots (each within the weapon's interval + GraceTicks of the previous) ramp the kick by
+// RampPerShot per shot and widen the spread by BloomRatio*kick*BloomScale per extra shot, both capped at MaxShots shots.
+type RecoilSpec struct {
+	PerDamage   float64 `json:"perDamage"`
+	YawRatio    float64 `json:"yawRatio"`
+	BloomRatio  float64 `json:"bloomRatio"`
+	RampPerShot float64 `json:"rampPerShot"`
+	MaxShots    int     `json:"maxShots"`
+	GraceTicks  int     `json:"graceTicks"`
 }
 
 // PickupSpec configures dropped/ground weapons.
@@ -78,6 +91,28 @@ type WeaponSpec struct {
 	ScopeFov     float64 `json:"scopeFov"`
 	ScopedSpread float64 `json:"scopedSpread"`
 	PickupOnly   bool    `json:"pickupOnly"`
+	RecoilScale  float64 `json:"recoilScale"` // multiplies the damage-derived kick (0 = none, e.g. the knife)
+	BloomScale   float64 `json:"bloomScale"`  // multiplies the spread added by sustained fire (0 = none)
+}
+
+// Kick is the view kick (radians of pitch) of the first shot of a burst.
+func (s *Spec) Kick(ws *WeaponSpec) float64 { return s.Recoil.PerDamage * ws.Damage * ws.RecoilScale }
+
+// Bloom is the extra spread (radians) when this is the burst-th consecutive shot (1 = first shot: none).
+func (s *Spec) Bloom(ws *WeaponSpec, burst int) float64 {
+	if burst < 2 {
+		return 0
+	}
+	return s.Recoil.BloomRatio * s.Kick(ws) * ws.BloomScale * float64(min(burst, s.Recoil.MaxShots)-1)
+}
+
+// Spread is the half-angle (radians) of the random cone a shot is fired in. moveFrac is 0 standing .. 1 running/airborne.
+func (s *Spec) Spread(ws *WeaponSpec, scoped bool, moveFrac float64, burst int) float64 {
+	base := ws.Spread
+	if scoped {
+		base = ws.ScopedSpread
+	}
+	return base + ws.MoveSpread*moveFrac + s.Bloom(ws, burst)
 }
 
 // Map mirrors client/shared/map.json.
@@ -234,9 +269,13 @@ func validateSpec(s *Spec) error {
 	}
 	for _, w := range s.Weapons {
 		if w.IntervalTicks < 1 || w.Range <= 0 || w.Damage <= 0 || w.HeadMult <= 0 || w.MagSize < 0 || w.Reserve < 0 || w.ReloadTicks < 0 ||
-			w.ScopeFov < 0 || (w.ScopeFov > 0 && (w.ScopeFov < 2 || w.ScopeFov > 60)) || w.ScopedSpread < 0 || (w.ScopeFov > 0 && w.Melee) {
+			w.ScopeFov < 0 || (w.ScopeFov > 0 && (w.ScopeFov < 2 || w.ScopeFov > 60)) || w.ScopedSpread < 0 || (w.ScopeFov > 0 && w.Melee) || w.RecoilScale < 0 || w.BloomScale < 0 {
 			return fmt.Errorf("spec: bad weapon %q", w.ID)
 		}
+	}
+	r := s.Recoil
+	if r.PerDamage < 0 || r.PerDamage > 0.01 || r.YawRatio < 0 || r.YawRatio > 2 || r.BloomRatio < 0 || r.BloomRatio > 2 || r.RampPerShot < 0 || r.RampPerShot > 1 || r.MaxShots < 1 || r.MaxShots > 60 || r.GraceTicks < 0 || r.GraceTicks > 60 {
+		return fmt.Errorf("spec: bad recoil section")
 	}
 	pk := s.Pickups
 	if pk.Radius <= 0 || pk.Radius > 5 || pk.RespawnSeconds < 1 || pk.DropLifetimeSeconds < 1 || pk.DropForward < 0 || pk.DropForward > 3 {

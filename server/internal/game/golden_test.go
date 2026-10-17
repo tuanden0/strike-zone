@@ -161,7 +161,11 @@ func TestWeaponsMatchJSGolden(t *testing.T) {
 			Mag, Res []int
 			Cd, Rl   int
 			Pf       bool
+			Bu       int
+			Sp       [2]float64
+			Kk       float64
 		}
+		Table [][][3]float64
 	}
 	if err := json.Unmarshal(raw, &g); err != nil {
 		t.Fatal(err)
@@ -189,11 +193,32 @@ func TestWeaponsMatchJSGolden(t *testing.T) {
 			}
 			return len(a) == len(b)
 		}
+		ws0 := &spec.Weapons[p.Cur]
+		if p.Burst != e.Bu || math.Abs(spec.Spread(ws0, false, 0, p.Burst)-e.Sp[0]) > 1e-12 || math.Abs(spec.Spread(ws0, true, 1, p.Burst)-e.Sp[1]) > 1e-12 || math.Abs(burstKick(spec, ws0, p.Burst)-e.Kk) > 1e-12 {
+			t.Fatalf("tick %d: go burst=%d spread=%v kick=%v; js %+v", i+1, p.Burst, spec.Spread(ws0, false, 0, p.Burst), burstKick(spec, ws0, p.Burst), e)
+		}
 		if p.Cur != e.Cur || !same(p.Mag, e.Mag) || !same(p.Res, e.Res) || cd != e.Cd || rl != e.Rl || p.PrevFire != e.Pf {
 			t.Fatalf("tick %d: go cur=%d mag=%v res=%v cd=%d rl=%d pf=%v; js %+v", i+1, p.Cur, p.Mag, p.Res, cd, rl, p.PrevFire, e)
+		}
+	}
+	for wi := range spec.Weapons {
+		for bi, b := range []int{1, 2, 5, 12, 40} {
+			ws := &spec.Weapons[wi]
+			got := [3]float64{burstKick(spec, ws, b), spec.Bloom(ws, b), spec.Spread(ws, true, 0.5, b)}
+			for k := range got {
+				if math.Abs(got[k]-g.Table[wi][bi][k]) > 1e-12 {
+					t.Fatalf("weapon %s burst %d: go %v js %v", ws.ID, b, got, g.Table[wi][bi])
+				}
+			}
 		}
 	}
 	if fired < 50 {
 		t.Fatalf("golden sequence barely exercises firing (%d shots)", fired)
 	}
+}
+
+// burstKick mirrors client/js/weapons.js burstKick (only used by the parity test: the server does not apply view kick).
+func burstKick(s *Spec, ws *WeaponSpec, burst int) float64 {
+	r := s.Recoil
+	return s.Kick(ws) * (1 + r.RampPerShot*float64(min(max(burst, 1), r.MaxShots)-1))
 }

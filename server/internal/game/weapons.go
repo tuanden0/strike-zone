@@ -12,6 +12,7 @@ func (w *World) resetLoadout(p *Player) {
 		}
 	}
 	p.NextFire, p.ReloadDone, p.PrevFire, p.Scoped = 0, 0, false, false
+	p.Burst, p.BurstUntil = 0, 0
 }
 
 func canReload(p *Player, ws *WeaponSpec) bool {
@@ -41,10 +42,12 @@ func (w *World) weapons(p *Player, in Input) {
 		p.Cur = in.Weapon
 		ws = &w.Spec.Weapons[p.Cur]
 		p.ReloadDone = 0
+		p.Burst = 0
 		p.NextFire = max(p.NextFire, w.Tick+w.Spec.SwitchTicks)
 	}
 	if in.Reload && canReload(p, ws) && w.Tick >= p.NextFire {
 		p.ReloadDone = w.Tick + ws.ReloadTicks
+		p.Burst = 0
 	}
 	p.Scoped = in.Scope && ws.ScopeFov > 0 && p.ReloadDone == 0
 	wants := in.Fire && (ws.Auto || !p.PrevFire)
@@ -54,12 +57,19 @@ func (w *World) weapons(p *Player, in Input) {
 			if p.Res[p.Cur] > 0 {
 				p.ReloadDone = w.Tick + ws.ReloadTicks
 			}
+			p.Burst = 0
 			p.NextFire = w.Tick + ws.IntervalTicks
 		} else {
 			if ws.MagSize > 0 {
 				p.Mag[p.Cur]--
 			}
 			p.NextFire = w.Tick + ws.IntervalTicks
+			if p.Burst > 0 && w.Tick <= p.BurstUntil {
+				p.Burst++
+			} else {
+				p.Burst = 1
+			}
+			p.BurstUntil = w.Tick + ws.IntervalTicks + w.Spec.Recoil.GraceTicks
 			p.ProtectUntil = 0 // attacking ends spawn protection
 			w.shots = append(w.shots, p)
 		}

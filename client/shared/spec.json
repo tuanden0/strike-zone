@@ -25,27 +25,28 @@
     "maxScoreLimit": 100,
     "maxPlayers": 10
   },
+  "recoil": { "perDamage": 0.00045, "yawRatio": 0.35, "bloomRatio": 0.25, "rampPerShot": 0.08, "maxShots": 12, "graceTicks": 6 },
   "pickups": { "radius": 1.6, "respawnSeconds": 20, "dropLifetimeSeconds": 60, "dropForward": 0.9 },
   "weapons": [
     {
       "id": "rifle", "name": "AR-7 Rifle", "damage": 30, "headMult": 4, "range": 150,
       "intervalTicks": 3, "auto": true, "magSize": 30, "reserve": 90, "reloadTicks": 66,
-      "spread": 0.006, "moveSpread": 0.02, "recoilPitch": 0.011, "recoilYaw": 0.004, "melee": false
+      "spread": 0.006, "moveSpread": 0.02, "melee": false, "recoilScale": 1, "bloomScale": 1
     },
     {
       "id": "pistol", "name": "P-9 Pistol", "damage": 25, "headMult": 4, "range": 100,
       "intervalTicks": 5, "auto": false, "magSize": 12, "reserve": 48, "reloadTicks": 45,
-      "spread": 0.004, "moveSpread": 0.012, "recoilPitch": 0.03, "recoilYaw": 0.005, "melee": false
+      "spread": 0.004, "moveSpread": 0.012, "melee": false, "recoilScale": 1, "bloomScale": 1
     },
     {
       "id": "knife", "name": "Combat Knife", "damage": 40, "headMult": 1, "range": 2.2,
       "intervalTicks": 14, "auto": true, "magSize": 0, "reserve": 0, "reloadTicks": 0,
-      "spread": 0, "moveSpread": 0, "recoilPitch": 0, "recoilYaw": 0, "melee": true
+      "spread": 0, "moveSpread": 0, "melee": true, "recoilScale": 0, "bloomScale": 0
     },
     {
       "id": "sniper", "name": "SR-9 Sniper", "damage": 100, "headMult": 4, "range": 400,
       "intervalTicks": 42, "auto": false, "magSize": 5, "reserve": 15, "reloadTicks": 96,
-      "spread": 0.045, "moveSpread": 0.07, "recoilPitch": 0.05, "recoilYaw": 0.006, "melee": false,
+      "spread": 0.045, "moveSpread": 0.07, "melee": false, "recoilScale": 1, "bloomScale": 0,
       "scopeFov": 14, "scopedSpread": 0, "pickupOnly": true
     }
   ]

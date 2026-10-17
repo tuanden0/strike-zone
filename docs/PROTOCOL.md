@@ -92,7 +92,7 @@ Error codes: `bad_request`, `not_ready`, `bad_password`, `room_full`, `team_full
 {"t":"snap","k":1021,"st":"playing","tl":412,"sc":[7,5],
  "ps":[{"i":1,"x":3.1,"y":0,"z":12.2,"yw":0.4,"pt":0,"a":true,"w":0}],
  "you":{"x":3.1,"y":0,"z":12.2,"vy":0,"g":true,"yw":0.4,"hp":100,"a":true,"w":0,
-        "has":[true,true,true,false],"mag":[30,12,0,0],"res":[90,48,0,0],"rl":0,"cd":0,"pf":false,"resp":0,"prot":false,"ack":1234},
+        "has":[true,true,true,false],"mag":[30,12,0,0],"res":[90,48,0,0],"rl":0,"cd":0,"pf":false,"bu":0,"bx":0,"resp":0,"prot":false,"ack":1234},
  "ev":[{"e":"shot","by":1,"w":0,"from":[3.1,1.62,12.2],"to":[3.0,1.0,-8.0],"hit":"body"}]}
 ```
 
@@ -101,11 +101,17 @@ Error codes: `bad_request`, `not_ready`, `bad_password`, `room_full`, `team_full
 * `ps` all players (including you): feet position, view angles, alive flag, current weapon index.
 * `you` private state: authoritative kinematics (`vy`, `g` = on ground) for **reconciliation**, `ack` = last
   processed `seq`; health; per-weapon `has` (weapon owned; false after dropping it) / `mag` / `res`; `rl` ticks until reload completes; `cd` ticks until next
-  shot allowed; `pf` fire was held last input (semi-auto edge); `resp` ticks until respawn; `prot` spawn protection.
+  shot allowed; `pf` fire was held last input (semi-auto edge); `bu`/`bx` consecutive shots in the current burst / ticks until it expires (drives spread bloom and the view-kick ramp, see below); `resp` ticks until respawn; `prot` spawn protection.
 * `ev` events produced this tick:
   * `shot` `{by,w,from,to,hit}` — `hit` ∈ `""`(nothing in range), `"wall"`, `"body"`, `"head"`. Also sent for knife swings.
   * `hit` `{by,v,w,dmg,head}` — damage dealt (`dmg` includes the headshot multiplier).
   * `kill` `{by,v,w,head}`.
+
+**Recoil model** (`spec.recoil`, mirrored in `client/js/weapons.js`, parity-tested with golden files): a shot's view kick is
+`perDamage × damage × recoilScale` radians (harder-hitting weapons kick harder). Shots that follow the previous one within
+`intervalTicks + graceTicks` form a burst; the kick ramps by `rampPerShot` per shot and the **server** widens the shot's random
+cone by `bloomRatio × kick × bloomScale` per extra shot (both capped at `maxShots`). Switching weapon or reloading ends the burst.
+The view kick itself is client-side (it moves the yaw/pitch the client sends); the spread bloom is server-authoritative.
 
 Client behaviour (not enforced by the server): predict own movement and weapon state, on each `snap`
 reset to `you`, drop acked inputs and replay the rest; render other players ~100 ms in the past by

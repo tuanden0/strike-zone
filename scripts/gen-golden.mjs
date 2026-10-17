@@ -2,7 +2,7 @@
 // Run: node scripts/gen-golden.mjs   (the Go test then proves Go == JS)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { stepMove, createKin, prepareMap } from '../client/js/physics.js';
-import { Loadout } from '../client/js/weapons.js';
+import { Loadout, burstKick, spread, bloom } from '../client/js/weapons.js';
 
 const spec = JSON.parse(readFileSync(new URL('../client/shared/spec.json', import.meta.url)));
 const map = prepareMap(JSON.parse(readFileSync(new URL('../client/shared/map.json', import.meta.url))));
@@ -61,8 +61,13 @@ for (const sc of scenarios) console.log('scenario steps', sc.inputs.length, 'fin
       cd: Math.max(0, lo.nextFire - tick),
       rl: lo.reloadDone > 0 ? lo.reloadDone - tick : 0,
       pf: lo.prevFire,
+      bu: lo.burst,
+      sp: [spread(spec, lo.weapon, false, 0, lo.burst), spread(spec, lo.weapon, true, 1, lo.burst)],
+      kk: burstKick(spec, lo.weapon, lo.burst),
     });
   }
-  writeFileSync(new URL('../server/internal/game/testdata/golden_weapons.json', import.meta.url), JSON.stringify({ inputs, expect }));
+  // static table: kick / bloom / spread of every weapon at several burst lengths (covers weapons the random run never owns)
+  const table = spec.weapons.map((w) => [1, 2, 5, 12, 40].map((b) => [burstKick(spec, w, b), bloom(spec, w, b), spread(spec, w, true, 0.5, b)]));
+  writeFileSync(new URL('../server/internal/game/testdata/golden_weapons.json', import.meta.url), JSON.stringify({ inputs, expect, table }));
   console.log('weapons steps', inputs.length, 'final', JSON.stringify(expect.at(-1)));
 }

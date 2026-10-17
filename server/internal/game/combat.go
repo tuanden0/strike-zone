@@ -23,11 +23,7 @@ func (w *World) shoot(p *Player) {
 		frac = math.Min(1, p.Speed/pl.RunSpeed)
 	}
 	yaw, pitch := p.Yaw, p.Pitch
-	base := ws.Spread
-	if p.Scoped {
-		base = ws.ScopedSpread
-	}
-	if sp := base + ws.MoveSpread*frac; sp > 0 {
+	if sp := w.Spec.Spread(ws, p.Scoped, frac, p.Burst); sp > 0 {
 		r := sp * math.Sqrt(w.rng.Float64())
 		a := w.rng.Float64() * 2 * math.Pi
 		yaw += r * math.Cos(a)

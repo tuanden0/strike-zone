@@ -33,6 +33,8 @@ type Self struct {
 	RL   int     `json:"rl"`   // ticks until reload completes (0 = not reloading)
 	CD   int     `json:"cd"`   // ticks until the weapon may fire again
 	PF   bool    `json:"pf"`   // fire was held on the last processed input (semi-auto edge detect)
+	BU   int     `json:"bu"`   // consecutive shots in the current burst (spread bloom / view-kick ramp)
+	BX   int     `json:"bx"`   // ticks until the burst expires (0 = already expired)
 	Resp int     `json:"resp"` // ticks until respawn (0 = alive)
 	Prot bool    `json:"prot"`
 	Seq  uint32  `json:"ack"`
@@ -87,6 +89,10 @@ func (w *World) SelfFor(id int) *Self {
 		s.CD = p.NextFire - w.Tick
 	}
 	s.PF = p.PrevFire
+	s.BU = p.Burst
+	if p.BurstUntil > w.Tick {
+		s.BX = p.BurstUntil - w.Tick
+	}
 	if !p.Alive && p.RespawnAt > w.Tick {
 		s.Resp = p.RespawnAt - w.Tick
 	}

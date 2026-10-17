@@ -1,7 +1,7 @@
 // Rendering + fixed-tick local simulation. Mode objects (practice.js / online.js) plug in game rules.
 import * as THREE from '../vendor/three.module.js';
 import { stepMove, createKin, aimDir, rayWorld } from './physics.js';
-import { Loadout } from './weapons.js';
+import { Loadout, burstKick, spread } from './weapons.js';
 import { buildWorld, buildLights, buildEnvironment, fitShadow } from './world.js';
 import { Pickups } from './pickups.js';
 import { isTouch } from './input.js';
@@ -454,9 +454,10 @@ export class Game {
         this.flashT = 0.05;
         this.ejectCasing();
       }
-      const rp = w.recoilPitch;
+      // view kick: proportional to the weapon's damage and growing while the trigger is held (see weapons.js burstKick)
+      const rp = burstKick(this.spec, w, this.loadout.burst);
       this.input.pitch = Math.min(1.55, this.input.pitch + rp);
-      this.input.yaw += (Math.random() - 0.5) * 2 * w.recoilYaw;
+      this.input.yaw += (Math.random() - 0.5) * 2 * rp * this.spec.recoil.yawRatio;
       this.punch += rp;
     }
   }
@@ -651,7 +652,7 @@ export class Game {
     const w = this.loadout.weapon;
     const hs = Math.min(1, this.speed / this.spec.player.runSpeed);
     const scoped = cmd.scope && w.scopeFov > 0;
-    const sp = (scoped ? w.scopedSpread : w.spread) + w.moveSpread * (this.kin.onGround ? hs : 1);
+    const sp = spread(this.spec, w, scoped, this.kin.onGround ? hs : 1, this.loadout.burst);
     let yaw = cmd.yaw;
     let pitch = cmd.pitch;
     if (sp > 0) {
