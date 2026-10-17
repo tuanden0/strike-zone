@@ -44,6 +44,7 @@ td input { width: 120px; padding: 4px 6px; }
 #hitmarker.on { opacity: 1; transition: none; } #hitmarker.head::before, #hitmarker.head::after { background: #ff4040; }
 #damage { position: absolute; inset: 0; box-shadow: inset 0 0 120px 30px rgba(255,0,0,.75); opacity: 0; transition: opacity .35s; }
 #damage.on { opacity: 1; transition: none; }
+#conn { position: fixed; top: 0; left: 0; right: 0; z-index: 60; padding: 10px 16px; text-align: center; font-weight: 600; background: rgba(160,40,30,.92); color: #fff; }
 #banner { position: absolute; top: 28%; width: 100%; text-align: center; font-size: 28px; }
 #hud-bl { position: absolute; left: 20px; bottom: 20px; display: flex; align-items: center; gap: 10px; font-size: 22px; }
 #hp-label { color: #cfd6e2; font-size: 14px; }

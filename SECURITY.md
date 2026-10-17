@@ -49,3 +49,7 @@ while the process runs. Consequences: the game becomes reachable by anyone who l
 5 wrong tries disconnect), all existing limits apply (per-IP connection cap, message rate limits, origin check, input validation), the admin endpoint stays
 disabled unless `ADMIN_TOKEN` is set, and there is no TLS (the browser shows plain `http://`). UPnP itself: the code only talks to RFC1918/link-local addresses,
 limits response sizes, never follows redirects, and every mapping has a lease. Not suitable for hostile public hosting; use it to play with friends for a session.
+
+## Session resume token
+
+`welcome` carries a random 128-bit token (crypto/rand, hex). It is the only credential for `resume`, is single use (rotated on every resume), and expires with the 30 s seat hold. It is never logged or shown in rosters; a wrong guess is a protocol violation (10 = disconnect), and a successful resume force-closes the previous socket. The client keeps it in memory only. Anyone who can read the WebSocket traffic could steal a seat, as they could read everything else: run the game behind `wss` if the network is untrusted.

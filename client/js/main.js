@@ -78,10 +78,12 @@ function stopGame() {
 }
 
 function backToTitle(msg) {
+  $('conn').hidden = true;
   stopGame();
   if (state.lobby) state.lobby.close();
   if (state.net) {
     state.net.onClose = () => {};
+    state.net.onStatus = () => {};
     state.net.close();
     state.net = null;
   }
@@ -132,7 +134,23 @@ async function goOnline() {
     }
   });
   net.on('left', () => {});
-  net.onClose = () => backToTitle('Disconnected from server.');
+  net.on('resumed', (m) => {
+    if (state.online && !m.room) {
+      // the seat is gone (match closed while we were away): back to the lobby
+      stopGame();
+      state.online = false;
+      showLobby();
+    }
+  });
+  net.onStatus = (st) => {
+    $('conn').hidden = st === 'up';
+    const mode = state.game && state.game.mode;
+    if (mode) mode.offline = st === 'down'; // the game stops sampling input while the link is down
+  };
+  net.onClose = () => {
+    $('conn').hidden = true;
+    backToTitle('Disconnected from server.');
+  };
   try {
     await net.connect();
   } catch (e) {

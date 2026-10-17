@@ -16,7 +16,7 @@ sequenceDiagram
   participant C as Client
   participant S as Server
   C->>S: hello {nick}
-  S-->>C: welcome {id, nick, tickRate}
+  S-->>C: welcome {id, nick, tickRate, token}
   loop every ~3 s
     C->>S: rooms
     S-->>C: rooms {rooms:[...]}
@@ -32,7 +32,13 @@ sequenceDiagram
   S-->>C: left
 ```
 
-Before `hello` only `hello` and `ping` are accepted. Protocol violations get an `error` message; after
+**Dropped connection:** the server keeps the seat of a player who was in a room for 30 s (the player stands still, flagged `away` in the
+roster). A new socket sends `resume {token}` (instead of `hello`) with the `token` from `welcome`/`resumed`; the server answers
+`resumed {id, nick, tickRate, token, room?, team?}` with a **new** token (single use), then `pk` and `roster`, and snapshots flow to the new
+socket. No `room` in the answer = the seat is gone. An unknown or expired token gets `error bad_token` (counts as a violation, so guessing
+ends in a disconnect); a lobby-only session has no seat to hold and is dropped at once. If the old socket was never noticed as dead, `resume` cuts it.
+
+Before `hello` only `hello`, `resume` and `ping` are accepted. Protocol violations get an `error` message; after
 10 of them (or on malformed JSON / binary frames / rate-limit abuse) the server closes the socket.
 
 ## Client → server
@@ -40,6 +46,7 @@ Before `hello` only `hello` and `ping` are accepted. Protocol violations get an 
 | `t` | Fields | Notes |
 |-----|--------|-------|
 | `hello` | `nick` string | Once. Control/format characters stripped, trimmed, max 16 runes; empty → `PlayerN`. |
+| `resume` | `token` 32 hex | Instead of `hello` on a fresh socket, after a drop (see Connection flow). |
 | `ping` | `ts` number | Echoed in `pong`. Send every ~4 s (idle timeout is 30 s). |
 | `rooms` | – | Request room list. |
 | `create` | `name` (1–24 runes), `password` (≤32 bytes, `""` = open), `max` (2–10), `timeLimit` seconds (60–1800), `scoreLimit` (5–100), `map` id from `shared/maps.json` (`""` = default; unknown → `bad_request`), `bots` (0 … max-1 AI players added at creation), `skill` (`easy`/`normal`/`hard`, default `normal`), `team` (`"A"`,`"B"`,`"auto"`) | Creator joins immediately. Max 20 rooms server-wide. |
@@ -66,7 +73,12 @@ Before `hello` only `hello` and `ping` are accepted. Protocol violations get an 
 | `weapon` | int, -1 … (weapons-1) | -1 keep, else request switch to slot (0 rifle, 1 pistol, 2 knife, 3 sniper). Switching to a weapon you do not own is ignored. Missing = -1. |
 | `scope` | bool | Zoom held. Only has an effect while holding a weapon with `scopeFov > 0` (the sniper) and not reloading; scoped shots use `scopedSpread` instead of `spread`. Missing = false. |
 | `nade` | int 0 … grenade types | 0 = none, else throw grenade type `nade-1` (0 frag, 1 smoke, 2 flash) along the view. Inventory, a 1 s cooldown and the alive check are enforced by the server; a held key cannot spam. Missing = 0. |
+| `vt` | uint32, optional | **Lag compensation:** the server tick of the newest snapshot the client had drawn others from (view tick). Hitscan shots are tested against the other players where they were at that tick, rewound at most `lagComp.maxRewindTicks` (10 = 333 ms) from the current one; missing/too old/in the future = no rewind (or the cap). The shooter's own position is never rewound. |
 | `drop`, `use` | bool | Edge-detected server side. `drop` throws the current weapon (knife cannot be dropped); `use` picks up the nearest weapon within `pickups.radius` (swaps with the held weapon if that slot is occupied). Missing = false. |
+
+**Movement extras** (`spec.player`): `stepHeight` (0.45 m) is the tallest ledge you walk onto without jumping (stairs, fine-stepped ramps); landing on the ground
+with a downward speed above `fall.safeSpeed` (9 m/s) costs `(speed - safeSpeed) × fall.damagePerSpeed` HP (a kill shows weapon "Fall", no score). The server reports the landing speed to the
+client through the shared physics (`kin.impact`), so prediction and server agree.
 
 The client **never sends positions**. The server simulates each input with the fixed step
 (identical to `client/js/physics.js`, enforced by golden tests). Anti-abuse: at most 1 input/tick is
@@ -77,18 +89,19 @@ limit 80/s (burst 120).
 
 | `t` | Fields |
 |-----|--------|
-| `welcome` | `id` (your player id), `nick` (sanitized), `tickRate` |
+| `welcome` | `id` (your player id), `nick` (sanitized), `tickRate`, `token` (secret, for `resume`) |
+| `resumed` | `id`, `nick`, `tickRate`, `token` (new), optional `room`, `team` |
 | `rooms` | `rooms`: `[{id,name,players,max,locked,timeLimit,scoreLimit,st,map,bots}]` (`st` = `playing`/`ended`) |
 | `joined` | `room` (same shape as above, plus `map`), `id`, `team` |
 | `pk` | `list`: `[{id,w,x,y,z,m,r}]` weapons lying on the ground (`w` weapon index, `m`/`r` mag/reserve). Sent after `joined` and whenever the set changes (drop, pick-up, expiry, respawn, match restart). |
-| `roster` | `players`: `[{id,nick,team,kills,deaths,bot?}]` (bots have nick `[BOT] …` and `bot:true`), `sc`: `[scoreA, scoreB]`. Sent on join/leave/team change/kill/match reset. |
+| `roster` | `players`: `[{id,nick,team,kills,deaths,bot?}]` (bots have nick `[BOT] …` and `bot:true`; `away:true` = connection lost, seat held), `sc`: `[scoreA, scoreB]`. Sent on join/leave/team change/kill/match reset. |
 | `left` | – |
 | `pong` | `ts` echoed |
 | `error` | `code`, `msg` (see below) |
 | `snap` | 30 Hz world state (below) |
 
 Error codes: `bad_request`, `not_ready`, `bad_password`, `room_full`, `team_full`, `no_room`, `in_room`,
-`not_in_room`, `too_many_rooms`, `server_full`, `no_bots`.
+`not_in_room`, `too_many_rooms`, `server_full`, `no_bots`, `bad_token`.
 
 ### `snap`
 

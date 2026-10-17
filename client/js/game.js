@@ -440,7 +440,7 @@ export class Game {
     const cmd = this.input.sample();
     cmd.yaw = this.input.yaw;
     cmd.pitch = this.input.pitch;
-    if (!this.alive || (this.mode && this.mode.frozen)) {
+    if (!this.alive || (this.mode && (this.mode.frozen || this.mode.offline))) {
       Object.assign(cmd, { f: 0, s: 0, jump: false, fire: false, reload: false, weapon: -1, scope: false, nade: 0 });
     }
     this.prev = { ...this.kin };
