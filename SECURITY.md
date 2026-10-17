@@ -17,7 +17,7 @@ there is **no TLS and no accounts**. Do not port-forward it.
 | Anti-cheat by design | Client sends inputs only, never positions; server owns movement, ammo, hit detection, damage, score. Speed bounded (≤1 input/tick sustained), fire rate by server cooldown, spawn protection ends on firing, no friendly fire | `TestSpeedCannotExceedRunSpeed`, combat tests |
 | Room passwords | Salted SHA-256, `subtle.ConstantTimeCompare`, never logged or echoed, 5 wrong tries disconnect | `TestPasswordRoom`, `TestPasswordBruteForceDisconnects` |
 | XSS | Client renders all server/user strings with `textContent`/`createElement`; no `innerHTML` anywhere; strict CSP (`script-src 'self'`, no inline) | `e2e/xss.mjs` (hostile nick/room name in lobby, scoreboard, kill feed) |
-| HTTP headers | CSP, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cache-Control: no-cache` | `TestStaticClientServedWithSecurityHeaders` |
+| HTTP headers | CSP (`connect-src` also allows `blob:` because three's GLTFLoader decodes embedded textures through same-document blob URLs; no external origin was added), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cache-Control: no-cache` | `TestStaticClientServedWithSecurityHeaders` |
 | Admin | `/admin/stats` exists only if `ADMIN_TOKEN` (≥16 chars) is set; Bearer token compared in constant time; otherwise 404 | `TestAdminStatsToken` |
 | Resilience | Panic recovery per connection (handler + writer), per room tick and per tick loop; graceful shutdown on SIGINT/SIGTERM closes sockets with "going away" | `TestPanicInHandleKillsOnlyThatConnection`, `TestPanicInTickDoesNotStopLoop`, `TestShutdownClosesClients` |
 

@@ -8,7 +8,8 @@ const NICK = '<b>bold</b>';
 const ROOM = '<img src=x onerror=_x=1>';
 
 async function open(nick) {
-  const page = await (await browser.newContext({ viewport: { width: 1024, height: 600 } })).newPage();
+  const page = await (await browser.newContext({ viewport: { width: 480, height: 300 } })).newPage();
+  page.setDefaultTimeout(180000); // software GL: wait on state, not sleeps
   watchErrors(page, errors);
   await page.goto(BASE);
   await page.waitForFunction(() => window.__sz && window.__sz.map);

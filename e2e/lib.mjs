@@ -13,11 +13,28 @@ function findChromium() {
   return undefined; // let playwright-core resolve its own browser
 }
 
+// Software GL (no GPU in CI/sandboxes) cannot afford shadows + PBR at full size, so tests default to the game's
+// "low" graphics option; set E2E_QUALITY=high to exercise the shadow path (screenshots, perf).
 export async function launch() {
-  return chromium.launch({
+  const quality = process.env.E2E_QUALITY === 'high' ? 'high' : 'low';
+  const b = await chromium.launch({
     executablePath: findChromium(),
     args: ['--no-proxy-server', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
   });
+  const newContext = b.newContext.bind(b);
+  b.newContext = async (o = {}) => {
+    const c = await newContext(o);
+    await c.addInitScript((q) => {
+      try {
+        localStorage.setItem('sz.quality', q);
+      } catch {
+        // storage blocked: default quality
+      }
+    }, quality);
+    return c;
+  };
+  b.newPage = async (o = {}) => (await b.newContext(o)).newPage();
+  return b;
 }
 
 export function watchErrors(page, sink) {

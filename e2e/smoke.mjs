@@ -7,6 +7,7 @@ const errors = [];
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   watchErrors(page, errors);
+  page.setDefaultTimeout(120000); // software GL: frames take ~0.5 s, so wait on state, never on sleeps
   await page.goto(BASE);
   await page.waitForFunction(() => window.__sz && window.__sz.map, null, { timeout: 15000 });
   check('title screen visible', await page.isVisible('#screen-title'));
@@ -18,9 +19,10 @@ try {
   await page.click('#btn-resume');
   await page.waitForFunction(() => document.pointerLockElement && document.pointerLockElement.id === 'view', null, { timeout: 5000 });
   check('pointer lock acquired', true);
+  await page.waitForFunction(() => window.__sz.game.tickNo > 20);
   const ammo0 = await page.evaluate(() => window.__sz.game.loadout.mag[0]);
   await page.mouse.click(640, 360);
-  await page.waitForTimeout(300);
+  await page.waitForFunction((a) => window.__sz.game.loadout.mag[0] < a, ammo0);
   const ammo1 = await page.evaluate(() => window.__sz.game.loadout.mag[0]);
   check('firing consumes ammo', ammo1 < ammo0, `${ammo0} -> ${ammo1}`);
 
@@ -46,7 +48,7 @@ try {
     const ok = await page.waitForFunction((i) => window.__sz.game.loadout.cur === i, idx, { timeout: 3000 }).then(() => true, () => false);
     check(`key ${key} selects weapon ${idx}`, ok);
   }
-  await page.waitForTimeout(600); // weapon switch delay (0.3 s) blocks reload
+  await page.waitForFunction(() => window.__sz.game.loadout.cur === 0 && window.__sz.game.switchT === 0 && window.__sz.game.loadout.nextFire <= window.__sz.game.tickNo); // switch delay blocks reload
   await page.keyboard.press('KeyR');
   const reloading = await page.waitForFunction(() => window.__sz.game.loadout.reloading, null, { timeout: 3000 }).then(() => true, () => false);
   check('R starts reload when mag not full', reloading);
@@ -54,7 +56,7 @@ try {
   // Walk forward 1s: position changes.
   const z0 = await page.evaluate(() => window.__sz.game.kin.z);
   await page.keyboard.down('KeyW');
-  await page.waitForTimeout(1000);
+  await page.waitForFunction((z) => Math.abs(window.__sz.game.kin.z - z) > 1, z0);
   await page.keyboard.up('KeyW');
   const z1 = await page.evaluate(() => window.__sz.game.kin.z);
   check('WASD moves player', Math.abs(z1 - z0) > 1, `z ${z0.toFixed(2)} -> ${z1.toFixed(2)}`);

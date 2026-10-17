@@ -2,7 +2,7 @@
 
 An original 3D tactical team shooter for playing with colleagues on an office LAN.
 Browser client (Three.js, no build step) + Go server (authoritative, one binary, client embedded).
-Non-commercial. All code, geometry, textures, characters and sounds are generated procedurally; nothing from any commercial game is used.
+Non-commercial. All code, models (low-poly, PBR), textures and sounds are generated procedurally by scripts in this repo (`tools/assets/`, Blender + numpy); nothing from any commercial game is used.
 
 * Team Deathmatch, 2–10 players per room, rooms with optional password
 * Rifle, pistol, knife; headshots ×4; scoreboard, kill feed, hit markers, synthesized sound
@@ -93,7 +93,7 @@ Nothing is required. Invalid values make the server exit at startup with a clear
 | "too many connections" | More than `MAX_CONN_PER_IP` tabs/clients from one IP (e.g. everyone behind one NAT). Raise `MAX_CONN_PER_IP`. |
 | No sound | Browsers start audio only after a click: press **Resume**. Check the Volume slider. |
 | Mouse not captured | Click **Resume** (a click is required); a browser may refuse re-capture for ~1 s after `Esc`. |
-| Laggy / low FPS | Needs WebGL. Close other tabs; use a discrete GPU/hardware acceleration. Ping is shown top-left. |
+| Laggy / low FPS | Needs WebGL. Pause menu → **Graphics: Low** (no shadows, 1x pixel ratio). Close other tabs; enable hardware acceleration. FPS and ping are shown top-left. |
 | macOS "cannot be opened" | `xattr -d com.apple.quarantine <file>` or right-click → Open. |
 
 ## Development
@@ -102,22 +102,25 @@ Nothing is required. Invalid values make the server exit at startup with a clear
 go test -race ./...                 # unit + integration (real sockets); needs no browser
 ./scripts/check.sh                  # gofmt, vet, race tests, gitleaks (tree + history), govulncheck
 node scripts/gen-golden.mjs         # regenerate JS<->Go golden files after touching physics/weapons
-cd e2e && npm ci && node smoke.mjs && node online.mjs   # headless Chromium; server must be running (BASE_URL=http://host:port)
+cd e2e && npm ci && node smoke.mjs && node online.mjs && node assets.mjs   # headless Chromium; server must be running (BASE_URL=http://host:port)
+pip install bpy==5.2.2 && python tools/assets/build_all.py   # regenerate every model + preview renders (or: blender -b -P tools/assets/build_all.py)
 ```
 
 Layout:
 
 ```
-client/            static web client (ES modules, vendored three.js), embed.go (go:embed)
+client/            static web client (ES modules, vendored three.js + GLTFLoader), embed.go (go:embed)
+  assets/models    generated .glb models (map, soldier x2 teams, rifle/pistol/knife + first-person variants)
   shared/          spec.json + map.json: ONE source for hitboxes, speeds, weapons, map (client and server)
 server/            main.go + internal/{config,netutil,game,lobby,wsserver,app}
   internal/game    pure simulation (no I/O): movement, weapons, hit detection, match
   internal/lobby   rooms, sessions, JSON protocol (no network I/O)
   internal/wsserver origin check, limits, timeouts, WebSocket <-> lobby
 docs/PROTOCOL.md   wire protocol
+tools/assets/      Blender scripts that generate every .glb (see tools/assets/README.md, ASSETS.md)
 scripts/           run.sh, run.ps1, build-all.sh, check.sh, gen-golden.mjs
-e2e/               Playwright smoke tests
+e2e/               Playwright tests: smoke, online, xss, assets (hitbox fit), perf, screenshots
 ```
 
-More: [DECISIONS.md](DECISIONS.md) (design choices), [SECURITY.md](SECURITY.md), [REPORT.md](REPORT.md) (status, test results, known issues).
-Bundled third-party: three.js r170 (MIT) in `client/vendor/`.
+More: [ASSETS.md](ASSETS.md) (models, budgets, licences), [DECISIONS.md](DECISIONS.md), [SECURITY.md](SECURITY.md), [REPORT.md](REPORT.md) (asset overhaul status, tests, screenshots), [docs/REPORT_MVP.md](docs/REPORT_MVP.md) (original MVP report).
+Bundled third-party: three.js r170 + GLTFLoader/BufferGeometryUtils/SkeletonUtils (MIT) in `client/vendor/`.
