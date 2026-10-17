@@ -34,6 +34,7 @@ export function buildWorld(map, glbScene, aniso) {
     m.rotation.x = -Math.PI / 2;
     m.position.set((x0 + x1) / 2, 0.02, (z0 + z1) / 2);
     m.renderOrder = 1;
+    m.userData.own = true; // geometry and material belong to this world (Game.setMap disposes them)
     group.add(m);
   }
   return group;

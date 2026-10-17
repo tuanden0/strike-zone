@@ -119,7 +119,7 @@ Not tested with a real controller (only a fake pad in `e2e/gamepad.mjs`).
 
 **Kill medals:** when you kill someone, a medal pops up under the crosshair: **HEADSHOT** (gold), **KNIFE KILL**, **GRENADE KILL** or **KILL**, with the victim's name; kills within 4 s of each other add DOUBLE / TRIPLE / MULTI KILL. Works online and on the practice range (no medal for killing yourself).
 
-**Stairs, ramps, falls:** you walk up ledges of up to 0.45 m (stairs, the Canyon Run ramp and ledge) without jumping. Landing faster than 9 m/s hurts (about 11 HP per extra m/s: a drop of ~4 m costs ~25 HP, ~7 m is fatal; kill feed says "Fall").
+**Stairs, ramps, falls:** you walk up ledges of up to 0.45 m (stairs, the Canyon Run ramp and ledge) without jumping. Landing faster than 9 m/s hurts (about 11 HP per extra m/s: a 3 m drop costs about 21 HP, 4 m about 40 HP, a drop of about 8 m or more is fatal; kill feed says "Fall").
 
 **Lag compensation and reconnect:** the server tests your shots against where the targets were on your screen (up to 333 ms back), so Wi-Fi play does not need lead aiming. If your connection drops during a match a red "Reconnecting" bar appears; the client re-dials for up to 25 s and puts you back in the same seat (the server holds your player, standing still, for 30 s). A page reload or closing the tab cannot resume.
 
@@ -165,10 +165,10 @@ Nothing is required. Invalid values make the server exit at startup with a clear
 
 ```bash
 go test -race ./...                 # unit + integration (real sockets); needs no browser
-./scripts/check.sh                  # gofmt, vet, race tests, gitleaks (tree + history), govulncheck
+./scripts/check.sh                  # gofmt, vet, race tests, scripts/test-run.sh (run.sh --open-port with a stub firewall), gitleaks (tree + history), govulncheck
 node scripts/gen-golden.mjs         # regenerate JS<->Go golden files after touching physics/weapons
-cd e2e && npm ci && node smoke.mjs && node online.mjs && node assets.mjs && node extras.mjs && node mobile.mjs && node recoil.mjs && node maps.mjs && node nades_bots.mjs && node postfx.mjs && node fit.mjs && node footsteps.mjs && node radar.mjs && node gamepad.mjs   # headless Chromium; server must be running (BASE_URL=http://host:port)
-pip install bpy==5.2.2 && python tools/assets/build_all.py   # regenerate every model + preview renders (or: blender -b -P tools/assets/build_all.py)
+cd e2e && npm ci && for s in smoke xss assets online reconnect collide extras recoil mobile fit footsteps radar gamepad nades_bots nade knife heavy medals steps maps postfx perf; do node $s.mjs || break; done   # headless Chromium; server must be running (BASE_URL=http://host:port); run them one at a time (software GL is slow); maps.mjs / screenshots.mjs write to the temp dir unless you pass an output folder
+pip install bpy==5.2.2 && python tools/assets/build_all.py   # regenerate the yard map, weapons and characters + preview renders (or: blender -b -P tools/assets/build_all.py); the other six maps: tools/assets/README.md
 ```
 
 Layout:

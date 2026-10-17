@@ -113,11 +113,19 @@ async function goOnline() {
     state.lobby = state.lobby || new LobbyUI(state.spec, state.maps);
     showLobby();
   });
-  let pendingPickups = []; // the server sends `pk` right after `joined`, possibly while the map is still loading
+  // the server sends `pk` and `roster` right after `joined`, possibly while the map is still loading (Online registers its handlers only
+  // when the game starts), so keep the latest of each and hand them to Online
+  let pendingPickups = [];
+  let pendingRoster = null;
   net.on('pk', (m) => {
     pendingPickups = m.list;
   });
+  net.on('roster', (m) => {
+    pendingRoster = m;
+  });
   net.on('joined', async (m) => {
+    pendingPickups = [];
+    pendingRoster = null;
     state.lobby.close();
     try {
       await applyMap(m.room.map);
@@ -128,7 +136,8 @@ async function goOnline() {
       state.lobby.status(`Could not load the map: ${e.message}`);
       return;
     }
-    const mode = new Online({ spec: state.spec, net, myId: m.id, room: m.room, team: m.team, hud, sfx, pickups: pendingPickups });
+    if (state.net !== net) return; // Back / a dropped connection while the map was loading: do not start a game on a dead socket
+    const mode = new Online({ spec: state.spec, net, myId: m.id, room: m.room, team: m.team, hud, sfx, pickups: pendingPickups, roster: pendingRoster });
     enterGame(mode, `Room: ${m.room.name}`, true);
   });
   net.on('error', (m) => {

@@ -6,24 +6,27 @@ import "math"
 // already been applied, so results do not depend on player id order; players killed earlier in
 // this phase still get their own already-queued shot resolved (trades are possible).
 func (w *World) resolveShots() {
-	for _, p := range w.shots {
-		w.shoot(p)
+	for _, r := range w.shots {
+		w.shoot(r)
 	}
 	w.shots = w.shots[:0]
 }
 
-func (w *World) shoot(p *Player) {
-	ws := &w.Spec.Weapons[p.Cur]
+// shoot resolves one queued shot with the weapon, aim and burst state of the input that fired it (not the end-of-tick state, which a later
+// input of the same tick may have changed by switching weapon).
+func (w *World) shoot(r shotReq) {
+	p := r.p
+	ws := &w.Spec.Weapons[r.weapon]
 	pl := &w.Spec.Player
 	eye := [3]float64{p.Kin.X, p.Kin.Y + w.Spec.EyeOf(&p.Kin), p.Kin.Z}
 
 	// Spread grows with movement; airborne counts as full speed.
 	frac := 1.0
 	if p.Kin.OnGround {
-		frac = math.Min(1, p.Speed/pl.RunSpeed)
+		frac = math.Min(1, r.speed/pl.RunSpeed)
 	}
-	yaw, pitch := p.Yaw, p.Pitch
-	if sp := w.Spec.Spread(ws, p.Scoped, frac, p.Burst); sp > 0 {
+	yaw, pitch := r.yaw, r.pitch
+	if sp := w.Spec.Spread(ws, r.scoped, frac, r.burst); sp > 0 {
 		r := sp * math.Sqrt(w.rng.Float64())
 		a := w.rng.Float64() * 2 * math.Pi
 		yaw += r * math.Cos(a)
@@ -34,7 +37,7 @@ func (w *World) shoot(p *Player) {
 	best, victim, head, hitKind, _ := w.hitTest(p, eye, dir, ws.Range)
 	to := [3]float64{eye[0] + dir[0]*best, eye[1] + dir[1]*best, eye[2] + dir[2]*best}
 	from := eye
-	w.events = append(w.events, Event{E: EvShot, By: p.ID, W: p.Cur, From: &from, To: &to, Hit: hitKind})
+	w.events = append(w.events, Event{E: EvShot, By: p.ID, W: r.weapon, From: &from, To: &to, Hit: hitKind})
 	if victim == nil {
 		return
 	}
@@ -45,9 +48,9 @@ func (w *World) shoot(p *Player) {
 	}
 	dmg := int(math.Round(ws.Damage * mult))
 	victim.HP -= dmg
-	w.events = append(w.events, Event{E: EvHit, By: p.ID, V: victim.ID, W: p.Cur, Dmg: dmg, Head: head})
+	w.events = append(w.events, Event{E: EvHit, By: p.ID, V: victim.ID, W: r.weapon, Dmg: dmg, Head: head})
 	if victim.HP <= 0 {
-		w.kill(p, victim, head, p.Cur, p.ID)
+		w.kill(p, victim, head, r.weapon, p.ID)
 	}
 }
 
@@ -142,7 +145,7 @@ func (w *World) kill(killer, victim *Player, head bool, wIdx, by int) {
 	victim.LastSeq = victim.lastQueued
 	w.Dirty = true
 	w.events = append(w.events, Event{E: EvKill, By: by, V: victim.ID, W: wIdx, Head: head})
-	if killer == nil || killer == victim {
+	if killer == nil || killer == victim || w.State != StatePlaying { // no scoring after the kill that ended the match, even in the same tick
 		return
 	}
 	killer.Kills++

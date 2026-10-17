@@ -51,7 +51,7 @@ Before `hello` only `hello`, `resume` and `ping` are accepted. Protocol violatio
 | `rooms` | – | Request room list. |
 | `create` | `name` (1–24 runes), `password` (≤32 bytes, `""` = open), `max` (2–10), `timeLimit` seconds (60–1800), `scoreLimit` (5–100), `map` id from `shared/maps.json` (`""` = default; unknown → `bad_request`), `bots` (0 … max-1 AI players added at creation), `skill` (`easy`/`normal`/`hard`, default `normal`), `team` (`"A"`,`"B"`,`"auto"`) | Creator joins immediately. Max 20 rooms server-wide. |
 | `join` | `room` id, `password`, `team` (`"A"`,`"B"`,`"auto"`) | |
-| `team` | `team` `"A"`/`"B"` | In a room. Respawns you on the new team if alive; refused if that team is full. |
+| `team` | `team` `"A"`/`"B"` | In a room. Respawns you on the new team if alive; refused if that team is full (`team_full`) or if you switched less than 10 s ago (`cooldown`). |
 | `addbot` | `team` (`"A"`,`"B"`,`"auto"`), `skill` | Add an AI player to your room (`room_full`/`team_full` if there is no slot). |
 | `rmbot` | – | Remove the most recently added bot (`no_bots` if none). |
 | `leave` | – | Leave the room; the room is deleted when empty. |
@@ -78,7 +78,7 @@ Before `hello` only `hello`, `resume` and `ping` are accepted. Protocol violatio
 | `vt` | uint32, optional | **Lag compensation:** the server tick of the newest snapshot the client had drawn others from (view tick). Hitscan shots are tested against the other players where they were at that tick, rewound at most `lagComp.maxRewindTicks` (10 = 333 ms) from the current one; missing/too old/in the future = no rewind (or the cap). The shooter's own position is never rewound. |
 | `drop`, `use` | bool | Edge-detected server side. `drop` throws the current weapon (knife cannot be dropped); `use` picks up the nearest weapon within `pickups.radius` (swaps with the held weapon if that slot is occupied). Missing = false. |
 
-**Player collision:** the server blocks a player's movement against the other living players' boxes (same size as their hitbox body/head, see `PlayerSolids`); the client predicts with the latest known positions of the others.
+**Player collision:** the server blocks a player's movement against the other living players' boxes (one box of the player's width and full height, see `PlayerSolids`); the client predicts with the latest known positions of the others.
 
 **Movement extras** (`spec.player`): `stepHeight` (0.45 m) is the tallest ledge you walk onto without jumping (stairs, fine-stepped ramps); landing on the ground
 with a downward speed above `fall.safeSpeed` (9 m/s) costs `(speed - safeSpeed) × fall.damagePerSpeed` HP (a kill shows weapon "Fall", no score). The server reports the landing speed to the
@@ -105,7 +105,7 @@ limit 80/s (burst 120).
 | `snap` | 30 Hz world state (below) |
 
 Error codes: `bad_request`, `not_ready`, `bad_password`, `room_full`, `team_full`, `no_room`, `in_room`,
-`not_in_room`, `too_many_rooms`, `server_full`, `no_bots`, `bad_token`.
+`not_in_room`, `too_many_rooms`, `server_full`, `no_bots`, `bad_token`, `cooldown`.
 
 ### `snap`
 
@@ -124,7 +124,7 @@ Error codes: `bad_request`, `not_ready`, `bad_password`, `room_full`, `team_full
   processed `seq`; health; per-weapon `has` (weapon owned; false after dropping it) / `mag` / `res`; `rl` ticks until reload completes; `cd` ticks until next
   shot allowed; `pf` fire was held last input (semi-auto edge); `cr` crouching (needed to replay inputs with the right stance); `gn` grenades left per type; `fl` ticks of flashbang blindness left; `bu`/`bx` consecutive shots in the current burst / ticks until it expires (drives spread bloom and the view-kick ramp, see below); `resp` ticks until respawn; `prot` spawn protection.
 * `ev` events produced this tick:
-  * `shot` `{by,w,from,to,hit}` — `hit` ∈ `""`(nothing in range), `"wall"`, `"body"`, `"head"`. Also sent for knife swings.
+  * `shot` `{by,w,from,to,hit}` — `hit` is `"wall"`, `"body"` or `"head"`; the field is left out when nothing was in range (it is `omitempty`). Also sent for knife swings.
   * `hit` `{by,v,w,dmg,head}` — damage dealt (`dmg` includes the headshot multiplier).
   * `kill` `{by,v,w,head}`. For grenade damage `w` is `weapons.length + grenade index` (so `hit`/`kill` weapon names come from `spec.grenades` past the end of `spec.weapons`); a kill of yourself scores nothing.
   * `stab` `{by,w}` someone started a heavy stab (animation cue). The landing is a normal `shot` with `hv:true` (so do not replay the swing animation) followed by `hit` (`hv:true`) / `kill`.
@@ -144,7 +144,7 @@ interpolating between snapshots.
 
 ## Rules summary (values from `spec.json`)
 
-* Health 100. Rifle 30 dmg, pistol 25, knife 40 (range 2.2 m); headshot ×4 (not knife). Head box 0.36×0.35×0.36 m above a 0.6 m-wide body box.
+* Health 100. Rifle 30 dmg, pistol 25, sniper 100, knife 40 (range 2.2 m); headshot ×4, knife head ×2.5 (the knife's right-click stab: see `heavy`). Head box 0.36×0.35×0.36 m above a 0.6 m-wide body box.
 * No friendly fire. Respawn 3 s after death, 1.5 s spawn protection (ends when you fire).
 * Match: first team to `scoreLimit` kills or highest score at `timeLimit`; 10 s intermission, then scores reset and everyone respawns.
 

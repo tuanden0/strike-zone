@@ -207,6 +207,7 @@ export class Soldier {
 
   dispose() {
     this.mixer.stopAllAction();
+    this.model.traverse((o) => o.skeleton && o.skeleton.dispose()); // each clone owns a bone texture; geometries and materials are shared and stay
     this.muzzles.forEach((m) => m && (m.material.dispose(), m.geometry.dispose()));
   }
 }

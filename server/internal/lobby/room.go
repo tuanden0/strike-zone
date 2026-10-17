@@ -11,10 +11,11 @@ import (
 
 // Join/team errors (mapped to protocol codes by the hub).
 var (
-	ErrRoomFull    = errors.New("room is full")
-	ErrTeamFull    = errors.New("team is full")
-	ErrBadPassword = errors.New("wrong password")
-	ErrBadTeam     = errors.New("invalid team")
+	ErrRoomFull     = errors.New("room is full")
+	ErrTeamFull     = errors.New("team is full")
+	ErrTeamCooldown = errors.New("switched team too recently")
+	ErrBadPassword  = errors.New("wrong password")
+	ErrBadTeam      = errors.New("invalid team")
 )
 
 // Room is a lobby entry wrapping one match.
@@ -25,11 +26,12 @@ type Room struct {
 	MapID string
 	World *game.World
 
-	locked  bool
-	salt    [16]byte
-	pwHash  [32]byte
-	members map[int]*Session
-	bots    []int // bot player ids in the order they were added (humans are in members)
+	locked     bool
+	salt       [16]byte
+	pwHash     [32]byte
+	members    map[int]*Session
+	nextSwitch map[int]int // player id -> first tick at which that player may change team again
+	bots       []int       // bot player ids in the order they were added (humans are in members)
 }
 
 func hashPassword(salt [16]byte, pw string) [32]byte {
@@ -59,6 +61,9 @@ func (r *Room) CheckPassword(pw string) bool {
 
 func (r *Room) teamCap() int { return (r.Max + 1) / 2 }
 
+// teamSwitchCooldownTicks is how long a player must wait between two team changes: 10 s.
+const teamSwitchCooldownTicks = 10 * 30
+
 // Join adds a member. team: "A", "B" or ""/"auto". Returns the assigned team.
 func (r *Room) Join(s *Session, password, team string) (string, error) {
 	if !r.CheckPassword(password) {
@@ -68,18 +73,19 @@ func (r *Room) Join(s *Session, password, team string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// a human takes a bot's place when the chosen team, or the whole room, is full of bots
-	if r.World.TeamCount(team) >= r.teamCap() {
-		r.removeBot(team)
-	}
-	if r.World.Len() >= r.Max {
-		r.removeBot("")
-	}
-	if r.World.Len() >= r.Max {
+	// a human takes a bot's place when the chosen team, or the whole room, is full of bots; a bot is only removed when that makes the join succeed
+	teamFull := r.World.TeamCount(team) >= r.teamCap()
+	roomFull := r.World.Len() >= r.Max
+	if roomFull && !r.hasBot("") {
 		return "", ErrRoomFull
 	}
-	if r.World.TeamCount(team) >= r.teamCap() {
+	switch {
+	case teamFull && !r.hasBot(team):
 		return "", ErrTeamFull
+	case teamFull: // removing a bot of this team frees both the team slot and a room slot
+		r.removeBot(team)
+	case roomFull:
+		r.removeBot("")
 	}
 	if _, err := r.World.AddPlayer(s.ID, s.Nick, team); err != nil {
 		return "", err
@@ -122,6 +128,16 @@ func (r *Room) AddBot(id int, nick, team, skill string) (string, error) {
 }
 
 // removeBot removes the most recently added bot (of team, or of any team when team is empty). Reports whether one was removed.
+// hasBot reports whether a bot of the team ("" = any team) is in the room.
+func (r *Room) hasBot(team string) bool {
+	for _, id := range r.bots {
+		if p := r.World.Player(id); p != nil && (team == "" || p.Team == team) {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *Room) removeBot(team string) bool {
 	for i := len(r.bots) - 1; i >= 0; i-- {
 		if p := r.World.Player(r.bots[i]); p != nil && (team == "" || p.Team == team) {
@@ -145,15 +161,30 @@ func (r *Room) SetTeam(id int, team string) error {
 	if team != game.TeamA && team != game.TeamB {
 		return ErrBadTeam
 	}
-	if p.Team != team && r.World.TeamCount(team) >= r.teamCap() {
+	if p.Team == team {
+		return nil
+	}
+	if r.World.TeamCount(team) >= r.teamCap() {
 		return ErrTeamFull
 	}
-	return r.World.SetTeam(id, team)
+	// a switch respawns the player (full health and ammo, spawn protection): without a cooldown it is a free heal in the middle of a fight
+	if r.World.Tick < r.nextSwitch[id] {
+		return ErrTeamCooldown
+	}
+	if err := r.World.SetTeam(id, team); err != nil {
+		return err
+	}
+	if r.nextSwitch == nil {
+		r.nextSwitch = map[int]int{}
+	}
+	r.nextSwitch[id] = r.World.Tick + teamSwitchCooldownTicks
+	return nil
 }
 
 // Leave removes a member and reports whether the room is now empty.
 func (r *Room) Leave(id int) (empty bool) {
 	delete(r.members, id)
+	delete(r.nextSwitch, id)
 	r.World.RemovePlayer(id)
 	return len(r.members) == 0
 }

@@ -345,3 +345,39 @@ func TestAdminStatsToken(t *testing.T) {
 		t.Fatal("good token rejected")
 	}
 }
+
+func TestStaticClientIsRevalidatedNotRedownloadedAndNotListed(t *testing.T) {
+	ts := newTestServer(t)
+	resp, err := http.Get(ts.URL + "/js/main.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	lm := resp.Header.Get("Last-Modified")
+	if resp.StatusCode != 200 || lm == "" || resp.Header.Get("Cache-Control") != "no-cache" {
+		t.Fatalf("first load: status %d, Last-Modified %q, Cache-Control %q", resp.StatusCode, lm, resp.Header.Get("Cache-Control"))
+	}
+	req, _ := http.NewRequest("GET", ts.URL+"/js/main.js", nil)
+	req.Header.Set("If-Modified-Since", lm)
+	resp2, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp2.Body.Close()
+	if resp2.StatusCode != http.StatusNotModified {
+		t.Fatalf("a revalidation must answer 304, got %d", resp2.StatusCode)
+	}
+	for _, dir := range []string{"/js/", "/assets/models/", "/shared/"} {
+		r, err := http.Get(ts.URL + dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Body.Close()
+		if r.StatusCode != http.StatusNotFound {
+			t.Fatalf("directory %s must not be listed (status %d)", dir, r.StatusCode)
+		}
+	}
+	if r, _ := http.Get(ts.URL + "/"); r.StatusCode != 200 {
+		t.Fatalf("index: %d", r.StatusCode)
+	}
+}

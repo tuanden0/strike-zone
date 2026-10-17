@@ -110,5 +110,12 @@ func normalizeOrigin(s string) (string, error) {
 			return "", fmt.Errorf("invalid port")
 		}
 	}
-	return strings.ToLower(u.Scheme + "://" + u.Host), nil
+	host := u.Host
+	if (u.Scheme == "http" && u.Port() == "80") || (u.Scheme == "https" && u.Port() == "443") {
+		host = u.Hostname() // browsers leave the default port out of the Origin header, so an entry with it would never match
+		if strings.Contains(host, ":") {
+			host = "[" + host + "]" // IPv6 literal
+		}
+	}
+	return strings.ToLower(u.Scheme + "://" + host), nil
 }

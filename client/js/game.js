@@ -83,6 +83,7 @@ export class RemoteView {
     this.t = 0;
     this.char = new Soldier(game.assets[team === 'B' ? 'character_b' : 'character_a'], game.spec, game.assets.sniper);
     this.group = this.char.group;
+    this.group.visible = false; // until the first snapshot gives it a position (else it shows at the origin for a frame)
     game.scene.add(this.group);
     this.label = null;
     if (showLabel) {
@@ -104,6 +105,7 @@ export class RemoteView {
   update(now, dt) {
     const b = this.buf;
     if (!b.length) return;
+    this.group.visible = true;
     const rt = now - INTERP_MS;
     while (b.length > 2 && b[1].t <= rt) b.shift();
     let s;
@@ -128,13 +130,15 @@ export class RemoteView {
     this.group.rotation.y = s.yaw;
     this.t += dt;
     let speed = 0;
+    let grounded = true; // not jumping or falling: climbing a step or a ramp still runs
     if (this.last && dt > 0) {
       const d = Math.hypot(s.x - this.last.x, s.z - this.last.z);
       speed = d / dt;
+      grounded = Math.abs(s.y - this.last.y) / dt < 3;
       this.game.footsteps.remote(this, s, d, dt); // surface-specific, positional, audible up to ~25 m
     }
     this.last = { x: s.x, y: s.y, z: s.z };
-    this.char.update(dt, this.alive && s.y < 0.05 ? speed : 0);
+    this.char.update(dt, this.alive && grounded ? speed : 0);
     this.char.setShadow(Math.hypot(s.x - this.game.camera.position.x, s.z - this.game.camera.position.z) < 32);
   }
 
@@ -299,14 +303,20 @@ export class Game {
     tmp.forEach((t) => this.scene.add(t.group));
     this.vm.forEach((g) => (g.visible = true));
     try {
-      if (this.renderer.extensions.has('KHR_parallel_shader_compile')) {
-        await this.renderer.compileAsync(this.scene, this.camera);
-        await this.renderer.compileAsync(this.viewScene, this.viewCam);
-      } else {
-        this.renderer.compile(this.scene, this.camera);
-        this.renderer.compile(this.viewScene, this.viewCam);
-      }
+      const compile = async () => {
+        if (this.renderer.extensions.has('KHR_parallel_shader_compile')) {
+          await this.renderer.compileAsync(this.scene, this.camera);
+          await this.renderer.compileAsync(this.viewScene, this.viewCam);
+        } else {
+          this.renderer.compile(this.scene, this.camera);
+          this.renderer.compile(this.viewScene, this.viewCam);
+        }
+      };
+      await compile();
+      this.grenades.boomLight.visible = true; // the variant with the explosion light, so the first HE does not stall
+      await compile();
     } finally {
+      this.grenades.boomLight.visible = false;
       this.vm.forEach((g) => (g.visible = false));
       tmp.forEach((t) => {
         this.scene.remove(t.group);
@@ -319,6 +329,12 @@ export class Game {
   setMap(id, map, glbScene) {
     if (this.world) {
       this.scene.remove(this.world); // geometry stays cached in the glb so switching back is instant
+      this.world.traverse((o) => {
+        if (o.userData.own) {
+          o.geometry.dispose();
+          o.material.dispose();
+        }
+      });
     }
     this.mapId = id;
     this.map = map;
@@ -485,7 +501,7 @@ export class Game {
       this.input.scopeHeld = false;
     }
     if (!this.alive || (this.mode && (this.mode.frozen || this.mode.offline))) {
-      Object.assign(cmd, { f: 0, s: 0, jump: false, fire: false, reload: false, weapon: -1, scope: false, nade: 0, heavy: false });
+      Object.assign(cmd, { f: 0, s: 0, jump: false, fire: false, reload: false, weapon: -1, scope: false, nade: 0, heavy: false, drop: false, use: false, crouch: false, walk: false, alt: false });
     }
     this.prev = { ...this.kin };
     let res = null;

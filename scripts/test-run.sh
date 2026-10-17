@@ -11,8 +11,8 @@ bad() { echo "FAIL $1"; fails=$((fails + 1)); }
 mkdir -p "$T/bin"
 cat > "$T/server" <<'S'
 #!/usr/bin/env bash
-echo "UPNP=${UPNP:-unset}" >> "$LOG"
 trap 'echo "server got TERM" >> "$LOG"; exit 0' TERM INT
+echo "UPNP=${UPNP:-unset}" >> "$LOG"  # (last: once this line is in the log the trap is installed, see the polling below)
 [ -n "${SERVER_LIFETIME:-}" ] && { sleep "$SERVER_LIFETIME"; exit 0; }
 while true; do sleep 0.2; done
 S
@@ -63,7 +63,7 @@ if pid == 0:
     os.execv("scripts/run.sh", ["scripts/run.sh", "--open-port"])
 open(sys.argv[1], "w").write(str(pid))
 ' "$T/pid" >/dev/null 2>&1
-  sleep 1.2
+  for _ in $(seq 1 50); do grep -q '^UPNP=' "$T/log" 2>/dev/null && break; sleep 0.1; done  # wait until the stub server is really up
   pid=$(cat "$T/pid")
   kill -"$sig" "$pid" 2>/dev/null
   for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || break; sleep 0.3; done

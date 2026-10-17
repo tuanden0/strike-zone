@@ -13,7 +13,7 @@ OPEN=${OPEN_PORT:-0}
 for a in "$@"; do
   case "$a" in
     --open-port|-o) OPEN=1 ;;
-    -h|--help) sed -n 2,10p "$0"; exit 0 ;;
+    -h|--help) sed -n 2,8p "$0"; exit 0 ;;
     *) echo "unknown option: $a (try --help)" >&2; exit 2 ;;
   esac
 done

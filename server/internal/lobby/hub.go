@@ -168,6 +168,9 @@ func (h *Hub) Handle(s *Session, raw []byte) error {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.sessions[s.ID] != s { // a `resume` took this identity over while the message was waiting for the lock
+		return errors.New("session superseded")
+	}
 
 	if env.T == "in" { // hot path
 		return h.handleInput(s, raw)
@@ -350,6 +353,8 @@ func joinCode(err error) string {
 		return CodeRoomFull
 	case errors.Is(err, ErrTeamFull):
 		return CodeTeamFull
+	case errors.Is(err, ErrTeamCooldown):
+		return CodeCooldown
 	default:
 		return CodeBadRequest
 	}
@@ -475,6 +480,15 @@ func (h *Hub) leaveLocked(s *Session) {
 	h.broadcastRoster(r)
 }
 
+// closeRoomLocked removes a room that can no longer be simulated and tells its members.
+func (h *Hub) closeRoomLocked(r *Room) {
+	for _, m := range r.members {
+		m.room = nil
+		h.sendErr(m, CodeNoRoom, "the room was closed by a server error")
+	}
+	delete(h.rooms, r.ID)
+}
+
 func (h *Hub) broadcastRoster(r *Room) {
 	msg := rosterMsg{T: "roster", Players: r.Roster(), Score: r.World.Score}
 	for _, m := range r.members {
@@ -505,7 +519,9 @@ func (h *Hub) Tick() {
 func (h *Hub) stepRoom(r *Room) {
 	defer func() {
 		if e := recover(); e != nil {
-			log.Printf("panic in room %d tick: %v", r.ID, e)
+			// the half-updated world would panic again every tick: close the room and send its players back to the lobby
+			log.Printf("panic in room %d tick, closing the room: %v", r.ID, e)
+			h.closeRoomLocked(r)
 		}
 	}()
 	r.World.Step()

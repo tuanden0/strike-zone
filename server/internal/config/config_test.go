@@ -85,3 +85,19 @@ func TestUPnPSettings(t *testing.T) {
 		}
 	}
 }
+
+func TestAllowedOriginsDropDefaultPorts(t *testing.T) {
+	for in, want := range map[string]string{
+		"http://game.lan:80":    "http://game.lan",
+		"https://game.lan:443/": "https://game.lan",
+		"http://game.lan:8080":  "http://game.lan:8080",
+		"https://game.lan:80":   "https://game.lan:80", // not the default for https
+		"http://[::1]:80":       "http://[::1]",
+		"HTTPS://Game.LAN":      "https://game.lan",
+	} {
+		got, err := normalizeOrigin(in)
+		if err != nil || got != want {
+			t.Errorf("%s -> %q (%v), want %q", in, got, err, want)
+		}
+	}
+}

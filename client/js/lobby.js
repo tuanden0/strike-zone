@@ -86,6 +86,10 @@ export class LobbyUI {
 
   render(rooms) {
     const body = $('room-body');
+    // the list refreshes every 3 s: keep what the user has typed into a password box (and its focus) across the rebuild
+    const typed = new Map([...body.querySelectorAll('input[data-room]')].map((i) => [i.dataset.room, i.value]));
+    const focused = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.room : null;
+    let refocus = null;
     body.replaceChildren();
     $('room-empty').hidden = rooms.length > 0;
     for (const r of rooms) {
@@ -103,6 +107,9 @@ export class LobbyUI {
         pw.maxLength = 32;
         pw.placeholder = 'password';
         pw.setAttribute('aria-label', `Password for ${r.name}`);
+        pw.dataset.room = String(r.id);
+        pw.value = typed.get(pw.dataset.room) || '';
+        if (focused === pw.dataset.room) refocus = pw;
         td.append(pw, ' ');
       }
       const btn = el('button', '', 'Join');
@@ -112,5 +119,6 @@ export class LobbyUI {
       tr.append(td);
       body.append(tr);
     }
+    if (refocus) refocus.focus();
   }
 }

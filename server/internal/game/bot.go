@@ -209,7 +209,7 @@ func (w *World) botCombat(b *Bot, p, tgt *Player, ws *WeaponSpec, in *Input, wis
 		ty = w.Spec.EyeOf(&tgt.Kin) - 0.02
 	}
 	dx, dy, dz := tgt.Kin.X-eye[0], tgt.Kin.Y+ty-eye[1], tgt.Kin.Z-eye[2]
-	hd := math.Hypot(dx, dz)
+	hd := math.Max(math.Hypot(dx, dz), 1e-6) // never 0: the wish vectors below divide by it
 	wantYaw, wantPitch := yawTo(dx, dz)+b.noise[0], math.Atan2(dy, hd)+b.noise[1]
 	b.turnToward(p, wantYaw, wantPitch)
 	errAng := math.Hypot(wrapPi(wantYaw-p.Yaw), wantPitch-p.Pitch)
@@ -254,8 +254,8 @@ func (w *World) botCombat(b *Bot, p, tgt *Player, ws *WeaponSpec, in *Input, wis
 	if tick >= b.nadeAt && hd > 10 && hd < 28 && tgt.Alive {
 		b.nadeAt = tick + 60 + w.rng.IntN(120)
 		if w.rng.IntN(5) == 0 {
-			for _, g := range []int{0, 2} {
-				if g < len(p.Nades) && p.Nades[g] > 0 && tick >= p.NextThrow {
+			for g := range p.Nades {
+				if k := w.Spec.Grenades[g].Kind; (k == KindFrag || k == KindFlash) && p.Nades[g] > 0 && tick >= p.NextThrow {
 					in.Nade = g + 1
 					break
 				}

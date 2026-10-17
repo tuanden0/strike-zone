@@ -9,6 +9,14 @@ function el(tag, cls, text) {
   return e;
 }
 
+// The HUD setters run every tick / frame: write to the DOM only when the value changed (a write invalidates layout even if it is the same).
+function setText(node, text) {
+  if (node._text !== text) {
+    node._text = text;
+    node.textContent = text;
+  }
+}
+
 export const TEAM_NAMES = { A: 'Ember', B: 'Cobalt' };
 
 const STREAK_MS = 4000;
@@ -49,13 +57,15 @@ export class Hud {
     this.root.hidden = !v;
     if (!v) {
       this.feed.replaceChildren();
-      this.banner.textContent = '';
+      setText(this.banner, '');
       this.board.hidden = true;
     }
   }
 
   setHealth(hp, max = 100) {
     const h = Math.max(0, Math.round(hp));
+    if (this._hp === `${h}:${max}`) return;
+    this._hp = `${h}:${max}`;
     this.hpNum.textContent = String(h);
     this.hpFill.style.width = `${Math.min(100, (h / max) * 100)}%`;
     this.hpFill.style.background = h > 60 ? '#4ade80' : h > 30 ? '#facc15' : '#f87171';
@@ -67,11 +77,18 @@ export class Hud {
     this.nadeEq = def ? eq : -1;
     this.nadeCount = def && counts ? counts[eq] : 0;
     const on = !!def && charge >= 0;
-    this.powerEl.hidden = !on;
-    if (on) this.powerFill.style.width = `${Math.round(charge * 100)}%`;
+    if (this.powerEl.hidden === on) this.powerEl.hidden = !on;
+    if (on) {
+      const w = `${Math.round(charge * 100)}%`;
+      if (this.powerFill.style.width !== w) this.powerFill.style.width = w;
+    }
     if (def) {
-      this.wname.textContent = def.name;
-      this.ammo.replaceChildren(`${this.nadeCount} `, el('small', '', 'hold FIRE to charge, release to throw'));
+      setText(this.wname, def.name);
+      const key = `nade:${this.nadeCount}`;
+      if (this._ammoKey !== key) {
+        this._ammoKey = key;
+        this.ammo.replaceChildren(`${this.nadeCount} `, el('small', '', 'hold FIRE to charge, release to throw'));
+      }
     }
   }
 
@@ -83,11 +100,14 @@ export class Hud {
         ...weapons.map((w, i) => el('span', `${i === cur ? 'cur' : ''}${has && !has[i] ? ' empty' : ''}`.trim(), `${i + 1} ${w.id}`)),
       );
     }
-    if (!this.nadeDef) this.wname.textContent = weapons[cur].name;
+    if (!this.nadeDef) setText(this.wname, weapons[cur].name);
   }
 
   setAmmo(w, mag, res, reloading) {
     if (this.nadeDef) return;
+    const key = `${w.id}:${mag}:${res}:${reloading}`;
+    if (this._ammoKey === key) return;
+    this._ammoKey = key;
     this.ammo.replaceChildren();
     if (w.magSize === 0) {
       this.ammo.textContent = '—';
@@ -98,29 +118,29 @@ export class Hud {
 
   setTimer(sec) {
     if (sec < 0) {
-      this.timer.textContent = '--:--';
+      setText(this.timer, '--:--');
       return;
     }
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
-    this.timer.textContent = `${m}:${String(s).padStart(2, '0')}`;
+    setText(this.timer, `${m}:${String(s).padStart(2, '0')}`);
   }
 
   setScore(a, b) {
-    this.sa.textContent = String(a);
-    this.sb.textContent = String(b);
+    setText(this.sa, String(a));
+    setText(this.sb, String(b));
   }
 
   setBanner(text) {
-    this.banner.textContent = text || '';
+    setText(this.banner, text || '');
   }
 
   setPing(ms) {
-    this.pingEl.textContent = ms >= 0 ? `ping ${Math.round(ms)} ms` : '';
+    setText(this.pingEl, ms >= 0 ? `ping ${Math.round(ms)} ms` : '');
   }
 
   setFps(f) {
-    this.fps.textContent = `${f} fps`;
+    setText(this.fps, `${f} fps`);
   }
 
   hitmarker(head) {
@@ -194,6 +214,8 @@ export class Hud {
   // t: 0 (no scope) .. 1 (fully zoomed). The overlay fades in over the last part of the zoom.
   setScope(t) {
     const v = Math.max(0, (t - 0.35) / 0.65);
+    if (this._scopeV === v) return; // idle (not scoped): nothing to write 60 times a second
+    this._scopeV = v;
     this.scopeEl.style.opacity = String(v);
     this.scopeEl.hidden = v <= 0;
     this.root.classList.toggle('scoped', t > 0.5);
@@ -212,11 +234,15 @@ export class Hud {
   // fl: ticks of flashbang blindness left (full white for the first part, then fades)
   setFlash(fl) {
     const a = Math.min(1, fl / 18);
+    if (this._flashA === a) return;
+    this._flashA = a;
     this.flashEl.style.opacity = String(a);
     this.flashEl.hidden = a <= 0;
   }
 
   setPrompt(text) {
+    if (this._prompt === (text || '')) return;
+    this._prompt = text || '';
     this.promptEl.textContent = text || '';
     this.promptEl.hidden = !text;
     const use = document.getElementById('t-use');
@@ -224,6 +250,8 @@ export class Hud {
   }
 
   setPractice(text) {
+    if (this._practiceText === (text || '')) return;
+    this._practiceText = text || '';
     this.practice.hidden = !text;
     this.practice.textContent = text || '';
   }

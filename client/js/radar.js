@@ -28,6 +28,8 @@ export class Radar {
     } catch {
       // skip: storage blocked, radar stays on
     }
+    this.size = null; // CSS size of the canvas, refreshed by the observer (reading clientWidth every redraw forces a layout flush)
+    if (typeof ResizeObserver === 'function') new ResizeObserver(() => (this.size = null)).observe(this.canvas);
     this.pings = new Map(); // player id -> expiry (performance.now)
     this.pingMs = PING_MS; // (a field so e2e can stretch it: frames are slow under software GL)
     this.shown = []; // what the last redraw drew: [{id, team, why: 'team' | 'seen' | 'ping'}]
@@ -103,8 +105,9 @@ export class Radar {
   }
 
   fit() {
-    const cssW = this.canvas.clientWidth;
-    const cssH = this.canvas.clientHeight;
+    if (!this.size || this.size.w === 0 || typeof ResizeObserver !== 'function') this.size = { w: this.canvas.clientWidth, h: this.canvas.clientHeight };
+    const cssW = this.size.w;
+    const cssH = this.size.h;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = Math.max(1, Math.round(cssW * dpr));
     const h = Math.max(1, Math.round(cssH * dpr));

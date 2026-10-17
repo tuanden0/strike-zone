@@ -81,10 +81,10 @@ export class TouchControls {
       $('t-nadesel').textContent = input.nadeNames[input.nadeSel].toUpperCase();
     });
     this.bindPress('t-drop', () => (input.drop = true));
+    this.scopeBtn = $('t-scope');
     this.bindPress('t-scope', () => {
       input.scopeHeld = !input.scopeHeld;
       input.altPress = true; // with a knife the same button is the overhead stab
-      $('t-scope').classList.toggle('down', input.scopeHeld);
     });
     this.bindPress('t-menu', () => input.unlock());
     this.bindPress('t-board', () => {
@@ -120,6 +120,7 @@ export class TouchControls {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
+    this.scopeBtn.classList.toggle('down', this.input.scopeHeld); // the game also ends the scope itself (reload, weapon without a scope, death)
     const { ax, ay } = this.look;
     const lk = this.look;
     if (lk.id !== null && !lk.left && !lk.auto && now - lk.t0 >= this.holdMs) this.setAuto(true); // held still in the dead zone: auto-fire

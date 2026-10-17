@@ -4,10 +4,11 @@
 //   BASE_URL=http://localhost:18080 node maps.mjs [outDir]      (default outDir: ../docs/screenshots)
 import { launch, watchErrors, check, done } from './lib.mjs';
 import { mkdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const BASE = process.env.BASE_URL || 'http://localhost:8080';
-const out = process.argv[2] || fileURLToPath(new URL('../docs/screenshots', import.meta.url));
+const out = process.argv[2] || join(tmpdir(), 'strike-zone-shots'); // pass docs/screenshots to refresh the committed images
 mkdirSync(out, { recursive: true });
 
 // overview: high oblique over the south-west corner; street: eye-level views from places a player actually stands

@@ -171,6 +171,7 @@ const (
 	CodeBadPassword = "bad_password"
 	CodeRoomFull    = "room_full"
 	CodeTeamFull    = "team_full"
+	CodeCooldown    = "cooldown"
 	CodeNoRoom      = "no_room"
 	CodeInRoom      = "in_room"
 	CodeNotInRoom   = "not_in_room"

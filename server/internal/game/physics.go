@@ -36,6 +36,16 @@ func (m *Map) overlaps(s *Spec, k *Kin) bool {
 // PlayerSolids) that block like map boxes this tick.
 // Must remain numerically identical to stepMove in client/js/physics.js.
 func Step(s *Spec, m *Map, k *Kin, c MoveCmd, extra ...[6]float64) float64 {
+	b := m.Boxes
+	if len(extra) > 0 {
+		b = append(append(make([][6]float64, 0, len(b)+len(extra)), b...), extra...)
+	}
+	return stepBoxes(s, m, b, k, c)
+}
+
+// stepBoxes is Step with the obstacle list (map boxes first, then other players) already assembled: the World keeps that list in a scratch
+// buffer so that the per-input hot path does not allocate.
+func stepBoxes(s *Spec, m *Map, b [][6]float64, k *Kin, c MoveCmd) float64 {
 	p := &s.Player
 	dt := 1 / float64(s.TickRate)
 	hw := p.HalfWidth
@@ -73,10 +83,6 @@ func Step(s *Spec, m *Map, k *Kin, c MoveCmd, extra ...[6]float64) float64 {
 	}
 	k.Vy -= p.Gravity * dt
 
-	b := m.Boxes
-	if len(extra) > 0 {
-		b = append(append(make([][6]float64, 0, len(b)+len(extra)), b...), extra...)
-	}
 	hit := func(o *[6]float64) bool {
 		return k.X+hw > o[0] && k.X-hw < o[3] && k.Y+height > o[1] && k.Y < o[4] && k.Z+hw > o[2] && k.Z-hw < o[5]
 	}
@@ -202,21 +208,27 @@ func (m *Map) RayWorld(o, d [3]float64, maxT float64) float64 {
 	return best
 }
 
+// playerSolid is the obstacle box of player o for k's next step, or false when k already overlaps it (see PlayerSolids).
+func playerSolid(s *Spec, k *Kin, kh float64, o *Kin) ([6]float64, bool) {
+	const eps = 1e-6
+	hw := s.Player.HalfWidth
+	b := [6]float64{o.X - hw, o.Y, o.Z - hw, o.X + hw, o.Y + s.HeightOf(o), o.Z + hw}
+	if k.X+hw > b[0]+eps && k.X-hw < b[3]-eps && k.Y+kh > b[1]+eps && k.Y < b[4]-eps && k.Z+hw > b[2]+eps && k.Z-hw < b[5]-eps {
+		return b, false // (eps: standing against another player is a touch, not an overlap, even with rounding noise)
+	}
+	return b, true
+}
+
 // PlayerSolids returns the boxes of the other living players as obstacles for k's next step. A player that k already overlaps (a respawn
 // next to someone, two players who walked into each other in the same tick) is left out so that they can walk apart instead of being
 // stuck. Must stay identical to playerSolids in client/js/physics.js.
 func PlayerSolids(s *Spec, k *Kin, others []Kin) [][6]float64 {
-	const eps = 1e-6
-	hw := s.Player.HalfWidth
-	h := s.HeightOf(k)
+	kh := s.HeightOf(k)
 	var out [][6]float64
 	for i := range others {
-		o := &others[i]
-		b := [6]float64{o.X - hw, o.Y, o.Z - hw, o.X + hw, o.Y + s.HeightOf(o), o.Z + hw}
-		if k.X+hw > b[0]+eps && k.X-hw < b[3]-eps && k.Y+h > b[1]+eps && k.Y < b[4]-eps && k.Z+hw > b[2]+eps && k.Z-hw < b[5]-eps {
-			continue // (eps: standing against another player is a touch, not an overlap, even with rounding noise)
+		if b, ok := playerSolid(s, k, kh, &others[i]); ok {
+			out = append(out, b)
 		}
-		out = append(out, b)
 	}
 	return out
 }

@@ -273,12 +273,12 @@ def build_map(mid, name, hx, rows, legend, patches=(), outer_mat="outer", outer_
         png = os.path.join(os.environ["MAP_PNG_DIR"], f"{mid}.png")
     if png:
         render_png(out, png)
+    if problems:
+        raise SystemExit(f"{mid}: validation failed (nothing written)")  # a map that fails validation must not end up in client/shared
     if write:
         path = os.path.join(SHARED, f"map_{mid}.json")
         write_json(out, path)
         print("wrote", path)
-    if problems:
-        raise SystemExit(f"{mid}: validation failed")
     return out
 
 

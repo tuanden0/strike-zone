@@ -6,8 +6,10 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
+	"io/fs"
 	"net/http"
 	"strings"
+	"time"
 
 	"strikezone/client"
 	"strikezone/server/internal/config"
@@ -48,8 +50,29 @@ func NewWithMaps(cfg config.Config, spec *game.Spec, maps *game.MapSet) *App {
 	})
 	mux.Handle("GET /ws", ws)
 	mux.HandleFunc("GET /admin/stats", adminStats(cfg.AdminToken, hub))
-	mux.Handle("GET /", http.FileServerFS(client.FS))
+	mux.Handle("GET /", static(client.FS))
 	return &App{Handler: secure(mux), ws: ws}
+}
+
+// static serves the embedded client. embed.FS files carry no modification time, so without help every reload would download the whole
+// client again (about 10 MB, the map models are the bulk): answer If-Modified-Since with the time this process started (the client only
+// changes with a new binary), which together with `Cache-Control: no-cache` makes the browser revalidate and get a 304. Directories are
+// not listed.
+func static(fsys fs.FS) http.Handler {
+	files := http.FileServerFS(fsys)
+	started := time.Now().UTC().Truncate(time.Second)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" && strings.HasSuffix(r.URL.Path, "/") {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Last-Modified", started.Format(http.TimeFormat))
+		if t, err := http.ParseTime(r.Header.Get("If-Modified-Since")); err == nil && !started.After(t) {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		files.ServeHTTP(w, r)
+	})
 }
 
 // Run drives the game loop until ctx is done.
@@ -72,6 +95,7 @@ func adminStats(token string, hub *lobby.Hub) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
 		_ = json.NewEncoder(w).Encode(hub.Stats())
 	}
 }

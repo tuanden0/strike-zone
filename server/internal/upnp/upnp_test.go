@@ -19,6 +19,7 @@ type fakeIGD struct {
 	actions  []string
 	extIP    string
 	refuse   bool
+	gone     bool // DeletePortMapping answers 714 NoSuchEntryInArray
 }
 
 func newFakeIGD(t *testing.T) (*fakeIGD, *httptest.Server) {
@@ -59,6 +60,11 @@ func newFakeIGD(t *testing.T) (*fakeIGD, *httptest.Server) {
 			f.mappings[env.Body.Inner.Ext] = env.Body.Inner.Client
 			fmt.Fprint(w, `<s:Envelope xmlns:s="x"><s:Body><u:AddPortMappingResponse xmlns:u="y"/></s:Body></s:Envelope>`)
 		case "DeletePortMapping":
+			if f.gone {
+				w.WriteHeader(500)
+				fmt.Fprint(w, `<s:Envelope xmlns:s="x"><s:Body><s:Fault><detail><UPnPError><errorCode>714</errorCode><errorDescription>NoSuchEntryInArray</errorDescription></UPnPError></detail></s:Fault></s:Body></s:Envelope>`)
+				return
+			}
 			delete(f.mappings, env.Body.Inner.Ext)
 			fmt.Fprint(w, `<s:Envelope xmlns:s="x"><s:Body><u:DeletePortMappingResponse xmlns:u="y"/></s:Body></s:Envelope>`)
 		case "GetExternalIPAddress":
@@ -176,5 +182,21 @@ func TestHeaderParsing(t *testing.T) {
 	}
 	if headerValue(r, "missing") != "" {
 		t.Fatal("missing header")
+	}
+}
+
+func TestDeletingAMappingTheRouterAlreadyDroppedIsNotAnError(t *testing.T) {
+	AllowLoopback = true
+	defer func() { AllowLoopback = false }()
+	f, srv := newFakeIGD(t)
+	defer srv.Close()
+	g, _ := FromLocation(context.Background(), srv.URL+"/desc.xml")
+	f.gone = true
+	if err := g.DeletePortMapping(context.Background(), 8080); err != nil {
+		t.Fatalf("714 (no such mapping) on delete must not be reported: %v", err)
+	}
+	f.gone, f.refuse = false, true
+	if err := g.DeletePortMapping(context.Background(), 8080); err == nil {
+		t.Fatal("a real refusal (718) must still be reported")
 	}
 }

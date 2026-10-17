@@ -26,13 +26,18 @@ function hitsBox(c, r, b) {
   return dx * dx + dy * dy + dz * dz < r * r;
 }
 
+function touchesAny(boxes, c, r) {
+  for (let i = 0; i < boxes.length; i++) if (hitsBox(c, r, boxes[i])) return true;
+  return false;
+}
+
 // One tick of the server's grenade integration (grenades.go moveNade): gravity, per-axis box bounce, floor, bounds.
 function stepNade(map, n, pos, vel, dt) {
   vel[1] -= n.gravity * dt;
   for (let ax = 0; ax < 3; ax++) {
     const old = pos[ax];
     pos[ax] += vel[ax] * dt;
-    if (map.boxes.some((b) => hitsBox(pos, n.radius, b))) {
+    if (touchesAny(map.boxes, pos, n.radius)) {
       pos[ax] = old;
       vel[ax] = -vel[ax] * n.restitution;
       vel[0] *= 0.85;
@@ -81,7 +86,10 @@ export class Grenades {
     this.arc.visible = false;
     this.arcEnd = new THREE.Mesh(new THREE.RingGeometry(0.15, 0.22, 20), new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }));
     this.arcEnd.visible = false;
-    this.group.add(this.arc, this.arcEnd);
+    this.boomLight = new THREE.PointLight(0xffa850, 0, 25, 2); // explosion glow (see boom)
+    this.boomLight.visible = false;
+    this.boomT = 0;
+    this.group.add(this.arc, this.arcEnd, this.boomLight);
     this.texFire = glow([[0, 'rgba(255,250,220,1)'], [0.25, 'rgba(255,170,60,0.95)'], [0.6, 'rgba(200,60,10,0.5)'], [1, 'rgba(60,20,0,0)']]);
     this.texFlash = glow([[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(235,240,255,0.8)'], [1, 'rgba(200,210,255,0)']]);
     this.texSmoke = glow([[0, 'rgba(205,208,212,0.95)'], [0.55, 'rgba(165,170,176,0.7)'], [1, 'rgba(140,145,150,0)']]);
@@ -92,8 +100,15 @@ export class Grenades {
   preview(eye, yaw, pitch, gs, k, bright) {
     if (!eye) {
       this.arc.visible = this.arcEnd.visible = false;
+      this._arcKey = '';
       return;
     }
+    const key = `${eye[0]},${eye[1]},${eye[2]},${yaw},${pitch},${k},${gs.id}`;
+    if (key === this._arcKey && this.arc.visible) {
+      this.arcMat.opacity = bright ? 0.95 : 0.4; // same throw as the last frame: the path is still valid, only the brightness may change
+      return;
+    }
+    this._arcKey = key;
     const game = this.game;
     const n = game.spec.nades;
     const map = game.map;
@@ -205,10 +220,10 @@ export class Grenades {
     const d = Math.hypot(at[0] - e[0], at[1] - e[1], at[2] - e[2]);
     if (kind === 'frag') {
       this.sprite(this.texFire, at, (game.spec.grenades[ev.g || 0].radius || 7) * 1.3, 0.45);
-      const l = new THREE.PointLight(0xffa850, 40, 25, 2);
-      l.position.set(at[0], at[1] + 0.5, at[2]);
-      this.group.add(l);
-      this.fx.push({ light: l, life: 0.25, t: 0 });
+      this.boomLight.position.set(at[0], at[1] + 0.5, at[2]);
+      this.boomLight.visible = true; // one pooled light: creating a light mid-match changes the light count and recompiles every lit material
+      this.boomLight.intensity = 40;
+      this.boomT = 0.25;
       game.shake = Math.max(game.shake, 1.2 / (1 + d / 5));
       game.playAt('boom', at);
     } else if (kind === 'flash') {
@@ -232,19 +247,17 @@ export class Grenades {
       if (f.sp) {
         f.sp.scale.setScalar(f.size * (0.2 + 0.8 * Math.min(1, k * 2)));
         f.sp.material.opacity = Math.max(0, 1 - k);
-      } else if (f.light) {
-        f.light.intensity = 40 * Math.max(0, 1 - k);
       }
       if (k >= 1) {
-        if (f.sp) {
-          this.group.remove(f.sp);
-          f.sp.material.dispose();
-        } else {
-          this.group.remove(f.light);
-          f.light.dispose();
-        }
+        this.group.remove(f.sp);
+        f.sp.material.dispose();
         this.fx.splice(i, 1);
       }
+    }
+    if (this.boomT > 0) {
+      this.boomT -= dt;
+      this.boomLight.intensity = 40 * Math.max(0, this.boomT / 0.25);
+      if (this.boomT <= 0) this.boomLight.visible = false;
     }
     const tr = this.game.spec.tickRate;
     for (const c of this.clouds.values()) {
@@ -266,10 +279,11 @@ export class Grenades {
     this.setFlight([]);
     this.setSmokes([]);
     for (const f of this.fx) {
-      this.group.remove(f.sp || f.light);
-      if (f.sp) f.sp.material.dispose();
-      else f.light.dispose();
+      this.group.remove(f.sp);
+      f.sp.material.dispose();
     }
     this.fx.length = 0;
+    this.boomT = 0;
+    this.boomLight.visible = false;
   }
 }

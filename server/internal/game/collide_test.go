@@ -95,3 +95,74 @@ func TestTouchingPlayersStayBlockedDespiteRoundingNoise(t *testing.T) {
 		t.Fatalf("noise on the other side too: %v", got)
 	}
 }
+
+func TestMovementHotPathDoesNotAllocate(t *testing.T) {
+	w, a, _ := duel(t)
+	in := Input{F: 1, Weapon: -1}
+	w.solidBoxes(a) // first call sizes the scratch buffer
+	n := testing.AllocsPerRun(200, func() {
+		a.Kin = Kin{X: 5, Z: 12, OnGround: true}
+		w.apply(a, in)
+	})
+	if n > 3 { // a few closure escapes are tolerated; copying the whole map per input (hundreds of KB/s per player) is not
+		t.Fatalf("apply allocates %v times per input", n)
+	}
+	t.Logf("allocs per input: %v", n)
+}
+
+func TestQueuedShotKeepsTheWeaponOfItsInput(t *testing.T) {
+	w, a, b := duel(t)
+	yaw, pitch := aim(w, a, b.Kin.X, b.Kin.Y+1.0, b.Kin.Z)
+	// two inputs in one tick: the first fires the rifle, the second pulls out the knife
+	for i, in := range []Input{{Weapon: -1, Fire: true, Yaw: yaw, Pitch: pitch}, {Weapon: knifeSlot, Yaw: yaw, Pitch: pitch}} {
+		heavySeq[a.ID]++
+		in.Seq = heavySeq[a.ID]
+		if err := w.QueueInput(a.ID, in); err != nil {
+			t.Fatalf("input %d: %v", i, err)
+		}
+	}
+	w.Step()
+	found := false
+	for _, ev := range w.Events() {
+		if ev.E == EvShot && ev.By == a.ID {
+			found = true
+			if ev.W != 0 {
+				t.Fatalf("the shot was resolved as weapon %d, want the rifle (0) that fired it", ev.W)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("no shot event")
+	}
+}
+
+func TestNoScoringAfterTheKillThatEndedTheMatch(t *testing.T) {
+	w, a, b := duel(t)
+	c := add(t, w, 3, TeamB)
+	w.Cfg.ScoreLimit = 1
+	w.kill(a, b, false, 0, a.ID)
+	if w.State != StateEnded {
+		t.Fatal("setup: the first kill should end the match")
+	}
+	w.kill(a, c, false, 0, a.ID) // same tick, later in the loop
+	if w.Score[0] != 1 || a.Kills != 1 {
+		t.Fatalf("a kill after the match ended was scored: score %v kills %d", w.Score, a.Kills)
+	}
+}
+
+func TestGrenadeOfAThrowerWhoLeftStillSparesHisTeam(t *testing.T) {
+	w, a, b := duel(t)
+	mate := add(t, w, 3, TeamA)
+	mate.Kin = Kin{X: b.Kin.X + 1, Z: b.Kin.Z, OnGround: true}
+	mate.ProtectUntil = 0
+	w.nextNade++
+	w.grenades = append(w.grenades, &Grenade{ID: w.nextNade, G: 0, Owner: 99, Team: TeamA, Pos: [3]float64{b.Kin.X + 0.5, 1, b.Kin.Z}, Fuse: 1})
+	_ = a
+	w.Step()
+	if mate.HP != w.Spec.Player.MaxHealth {
+		t.Fatalf("the ex-teammate of a thrower who left was hurt: hp %d", mate.HP)
+	}
+	if b.HP == w.Spec.Player.MaxHealth {
+		t.Fatal("the enemy standing next to the blast was not hurt")
+	}
+}

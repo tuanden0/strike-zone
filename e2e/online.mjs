@@ -4,12 +4,12 @@ import { launch, watchErrors, check, done } from './lib.mjs';
 const BASE = process.env.BASE_URL || 'http://localhost:8080';
 const browser = await launch();
 const errors = [];
+const ROOM = `E2E ${Date.now()}`; // a room left by an earlier run stays listed for the 30 s seat hold
 const gameReady = () => window.__sz && window.__sz.game && window.__sz.game.running;
 
 async function open(nick) {
   const ctx = await browser.newContext({ viewport: { width: 480, height: 300 } });
   const page = await ctx.newPage();
-  page.setDefaultTimeout(180000); // software GL: wait on state, not sleeps
   page.setDefaultTimeout(180000); // software GL: wait on state, not sleeps
   watchErrors(page, errors);
   await page.goto(BASE);
@@ -25,16 +25,16 @@ try {
   const b = await open('Bob');
   check('lobby visible', await a.isVisible('#screen-lobby'));
 
-  await a.fill('#c-name', 'E2E Room');
+  await a.fill('#c-name', ROOM);
   await a.selectOption('#pref-team', 'A');
   await a.click('#create-form button[type=submit]');
   await a.waitForFunction(gameReady);
   check('creator entered the game', true);
 
   await b.selectOption('#pref-team', 'B');
-  await b.waitForFunction(() => document.getElementById('room-body').textContent.includes('E2E Room')); // stale rooms of earlier runs can be listed first
-  check('room listed for second client', (await b.textContent('#room-body')).includes('E2E Room'));
-  await b.locator('#room-body tr', { hasText: 'E2E Room' }).locator('button').click();
+  await b.waitForFunction((name) => document.getElementById('room-body').textContent.includes(name), ROOM); // stale rooms of earlier runs can be listed first
+  check('room listed for second client', (await b.textContent('#room-body')).includes(ROOM));
+  await b.locator('#room-body tr', { hasText: ROOM }).locator('button').click();
   await b.waitForFunction(gameReady);
   check('joiner entered the game', true);
 
@@ -49,6 +49,7 @@ try {
   // Alice walks; Bob must see Alice's remote view move (server-synced).
   const bobSees = () => b.evaluate(() => { const r = [...window.__sz.game.remotes.values()][0]; return r ? r.group.position.z : null; });
   const z0 = await bobSees();
+  const zA0 = await a.evaluate(() => window.__sz.game.kin.z);
   await a.keyboard.down('KeyW');
   await a.waitForFunction(() => Math.abs(window.__sz.game.kin.z - 20) > 2.5 && Math.abs(window.__sz.game.kin.z + 20) > 2.5);
   await a.keyboard.up('KeyW');
@@ -57,7 +58,7 @@ try {
   check('Bob sees Alice move', z0 !== null && z1 !== null && Math.abs(z1 - z0) > 1, `z ${z0} -> ${z1}`);
 
   const posA = await a.evaluate(() => ({ z: window.__sz.game.kin.z }));
-  check('Alice predicted position moved', Math.abs(posA.z - 20) > 1 || Math.abs(posA.z + 20) > 1);
+  check('Alice predicted position moved', Math.abs(posA.z - zA0) > 1, `z ${zA0} -> ${posA.z}`);
   // Harder movement: strafe + jump + walk toggles, then compare prediction against the server.
   await a.keyboard.down('KeyD');
   await a.keyboard.down('Space');

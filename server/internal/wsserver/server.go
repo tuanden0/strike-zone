@@ -127,6 +127,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer s.ips.Release(ip)
 
+	s.wg.Add(1) // before Accept: Close() waits for every handler that got this far
+	defer s.wg.Done()
 	// Origin was validated above with our own same-origin rule, so the library's check is skipped.
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		InsecureSkipVerify: true,
@@ -136,8 +138,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Printf("ws: handshake from %s failed: %v", ip, err) // Accept already replied
 		return
 	}
-	s.wg.Add(1)
-	defer s.wg.Done()
 	c.SetReadLimit(ReadLimit)
 
 	ctx, cancel := context.WithCancel(context.Background()) // not a child of base: shutdown closes explicitly

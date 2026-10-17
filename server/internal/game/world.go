@@ -122,6 +122,16 @@ type Player struct {
 	queue      []Input
 }
 
+// shotReq is a shot queued by an input: the weapon, aim and burst state at that moment.
+type shotReq struct {
+	p          *Player
+	weapon     int
+	yaw, pitch float64
+	burst      int
+	scoped     bool
+	speed      float64
+}
+
 // MatchConfig is set per room.
 type MatchConfig struct {
 	TimeLimitSec int
@@ -150,7 +160,8 @@ type World struct {
 	grenades   []*Grenade
 	smokes     []Smoke
 	nextNade   int
-	shots      []*Player // shooters queued this tick, resolved after all movement
+	boxes      [][6]float64 // scratch: map boxes + other players, see solidBoxes
+	shots      []shotReq    // shots queued this tick, resolved after all movement
 	rng        *rand.Rand
 	spawnN     int
 	// Dirty is set when roster-visible data (score, kills, teams) changed; owner clears it.
@@ -367,20 +378,30 @@ func (w *World) Step() {
 	}
 }
 
-// solidsFor lists the other living players as obstacles for p's movement (players do not walk through each other or through bots).
-func (w *World) solidsFor(p *Player) [][6]float64 {
-	others := make([]Kin, 0, len(w.order))
+// solidBoxes returns the obstacle list for p's next step: the map boxes followed by the other living players (players do not walk through
+// each other or through bots). It is a scratch buffer owned by the World (valid until the next call, used under the hub lock).
+func (w *World) solidBoxes(p *Player) [][6]float64 {
+	if w.boxes == nil {
+		w.boxes = append(make([][6]float64, 0, len(w.Map.Boxes)+16), w.Map.Boxes...)
+	}
+	b := w.boxes[:len(w.Map.Boxes)]
+	kh := w.Spec.HeightOf(&p.Kin)
 	for _, id := range w.order {
-		if o := w.players[id]; o != p && o.Alive {
-			others = append(others, o.Kin)
+		o := w.players[id]
+		if o == p || !o.Alive {
+			continue
+		}
+		if sb, ok := playerSolid(w.Spec, &p.Kin, kh, &o.Kin); ok {
+			b = append(b, sb)
 		}
 	}
-	return PlayerSolids(w.Spec, &p.Kin, others)
+	w.boxes = b[:cap(b)][:len(w.Map.Boxes)] // keep any growth for the next call
+	return b
 }
 
 func (w *World) apply(p *Player, in Input) {
 	p.Yaw, p.Pitch = in.Yaw, in.Pitch
-	p.Speed = Step(w.Spec, w.Map, &p.Kin, MoveCmd{F: in.F, S: in.S, Yaw: in.Yaw, Jump: in.Jump, Walk: in.Walk, Crouch: in.Crouch}, w.solidsFor(p)...)
+	p.Speed = stepBoxes(w.Spec, w.Map, w.solidBoxes(p), &p.Kin, MoveCmd{F: in.F, S: in.S, Yaw: in.Yaw, Jump: in.Jump, Walk: in.Walk, Crouch: in.Crouch})
 	p.LastSeq = in.Seq
 	p.ViewTick = in.VT
 	if p.Kin.Impact > w.Spec.Player.Fall.SafeSpeed {

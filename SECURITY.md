@@ -1,7 +1,7 @@
 # Security
 
 Scope: a LAN-only hobby game (HTTP + WebSocket on a trusted office network). Not hardened for the open internet:
-there is **no TLS and no accounts**. Do not port-forward it.
+there is **no TLS and no accounts**. Do not expose it to the internet by hand; `run.sh --open-port` (UPnP, see below) opens a temporary hole on purpose and closes it again when the server stops.
 
 ## Controls implemented
 
@@ -25,7 +25,7 @@ there is **no TLS and no accounts**. Do not port-forward it.
 
 | Check | Result |
 |-------|--------|
-| `gitleaks dir .` + `gitleaks git .` before every commit (`scripts/check.sh`) | **0 findings** at every commit. One false positive occurred once: a dummy admin-token literal in a test matched `generic-api-key`; fixed by building the value at runtime (no allow-list used). |
+| `gitleaks dir .` + `gitleaks git .` before every commit (`scripts/check.sh`) | **0 findings** at every commit. One false positive occurred once: a dummy admin-token literal in a test matched `generic-api-key`; fixed by building the value at runtime. A second one (a dummy resume token literal in `resume_test.go`) was fixed the same way, but its commit stays in history, so `.gitleaksignore` lists that one fingerprint. |
 | Manual pattern grep (`api key / secret / password / token / private key / AKIA… / ghp_… / xox…`) over the tree excluding vendored code | Only identifier names and test fixtures; no credentials. No tracked `.env`/`*.pem`/`*.key`. |
 | `govulncheck ./...` | **NOT RUN SUCCESSFULLY**: the sandbox's egress policy blocks `vuln.go.dev` (HTTP 403), so the vulnerability database cannot be downloaded. `scripts/check.sh` prints `WARNING: govulncheck SKIPPED` instead of passing silently. Run it on a networked machine: `go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...`. Toolchain used: Go 1.24.7 (later 1.24.x/1.25 patch releases may contain stdlib fixes); the only third-party Go dependency is `github.com/coder/websocket v1.8.15`. |
 | `gofmt`, `go vet`, `go test -race ./...` | pass (see REPORT.md) |
@@ -46,7 +46,7 @@ Provenance of vendored code: `client/vendor/three.module.js` is `three@0.170.0` 
 
 Off by default. When enabled the server asks the router (UPnP) to forward its port and the run script opens the local firewall, both only
 while the process runs. Consequences: the game becomes reachable by anyone who learns the address, so rooms should have passwords (stored salted,
-5 wrong tries disconnect), all existing limits apply (per-IP connection cap, message rate limits, origin check, input validation), the admin endpoint stays
+5 wrong tries disconnect that connection; there is no per-IP or per-room lockout, so a short password can still be guessed with repeated connections (8 per IP)), all existing limits apply (per-IP connection cap, message rate limits, origin check, input validation), the admin endpoint stays
 disabled unless `ADMIN_TOKEN` is set, and there is no TLS (the browser shows plain `http://`). UPnP itself: the code only talks to RFC1918/link-local addresses,
 limits response sizes, never follows redirects, and every mapping has a lease. Not suitable for hostile public hosting; use it to play with friends for a session.
 

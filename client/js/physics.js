@@ -66,7 +66,11 @@ export function stepMove(spec, map, k, cmd, extra = null) {
   }
   k.vy -= p.gravity * dt;
 
-  const b = extra && extra.length ? map.boxes.concat(extra) : map.boxes;
+  // obstacles: the map boxes, then the extra ones (other players); no combined array is built per call
+  const mb = map.boxes;
+  const nb = mb.length;
+  const n = nb + (extra ? extra.length : 0);
+  const box = (i) => (i < nb ? mb[i] : extra[i - nb]);
   const hit = (o) => k.x + hw > o[0] && k.x - hw < o[3] && k.y + height > o[1] && k.y < o[4] && k.z + hw > o[2] && k.z - hw < o[5];
   // step-up: a grounded player walks onto an obstacle whose top is at most stepHeight above the feet (stairs, kerbs, ramps made of
   // small steps) when there is headroom there; anything higher blocks as before (jump instead)
@@ -74,8 +78,8 @@ export function stepMove(spec, map, k, cmd, extra = null) {
     if (!wasGround || o[4] <= k.y || o[4] - k.y > p.stepHeight) return false;
     const old = k.y;
     k.y = o[4];
-    for (let j = 0; j < b.length; j++) {
-      if (hit(b[j])) {
+    for (let j = 0; j < n; j++) {
+      if (hit(box(j))) {
         k.y = old;
         return false;
       }
@@ -84,14 +88,14 @@ export function stepMove(spec, map, k, cmd, extra = null) {
   };
   // X
   k.x += vx * dt;
-  for (let i = 0; i < b.length; i++) {
-    const o = b[i];
+  for (let i = 0; i < n; i++) {
+    const o = box(i);
     if (hit(o) && !stepUp(o)) k.x = vx > 0 ? o[0] - hw : o[3] + hw;
   }
   // Z
   k.z += vz * dt;
-  for (let i = 0; i < b.length; i++) {
-    const o = b[i];
+  for (let i = 0; i < n; i++) {
+    const o = box(i);
     if (hit(o) && !stepUp(o)) k.z = vz > 0 ? o[2] - hw : o[5] + hw;
   }
   // Y
@@ -106,8 +110,8 @@ export function stepMove(spec, map, k, cmd, extra = null) {
     }
     k.onGround = true;
   }
-  for (let i = 0; i < b.length; i++) {
-    const o = b[i];
+  for (let i = 0; i < n; i++) {
+    const o = box(i);
     if (hit(o)) {
       if (k.vy > 0) {
         k.y = o[1] - height;

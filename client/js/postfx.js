@@ -23,7 +23,8 @@ export class PostFx {
     this.composer.addPass(this.gtao);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(s.x, s.y), 0.22, 0.55, 0.92); // strength, radius, threshold: only hot highlights glow
     this.composer.addPass(this.bloom);
-    this.composer.addPass(new OutputPass()); // tone mapping + sRGB, from renderer.toneMapping
+    this.outputPass = new OutputPass();
+    this.composer.addPass(this.outputPass); // tone mapping + sRGB, from renderer.toneMapping
   }
 
   // Call after renderer.setSize / setPixelRatio.
@@ -38,6 +39,7 @@ export class PostFx {
 
   dispose() {
     this.composer.dispose();
+    this.outputPass.dispose();
     this.gtao.dispose();
     this.bloom.dispose();
   }

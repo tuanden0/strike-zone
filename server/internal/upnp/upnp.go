@@ -187,6 +187,13 @@ func FromLocation(ctx context.Context, loc string) (*Gateway, error) {
 	return &Gateway{control: ctl, service: svc.Type, client: client, LocalIP: local, Location: loc}, nil
 }
 
+// faultError is a SOAP fault returned by the router (UPnP error codes: 714 = no such mapping).
+type faultError struct{ action, code, desc string }
+
+func (e *faultError) Error() string {
+	return fmt.Sprintf("upnp %s refused: error %s %s", e.action, e.code, e.desc)
+}
+
 type soapFault struct {
 	Code string `xml:"Body>Fault>detail>UPnPError>errorCode"`
 	Desc string `xml:"Body>Fault>detail>UPnPError>errorDescription"`
@@ -217,7 +224,7 @@ func (g *Gateway) call(ctx context.Context, action string, args [][2]string) ([]
 	if resp.StatusCode != http.StatusOK {
 		var f soapFault
 		if xml.Unmarshal(body, &f) == nil && f.Code != "" {
-			return nil, fmt.Errorf("upnp %s refused: error %s %s", action, f.Code, f.Desc)
+			return nil, &faultError{action: action, code: f.Code, desc: f.Desc}
 		}
 		return nil, fmt.Errorf("upnp %s: HTTP %d", action, resp.StatusCode)
 	}
@@ -258,6 +265,10 @@ func (g *Gateway) AddPortMapping(ctx context.Context, extPort, intPort int, inte
 // DeletePortMapping removes the forward. A mapping that is already gone is not an error worth failing shutdown for.
 func (g *Gateway) DeletePortMapping(ctx context.Context, extPort int) error {
 	_, err := g.call(ctx, "DeletePortMapping", [][2]string{{"NewRemoteHost", ""}, {"NewExternalPort", strconv.Itoa(extPort)}, {"NewProtocol", "TCP"}})
+	var f *faultError
+	if errors.As(err, &f) && f.code == "714" {
+		return nil // NoSuchEntryInArray: the lease already expired or the router dropped it
+	}
 	return err
 }
 

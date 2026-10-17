@@ -14,7 +14,11 @@ const (
 // boomAt places a grenade of type g that explodes on the next Step.
 func boomAt(w *World, g, owner int, x, y, z float64) {
 	w.nextNade++
-	w.grenades = append(w.grenades, &Grenade{ID: w.nextNade, G: g, Owner: owner, Pos: [3]float64{x, y, z}, Fuse: 1})
+	team := ""
+	if p := w.players[owner]; p != nil {
+		team = p.Team
+	}
+	w.grenades = append(w.grenades, &Grenade{ID: w.nextNade, G: g, Owner: owner, Team: team, Pos: [3]float64{x, y, z}, Fuse: 1})
 }
 
 func TestThrowConsumesInventoryAndHonoursCooldown(t *testing.T) {

@@ -5,6 +5,7 @@
 
 const RETRY_WINDOW_MS = 25000; // a bit under the server's 30 s seat hold
 const FINAL_CLOSE = new Set([1001, 1008, 1013]); // going away (server stopping), policy violation (kicked), try again later (full)
+const DEAD_LINK_MS = 10000;
 const RETRY_DELAYS = [300, 700, 1200, 2000, 3000];
 
 export class Net {
@@ -36,10 +37,21 @@ export class Net {
       let opened = false;
       ws.addEventListener('open', () => {
         opened = true;
-        this._ping = setInterval(() => this.send({ t: 'ping', ts: performance.now() }), 4000);
+        this._lastMsg = performance.now();
+        this._ping = setInterval(() => {
+          // a half-open socket (Wi-Fi roam, phone sleep) never reports a close: no message (not even a pong) for 10 s means the link is dead
+          if (performance.now() - this._lastMsg > DEAD_LINK_MS) {
+            clearInterval(this._ping);
+            ws.close(); // (its close event may take a minute on a dead link: treat the link as lost now)
+            if (this.ws === ws) this.ws = null;
+            if (this.token && !this._gone) this._lost();
+            else this.onClose({});
+          } else this.send({ t: 'ping', ts: performance.now() });
+        }, 4000);
         resolve();
       });
       ws.addEventListener('message', (ev) => {
+        this._lastMsg = performance.now();
         let m;
         try {
           m = JSON.parse(ev.data);

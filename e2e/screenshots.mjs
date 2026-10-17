@@ -3,9 +3,11 @@
 //   E2E_QUALITY=high node screenshots.mjs [outDir]
 import { launch } from './lib.mjs';
 import { mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const BASE = process.env.BASE_URL || 'http://localhost:8080';
-const out = process.argv[2] || '../docs/screenshots';
+const out = process.argv[2] || join(tmpdir(), 'strike-zone-shots'); // pass docs/screenshots to refresh the committed images
 mkdirSync(out, { recursive: true });
 const b = await launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });

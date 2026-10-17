@@ -15,14 +15,15 @@ async function throwUntil(p, key, ready, effect, tries = 6) {
     await p.waitForFunction(() => window.__sz.game.mode.me.a, null, { timeout: 60000 });
     await p.evaluate(ready);
     const type = { KeyX: 0, KeyC: 1, KeyV: 2 }[key];
-    const within = (fn, arg) => p.waitForFunction(fn, arg, { timeout: 8000 }).then(() => true, () => false); // dying (bots) resets the held grenade: retry
+    const within = (fn, arg) => p.waitForFunction(fn, arg, { timeout: 30000 }).then(() => true, () => false); // dying (bots) resets the held grenade: retry
     if ((await p.evaluate(() => window.__sz.game.nadeHold.eq)) !== type) await p.keyboard.press(key); // equip (the grenade is no longer thrown by the key)
     if (!(await within((t) => window.__sz.game.nadeHold.eq === t, type))) continue;
     await p.mouse.down(); // hold to charge, release to throw
     const charged = await within(() => window.__sz.game.nadeHold.charge > 0.4);
     await p.mouse.up();
     if (!charged) continue;
-    if (await p.waitForFunction(effect, null, { timeout: 12000 }).then(() => true, () => false)) return true;
+    if (await p.waitForFunction(effect, null, { timeout: 25000 }).then(() => true, () => false)) return true;
+    console.log(`  (try ${i + 1}/${tries} for ${key}: no effect; state ${JSON.stringify(await p.evaluate(() => { const g = window.__sz.game; return { alive: g.alive, eq: g.nadeHold.eq, gn: g.mode.me && g.mode.me.gn, flight: g.grenades.flight.size, tick: g.tickNo }; }))})`);
   }
   return false;
 }

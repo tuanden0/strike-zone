@@ -23,7 +23,7 @@ export class Sfx {
         const d = this.noiseBuf.getChannelData(0);
         for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
       }
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.ctx.state !== 'running') this.ctx.resume(); // 'suspended', or 'interrupted' after a call / backgrounding on iOS
     } catch (e) {
       console.warn('audio unavailable', e);
       this.ctx = null;
@@ -132,7 +132,11 @@ export class Sfx {
   // opts (optional): {gain, pitch, pan, surface} - used by footsteps.js (gain multiplies the sound, pan offsets non-positional sounds)
   play(name, pos = null, listener = null, opts = null) {
     const c = this.ctx;
-    if (!c || c.state !== 'running') return;
+    if (!c) return;
+    if (c.state !== 'running') {
+      Promise.resolve(c.resume()).catch(() => {}); // skip: still blocked until a user gesture
+      return;
+    }
     const t = c.currentTime;
     const gm = opts && opts.gain !== undefined ? opts.gain : 1;
     const pit = (opts && opts.pitch) || 1;

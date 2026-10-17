@@ -7,8 +7,9 @@ import { INTERP_MS } from './game.js';
 const MAX_PENDING = 120;
 
 export class Online {
-  constructor({ spec, net, myId, room, team, hud, sfx, pickups }) {
+  constructor({ spec, net, myId, room, team, hud, sfx, pickups, roster }) {
     this.initialPickups = pickups || [];
+    this.initialRoster = roster || null; // the roster that arrived while the map was loading
     this.spec = spec;
     this.net = net;
     this.myId = myId;
@@ -40,6 +41,7 @@ export class Online {
     this.hud.setPractice('');
     this.hud.setHealth(this.spec.player.maxHealth);
     game.pickups.setList(this.initialPickups);
+    if (this.initialRoster) this.onRoster(this.initialRoster);
     this.offs = [
       this.net.on('pk', (m) => game.pickups.setList(m.list)),
       this.net.on('snap', (m) => this.onSnap(m)),
@@ -125,6 +127,16 @@ export class Online {
     const now = performance.now();
     this.snapLog.push({ t: now, k: m.k });
     if (this.snapLog.length > 40) this.snapLog.shift();
+    // the other players first: reconcile replays our pending inputs against their newest positions (see Game.solids)
+    for (const p of m.ps) {
+      if (p.i === this.myId) continue;
+      let v = game.remotes.get(p.i);
+      if (!v) {
+        const r = this.nameOf(p.i);
+        v = game.addRemote(p.i, r.nick, r.team || 'A', r.team === game.myTeam);
+      }
+      v.push(now, { x: p.x, y: p.y, z: p.z, yaw: p.yw, alive: p.a, w: p.w, c: p.c });
+    }
     const you = m.you;
     if (you) {
       this.reconcile(you);
@@ -134,15 +146,6 @@ export class Online {
       if (you.fl > 0 && !this.flashed) this.sfx.play('flashbang');
       this.flashed = you.fl > 0;
       this.hud.setFlash(you.fl || 0);
-    }
-    for (const p of m.ps) {
-      if (p.i === this.myId) continue;
-      let v = game.remotes.get(p.i);
-      if (!v) {
-        const r = this.nameOf(p.i);
-        v = game.addRemote(p.i, r.nick, r.team || 'A', r.team === game.myTeam);
-      }
-      v.push(now, { x: p.x, y: p.y, z: p.z, yaw: p.yw, alive: p.a, w: p.w, c: p.c });
     }
     game.grenades.setFlight(m.gr);
     game.grenades.setSmokes(m.sm);

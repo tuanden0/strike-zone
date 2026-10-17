@@ -99,11 +99,11 @@ try {
   await touch('touchEnd', []);
   const yEnd = await sampleYaw();
   const pEnd = await sz(p, () => window.__sz.input.pitch);
-  await p.waitForFunction(() => new Promise((r) => setTimeout(() => r(true), 700)));
+  await ticks(p, 20); // game ticks, not milliseconds: software GL renders about one frame a second, so 700 ms could be zero frames
   check('releasing the aim stick stops the turn', (await sampleYaw()) === yEnd && (await sz(p, () => window.__sz.input.pitch)) === pEnd);
   await touch('touchStart', [[600, 200, 6]]);
   await touch('touchMove', [[606, 200, 6]]); // a 6 px nudge sits in the dead zone: no creeping
-  await p.waitForFunction(() => new Promise((r) => setTimeout(() => r(true), 500)));
+  await ticks(p, 15);
   check('a tiny nudge (dead zone) does not turn the view', (await sampleYaw()) === yEnd);
   await touch('touchEnd', []);
   await ticks(p, 10); // the nudge above ended as a tap: let its shot (and recoil) happen before the ammo is reset
@@ -126,6 +126,7 @@ try {
   check('four quick taps fire four shots', (await mag(p)) === 25, `mag ${await mag(p)}`);
   // a tap that leaves the dead zone is a steer, not a shot
   const y1 = await sampleYaw();
+  await sz(p, () => { window.__sz.input.touchUi.holdMs = 300; }); // the real hold window, so that the check below can fail
   await touch('touchStart', [[600, 200, 20]]);
   await touch('touchMove', [[670, 200, 20]]);
   await p.waitForFunction((y) => Math.abs(window.__sz.input.yaw - y) > 0.2, y1);

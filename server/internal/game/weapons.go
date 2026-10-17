@@ -90,7 +90,7 @@ func (w *World) weapons(p *Player, in Input) {
 			}
 			p.BurstUntil = w.Tick + ws.IntervalTicks + w.Spec.Recoil.GraceTicks
 			p.ProtectUntil = 0 // attacking ends spawn protection
-			w.shots = append(w.shots, p)
+			w.shots = append(w.shots, shotReq{p: p, weapon: p.Cur, yaw: p.Yaw, pitch: p.Pitch, burst: p.Burst, scoped: p.Scoped, speed: p.Speed})
 		}
 	}
 }

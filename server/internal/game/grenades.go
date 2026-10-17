@@ -12,6 +12,7 @@ const (
 // Grenade is a thrown projectile (server-simulated; clients only render it).
 type Grenade struct {
 	ID, G, Owner int
+	Team         string // the thrower's team when it was thrown (the owner may be gone by the time it goes off)
 	Pos, Vel     [3]float64
 	Fuse         int // ticks left
 }
@@ -63,7 +64,7 @@ func (w *World) throwNade(p *Player, g int, power float64) {
 	sp := gs.Speed * k
 	w.nextNade++
 	w.grenades = append(w.grenades, &Grenade{
-		ID: w.nextNade, G: g, Owner: p.ID, Pos: start,
+		ID: w.nextNade, G: g, Owner: p.ID, Team: p.Team, Pos: start,
 		Vel:  [3]float64{dir[0] * sp, dir[1]*sp + gs.UpBias*k, dir[2] * sp},
 		Fuse: gs.FuseTicks,
 	})
@@ -198,8 +199,8 @@ func (w *World) explode(g *Grenade) {
 			if !v.Alive || w.Tick < v.ProtectUntil {
 				continue
 			}
-			if owner != nil && v != owner && v.Team == owner.Team {
-				continue // no friendly fire
+			if v != owner && v.Team == g.Team {
+				continue // no friendly fire (also when the thrower has left)
 			}
 			bs, _ := w.Spec.Boxes(v.Kin.Crouch)
 			c := [3]float64{v.Kin.X, v.Kin.Y + bs.Y1/2, v.Kin.Z}

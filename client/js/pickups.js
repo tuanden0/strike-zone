@@ -17,9 +17,14 @@ export class Pickups {
   }
 
   clear() {
-    for (const it of this.items.values()) this.group.remove(it.root);
+    for (const it of this.items.values()) this._drop(it);
     this.items.clear();
     this.nearest = null;
+  }
+
+  _drop(it) {
+    this.group.remove(it.root);
+    it.ring.material.dispose(); // the ring geometry is shared, its material is per pickup
   }
 
   _make(p) {
@@ -59,7 +64,7 @@ export class Pickups {
     const ids = new Set(list.map((p) => p.id));
     for (const [id, it] of this.items) {
       if (!ids.has(id)) {
-        this.group.remove(it.root);
+        this._drop(it);
         this.items.delete(id);
       }
     }
