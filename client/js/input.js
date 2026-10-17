@@ -29,6 +29,7 @@ export class Input {
     }
     this.mouseDown = false;
     this.tap = false;
+    this.firePulse = 0; // extra fire ticks after a touch tap (see touch.js)
     this.reload = false;
     this.drop = false;
     this.use = false;
@@ -205,7 +206,7 @@ export class Input {
       jump: live && (k.has('Space') || this.pad.jump),
       walk: live && (k.has('AltLeft') || k.has('AltRight')), // Alt = quiet slow walk
       crouch: live && (k.has('ShiftLeft') || k.has('ShiftRight') || this.crouchHeld || this.pad.crouch), // Shift = crouch (touch: CROUCH toggle)
-      fire: live && (this.mouseDown || this.tap || this.pad.fire),
+      fire: live && (this.mouseDown || this.tap || this.pad.fire || this.firePulse > 0),
       reload: live && this.reload,
       drop: live && this.drop,
       use: live && this.use,
@@ -216,6 +217,7 @@ export class Input {
       pitch: this.pitch,
     };
     this.tap = false;
+    if (this.firePulse > 0) this.firePulse--;
     this.reload = false;
     this.drop = false;
     this.use = false;

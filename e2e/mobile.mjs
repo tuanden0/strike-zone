@@ -106,6 +106,8 @@ try {
   await p.waitForFunction(() => new Promise((r) => setTimeout(() => r(true), 500)));
   check('a tiny nudge (dead zone) does not turn the view', (await sampleYaw()) === yEnd);
   await touch('touchEnd', []);
+  await ticks(p, 10); // the nudge above ended as a tap: let its shot (and recoil) happen before the ammo is reset
+  await p.waitForFunction(() => window.__sz.game.punch < 1e-4 && window.__sz.game.sinceFire > 0.5);
   await sz(p, () => { window.__sz.game.loadout.mag[0] = 30; window.__sz.input.touchUi.holdMs = 2500; }); // taps/steers must not turn into a hold when the browser delivers the touch late
   // Aim control = fire: a short tap shoots exactly once (no double fire from the synthesized mouse events), the ring flashes
   await touch('touchStart', [[600, 200, 7]]);

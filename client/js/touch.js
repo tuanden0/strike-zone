@@ -13,7 +13,7 @@ const LOOK_KEY = 'sz.look'; // touch drag px -> radians relative to the mouse se
 // Fire lives inside the aim control: a short tap shoots once, holding still in the dead zone engages auto-fire, pushing steers.
 const HOLD_MS = 300; // tap = finger up before this; still in the dead zone after this = auto-fire
 const DRAG_DEAD = 10; // swipe mode: px of travel that count as "leaving the dead zone"
-const PULSE_MS = 60; // mouseDown pulse of a tap: 1-2 ticks, enough for the server's semi-auto edge detection, too short to double-fire the rifle (3-tick interval)
+// A tap is `tap` (one fire tick) plus Input.firePulse = 1 more tick: counted in simulation ticks, not milliseconds, so a late frame cannot stretch it into a burst.
 
 const $ = (id) => document.getElementById(id);
 
@@ -57,7 +57,6 @@ export class TouchControls {
     this.knob = $('t-knob');
     this.move = { id: null, x0: 0, y0: 0 };
     this.look = { id: null, x: 0, y: 0, x0: 0, y0: 0, ax: 0, ay: 0, t0: 0, left: false, auto: false };
-    this.pulse = 0; // timer of the mouseDown pulse of a tap
     this.holdMs = HOLD_MS; // (a field so e2e can stretch it: under software GL a CDP touch can reach the page hundreds of ms late)
     this.lstick = $('t-lstick');
     this.lknob = $('t-lknob');
@@ -142,7 +141,6 @@ export class TouchControls {
   reset() {
     this.move.id = null;
     this.endLook(true);
-    clearTimeout(this.pulse);
     this.input.mouseDown = false;
     this.input.mv.f = this.input.mv.s = 0;
     this.stick.classList.remove('on');
@@ -250,13 +248,11 @@ export class TouchControls {
     this.lstick.classList.toggle('fire', on);
   }
 
-  // One shot: `tap` guarantees a fire tick, the short mouseDown pulse spans the server's semi-auto edge detection.
+  // One shot: `tap` guarantees a fire tick, one more pulse tick spans the server's semi-auto edge detection.
   tapShot() {
     const inp = this.input;
     inp.tap = true;
-    inp.mouseDown = true;
-    clearTimeout(this.pulse);
-    this.pulse = setTimeout(() => (inp.mouseDown = false), PULSE_MS);
+    inp.firePulse = 2; // (the tap tick itself uses one: the sample decrements it)
     const ring = this.lstick;
     ring.classList.add('on', 'fire', 'tapshot');
     setTimeout(() => {
