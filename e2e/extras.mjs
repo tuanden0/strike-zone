@@ -34,6 +34,29 @@ try {
   await p.waitForFunction((t) => window.__sz.game.tickNo > t + 90, fall.tick);
   const fell = await p.evaluate((i) => { const t = window.__sz.game.mode.targets[i]; return { px: t.px, vx: t.vx, x: t.view.group.position.x }; }, fall.i);
   check('a dead patrolling dummy stays where it fell', fell.px === fall.px && fell.vx === 0 && Math.abs(fell.x - fall.px) < 0.01, JSON.stringify({ at: fall.px, now: fell }));
+  // Shift = crouch: lower eye + camera, slower, back up on release; Alt = the old quiet walk
+  const st0 = await p.evaluate(() => { const g = window.__sz.game; return { y: g.eye()[1] - g.kin.y, z: g.kin.z, tick: g.tickNo }; });
+  await p.keyboard.down('ShiftLeft');
+  await p.keyboard.down('KeyW');
+  await p.waitForFunction(() => window.__sz.game.kin.crouch === true);
+  check('Shift crouches', true);
+  const t1 = await p.evaluate(() => window.__sz.game.tickNo);
+  await p.waitForFunction((t) => window.__sz.game.tickNo > t + 30, t1);
+  const cr = await p.evaluate(() => { const g = window.__sz.game; return { eye: g.eye()[1] - g.kin.y, cam: g.camera.position.y - g.kin.y, speed: g.speed, spec: g.spec.player.crouch }; });
+  check('crouched: eye height 0.98 m and the camera follows', Math.abs(cr.eye - cr.spec.eyeHeight) < 1e-9 && cr.cam < 1.2 && cr.cam > cr.spec.eyeHeight - 0.05, JSON.stringify(cr));
+  check('crouched: moves at crouch speed (2.2 m/s), not run speed', Math.abs(cr.speed - cr.spec.speed) < 0.05, `${cr.speed.toFixed(2)} m/s`);
+  await p.keyboard.up('ShiftLeft');
+  await p.waitForFunction(() => window.__sz.game.kin.crouch === false);
+  await p.waitForFunction(() => Math.abs(window.__sz.game.speed - window.__sz.game.spec.player.runSpeed) < 0.05);
+  await p.keyboard.up('KeyW');
+  check('releasing Shift stands up and restores run speed', true);
+  await p.keyboard.down('AltLeft');
+  await p.keyboard.down('KeyW');
+  await p.waitForFunction(() => Math.abs(window.__sz.game.speed - window.__sz.game.spec.player.walkSpeed) < 0.05);
+  await p.keyboard.up('KeyW');
+  await p.keyboard.up('AltLeft');
+  check('Alt = slow walk (2.8 m/s)', true);
+
   const r = await p.evaluate(() => {
     const g = window.__sz.game, m = g.mode;
     for (const t of m.targets) t.mx = 0;

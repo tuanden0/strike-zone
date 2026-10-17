@@ -46,6 +46,7 @@ type Input struct {
 	Reload bool    `json:"reload"`
 	Weapon int     `json:"weapon"` // -1 = keep current; decode into Input{Weapon: -1}
 	Drop   bool    `json:"drop"`   // edge-detected server side: drop the current weapon
+	Crouch bool    `json:"crouch"` // Shift held: lowered stance (the server decides whether there is room to stand again)
 	Nade   int     `json:"nade"`   // throw grenade type Nade-1 (0 = none); cooldown + inventory enforced server side
 	Use    bool    `json:"use"`    // edge-detected server side: pick up the nearest weapon
 	Scope  bool    `json:"scope"`  // zoom held; only has an effect with a scoped weapon (see WeaponSpec.ScopeFov)
@@ -289,7 +290,7 @@ func (w *World) pickSpawn(p *Player) Spawn {
 
 func (w *World) respawn(p *Player) {
 	sp := w.pickSpawn(p)
-	p.Kin = Kin{X: sp.X, Y: 0, Z: sp.Z, OnGround: true}
+	p.Kin = Kin{X: sp.X, Y: 0, Z: sp.Z, OnGround: true} // standing
 	p.Yaw, p.Pitch, p.Speed = sp.Yaw, 0, 0
 	p.HP = w.Spec.Player.MaxHealth
 	p.Alive = true
@@ -354,7 +355,7 @@ func (w *World) Step() {
 
 func (w *World) apply(p *Player, in Input) {
 	p.Yaw, p.Pitch = in.Yaw, in.Pitch
-	p.Speed = Step(w.Spec, w.Map, &p.Kin, MoveCmd{F: in.F, S: in.S, Yaw: in.Yaw, Jump: in.Jump, Walk: in.Walk})
+	p.Speed = Step(w.Spec, w.Map, &p.Kin, MoveCmd{F: in.F, S: in.S, Yaw: in.Yaw, Jump: in.Jump, Walk: in.Walk, Crouch: in.Crouch})
 	p.LastSeq = in.Seq
 	w.weapons(p, in)
 }

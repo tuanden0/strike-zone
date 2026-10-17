@@ -11,14 +11,16 @@ type goldenCmd struct {
 	F, S, Yaw float64
 	Jump      bool
 	Walk      bool
+	Crouch    bool
 }
 
 type goldenScenario struct {
 	Start  [3]float64
 	Inputs []goldenCmd
+	Boxes  [][6]float64 // extra collision boxes for this scenario (e.g. a low beam)
 	Expect []struct {
 		X, Y, Z, Vy float64
-		G           bool
+		G, C        bool
 	}
 }
 
@@ -42,19 +44,32 @@ func TestMoveMatchesJSGolden(t *testing.T) {
 	if err := json.Unmarshal(raw, &sc); err != nil {
 		t.Fatal(err)
 	}
-	if len(sc) < 4 {
-		t.Fatalf("expected >=4 scenarios, got %d", len(sc))
+	if len(sc) < 6 {
+		t.Fatalf("expected >=6 scenarios, got %d", len(sc))
 	}
+	crouched := 0
 	const eps = 1e-9
 	for si, s := range sc {
 		k := Kin{X: s.Start[0], Y: s.Start[1], Z: s.Start[2]}
+		mm := m
+		if len(s.Boxes) > 0 {
+			c := *m
+			c.Boxes = append(append([][6]float64(nil), m.Boxes...), s.Boxes...)
+			mm = &c
+		}
 		for i, in := range s.Inputs {
-			Step(spec, m, &k, MoveCmd{F: in.F, S: in.S, Yaw: in.Yaw, Jump: in.Jump, Walk: in.Walk})
+			Step(spec, mm, &k, MoveCmd{F: in.F, S: in.S, Yaw: in.Yaw, Jump: in.Jump, Walk: in.Walk, Crouch: in.Crouch})
+			if k.Crouch {
+				crouched++
+			}
 			e := s.Expect[i]
-			if math.Abs(k.X-e.X) > eps || math.Abs(k.Y-e.Y) > eps || math.Abs(k.Z-e.Z) > eps || math.Abs(k.Vy-e.Vy) > eps || k.OnGround != e.G {
+			if math.Abs(k.X-e.X) > eps || math.Abs(k.Y-e.Y) > eps || math.Abs(k.Z-e.Z) > eps || math.Abs(k.Vy-e.Vy) > eps || k.OnGround != e.G || k.Crouch != e.C {
 				t.Fatalf("scenario %d step %d: go=%+v js=%+v", si, i, k, e)
 			}
 		}
+	}
+	if crouched < 100 {
+		t.Fatalf("golden scenarios barely exercise crouching (%d ticks)", crouched)
 	}
 }
 

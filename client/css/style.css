@@ -5,7 +5,8 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 [hidden] { display: none !important; }
 .team-a { color: var(--a); } .team-b { color: var(--b); }
 
-.screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(8, 10, 14, 0.82); z-index: 20; overflow: auto; padding: 16px; }
+.screen { position: fixed; inset: 0; display: flex; align-items: flex-start; justify-content: center; background: rgba(8, 10, 14, 0.82); z-index: 20; overflow: auto; padding: 16px; }
+.screen > .panel { margin: auto; } /* centres when it fits, scrolls from the top (never clips it) when the window is short */
 .panel { background: var(--bg); border: 1px solid #2a303c; border-radius: 10px; padding: 24px 28px; width: min(440px, 100%); display: flex; flex-direction: column; gap: 10px; }
 .panel.wide { width: min(760px, 100%); max-height: 100%; overflow: auto; }
 h1 { margin: 0; font-size: 40px; letter-spacing: 4px; } h1 span { color: var(--acc); }
@@ -111,3 +112,4 @@ body.touch #practice-stats { top: 70px; }
 #t-nadesel { right: calc(276px + env(safe-area-inset-right)); bottom: calc(158px + env(safe-area-inset-bottom)); width: 40px !important; height: 40px !important; font-size: 10px !important; }
 body.touch #nades { justify-content: center; }
 #pause-bots { display: flex; flex-direction: column; gap: 8px; }
+#t-crouch { right: calc(136px + env(safe-area-inset-right)); bottom: calc(164px + env(safe-area-inset-bottom)); width: 50px !important; height: 50px !important; font-size: 10px !important; }

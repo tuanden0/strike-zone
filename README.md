@@ -79,7 +79,7 @@ Copy **one file** to the host machine (the client is embedded) and run it:
 
 ### Controls
 
-`W A S D` move · mouse aim · `Space` jump · `Shift` walk (quiet) · `R` reload · `1` rifle `2` pistol `3` knife · left mouse fire/slash · `Tab` scoreboard · `E` pick up weapon · `G` drop weapon · `X`/`C`/`V` frag/smoke/flash · `4` sniper (once picked up) · right click to scope in/out
+`W A S D` move · mouse aim · `Space` jump · `Shift` crouch (hold) · `Alt` walk (slow, quiet) · `R` reload · `1` rifle `2` pistol `3` knife · left mouse fire/slash · `Tab` scoreboard · `E` pick up weapon · `G` drop weapon · `X`/`C`/`V` frag/smoke/flash · `4` sniper (once picked up) · right click to scope in/out
 
 **Phones/tablets:** open the same URL in the mobile browser (landscape). Left thumb = move stick, right thumb = look, buttons: FIRE · JUMP · R (reload) · USE (pick up) · DROP · tap `1 2 3` to switch weapon, `TAB` scoreboard, `II` pause menu. Touch devices default to Graphics = Low; no Pointer Lock or HTTPS is needed. iOS Safari has no fullscreen API for pages, so add the page to the home screen for a full-screen view.
 
@@ -90,6 +90,8 @@ Copy **one file** to the host machine (the client is embedded) and run it:
 **Grenades:** every spawn carries one HE (frag), one smoke and one flashbang: `X` / `C` / `V` (touch: **NADE** throws the selected type, tap the small label next to it to change). Grenades are simulated on the server, bounce off walls and floor and go off after 1.5–2 s. HE does up to 120 damage falling off to 0 at 7 m, needs a clear line to you, spares teammates and hurts the thrower by half; smoke makes a 14 s cloud; a flashbang whites out your screen (more when you look at it, none behind a wall). Online only (the practice range has no grenades).
 
 **Bots:** tick *Bots* + *Bot skill* when creating a room, or use **+ Bot Ember / + Bot Cobalt / - Bot** in the pause menu while playing. Bots navigate every map with A\* on a grid, see only what is in front of them with a clear line (not through smoke, blind when flashed), shoot in bursts (so recoil bloom applies to them too), take cover-less strafe fights, and throw the odd grenade. A human joining a room full of bots takes a bot's slot. Skill: easy (slow reactions, wide aim error), normal, hard.
+
+**Crouch:** hold `Shift` (touch: **DUCK** toggle). Crouching lowers your eye (0.98 m) and hitboxes (1.15 m tall: a shot at standing head height passes over you), slows you to 2.2 m/s, makes no footstep noise and forbids jumping. Releasing Shift under a low ceiling keeps you crouched until there is room to stand. Other players see the crouch pose. This replaces the old Shift=walk binding; walking is now `Alt`.
 
 **Maps:** *Yard* (cover-rich arena) and *Crossroads* (empty four-way intersection with a building on each corner, inspired by classic crossroads maps). Choose it when creating a room or in Practice. Weapons lie at spawn points on each map and respawn 20 s after pick-up; dropped weapons vanish after 60 s.
 

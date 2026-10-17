@@ -61,7 +61,8 @@ Before `hello` only `hello` and `ping` are accepted. Protocol violations get an 
 | `seq` | uint32, strictly increasing | Acknowledged back in `you.ack`; stale/duplicate → rejected. |
 | `f`, `s` | number in [-1, 1] | Forward / strafe axes. Out of range → rejected (not clamped). |
 | `yaw`, `pitch` | finite; `|yaw| ≤ 1e4`, `pitch ∈ [-1.6, 1.6]` | View angles (radians). |
-| `jump`, `walk`, `fire`, `reload` | bool | Buttons. `walk` = Shift (slow, quiet). `fire` = held state. |
+| `jump`, `walk`, `fire`, `reload` | bool | Buttons. `walk` = Alt (slow, quiet). `fire` = held state. |
+| `crouch` | bool | Shift held. The server keeps you crouched while a ceiling blocks standing; starting a crouch needs the ground; no jumping while crouched. Missing = false. |
 | `weapon` | int, -1 … (weapons-1) | -1 keep, else request switch to slot (0 rifle, 1 pistol, 2 knife, 3 sniper). Switching to a weapon you do not own is ignored. Missing = -1. |
 | `scope` | bool | Zoom held. Only has an effect while holding a weapon with `scopeFov > 0` (the sniper) and not reloading; scoped shots use `scopedSpread` instead of `spread`. Missing = false. |
 | `nade` | int 0 … grenade types | 0 = none, else throw grenade type `nade-1` (0 frag, 1 smoke, 2 flash) along the view. Inventory, a 1 s cooldown and the alive check are enforced by the server; a held key cannot spam. Missing = 0. |
@@ -93,7 +94,7 @@ Error codes: `bad_request`, `not_ready`, `bad_password`, `room_full`, `team_full
 
 ```json
 {"t":"snap","k":1021,"st":"playing","tl":412,"sc":[7,5],
- "ps":[{"i":1,"x":3.1,"y":0,"z":12.2,"yw":0.4,"pt":0,"a":true,"w":0}],
+ "ps":[{"i":1,"x":3.1,"y":0,"z":12.2,"yw":0.4,"pt":0,"a":true,"w":0,"c":false}],
  "you":{"x":3.1,"y":0,"z":12.2,"vy":0,"g":true,"yw":0.4,"hp":100,"a":true,"w":0,
         "has":[true,true,true,false],"mag":[30,12,0,0],"res":[90,48,0,0],"rl":0,"cd":0,"pf":false,"bu":0,"bx":0,"gn":[1,1,1],"fl":0,"resp":0,"prot":false,"ack":1234},
  "ev":[{"e":"shot","by":1,"w":0,"from":[3.1,1.62,12.2],"to":[3.0,1.0,-8.0],"hit":"body"}]}
@@ -101,10 +102,10 @@ Error codes: `bad_request`, `not_ready`, `bad_password`, `room_full`, `team_full
 
 * `k` server tick, `st` match state, `win` (`A`/`B`/`draw`, only when `st="ended"`), `tl` seconds left in
   the current phase (match, or intermission), `sc` team scores.
-* `ps` all players (including you): feet position, view angles, alive flag, current weapon index.
+* `ps` all players (including you): feet position, view angles, alive flag, current weapon index, `c` (only when crouching: lower hitboxes, crouch pose).
 * `you` private state: authoritative kinematics (`vy`, `g` = on ground) for **reconciliation**, `ack` = last
   processed `seq`; health; per-weapon `has` (weapon owned; false after dropping it) / `mag` / `res`; `rl` ticks until reload completes; `cd` ticks until next
-  shot allowed; `pf` fire was held last input (semi-auto edge); `gn` grenades left per type; `fl` ticks of flashbang blindness left; `bu`/`bx` consecutive shots in the current burst / ticks until it expires (drives spread bloom and the view-kick ramp, see below); `resp` ticks until respawn; `prot` spawn protection.
+  shot allowed; `pf` fire was held last input (semi-auto edge); `cr` crouching (needed to replay inputs with the right stance); `gn` grenades left per type; `fl` ticks of flashbang blindness left; `bu`/`bx` consecutive shots in the current burst / ticks until it expires (drives spread bloom and the view-kick ramp, see below); `resp` ticks until respawn; `prot` spawn protection.
 * `ev` events produced this tick:
   * `shot` `{by,w,from,to,hit}` — `hit` ∈ `""`(nothing in range), `"wall"`, `"body"`, `"head"`. Also sent for knife swings.
   * `hit` `{by,v,w,dmg,head}` — damage dealt (`dmg` includes the headshot multiplier).

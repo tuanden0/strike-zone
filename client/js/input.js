@@ -41,6 +41,7 @@ export class Input {
     this.touch = isTouch;
     this.touchLocked = false;
     this.mv = { f: 0, s: 0 }; // touch stick axes
+    this.crouchHeld = false; // touch CROUCH toggle
     this.scopeHeld = false; // scope toggled on (right click / touch SCOPE button)
     this.sensScale = 1; // < 1 while zoomed (set by Game.updateScope)
     if (this.touch) {
@@ -95,7 +96,7 @@ export class Input {
       if (e.code === 'Digit2') this.weapon = 1;
       if (e.code === 'Digit3') this.weapon = 2;
       if (e.code === 'Digit4') this.weapon = 3;
-      if (e.code === 'Space') e.preventDefault();
+      if (e.code === 'Space' || e.code === 'AltLeft' || e.code === 'AltRight') e.preventDefault(); // Alt would focus the browser menu
     });
     document.addEventListener('keyup', (e) => {
       this.keys.delete(e.code);
@@ -178,7 +179,8 @@ export class Input {
       f: live ? Math.max(-1, Math.min(1, (k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0) + this.mv.f)) : 0,
       s: live ? Math.max(-1, Math.min(1, (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0) + this.mv.s)) : 0,
       jump: live && k.has('Space'),
-      walk: live && (k.has('ShiftLeft') || k.has('ShiftRight')),
+      walk: live && (k.has('AltLeft') || k.has('AltRight')), // Alt = quiet slow walk
+      crouch: live && (k.has('ShiftLeft') || k.has('ShiftRight') || this.crouchHeld), // Shift = crouch (touch: CROUCH toggle)
       fire: live && (this.mouseDown || this.tap),
       reload: live && this.reload,
       drop: live && this.drop,

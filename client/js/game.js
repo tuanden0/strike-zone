@@ -1,6 +1,6 @@
 // Rendering + fixed-tick local simulation. Mode objects (practice.js / online.js) plug in game rules.
 import * as THREE from '../vendor/three.module.js';
-import { stepMove, createKin, aimDir, rayWorld } from './physics.js';
+import { stepMove, createKin, aimDir, rayWorld, eyeOf } from './physics.js';
 import { Loadout, burstKick, spread } from './weapons.js';
 import { buildWorld, buildLights, buildEnvironment, fitShadow } from './world.js';
 import { Pickups } from './pickups.js';
@@ -92,6 +92,8 @@ export class RemoteView {
     this.alive = latest.alive;
     this.char.setWeapon(latest.w);
     this.char.setDead(!this.alive);
+    this.char.setCrouch(!!latest.c && this.alive);
+    if (this.label) this.label.position.y = this.game.spec.player.height + 0.45 - (this.char.crouch ? 0.6 : 0);
     this.group.position.set(s.x, s.y, s.z);
     this.group.rotation.y = s.yaw;
     this.t += dt;
@@ -226,6 +228,7 @@ export class Game {
 
     this.loadout = new Loadout(spec);
     this.kin = createKin();
+    this.eyeOff = spec.player.eyeHeight;
     this.prev = { ...this.kin };
     this.alive = false;
     this.tickNo = 0;
@@ -349,6 +352,7 @@ export class Game {
   // Place local player. cmd of server/mode decides when.
   spawn(x, y, z, yaw) {
     this.kin = createKin(x, y, z);
+    this.eyeOff = this.spec.player.eyeHeight;
     this.prev = { ...this.kin };
     this.input.yaw = yaw;
     this.input.pitch = 0;
@@ -359,11 +363,11 @@ export class Game {
   }
 
   eye() {
-    return [this.kin.x, this.kin.y + this.spec.player.eyeHeight, this.kin.z];
+    return [this.kin.x, this.kin.y + eyeOf(this.spec, this.kin), this.kin.z];
   }
 
   listener() {
-    return { x: this.kin.x, y: this.kin.y + this.spec.player.eyeHeight, z: this.kin.z, yaw: this.input.yaw };
+    return { x: this.kin.x, y: this.kin.y + eyeOf(this.spec, this.kin), z: this.kin.z, yaw: this.input.yaw };
   }
 
   playAt(name, pos) {
@@ -429,7 +433,7 @@ export class Game {
       this.speed = d * this.spec.tickRate;
       if (this.kin.onGround && !wasGround && this.prev.y - this.kin.y > 0.05) this.playAt('land', this.eye());
       if (cmd.jump && wasGround && !this.kin.onGround) this.playAt('jump', this.eye());
-      if (this.kin.onGround && !cmd.walk) {
+      if (this.kin.onGround && !cmd.walk && !this.kin.crouch) { // walking and crouching are silent
         this.stepDist += d;
         if (this.stepDist > 2.2) {
           this.stepDist = 0;
@@ -512,8 +516,9 @@ export class Game {
   updateCamera(dt, alpha) {
     const p = this.prev;
     const k = this.kin;
-    const eyeH = this.spec.player.eyeHeight;
-    let ey = lerp(p.y, k.y, alpha) + eyeH;
+    // the camera glides between standing and crouched eye height (the simulation switches instantly)
+    this.eyeOff += (eyeOf(this.spec, k) - this.eyeOff) * (1 - Math.exp(-dt * 16));
+    let ey = lerp(p.y, k.y, alpha) + this.eyeOff;
     if (!this.alive) {
       this.deadT = Math.min(1, this.deadT + dt * 2);
       ey = lerp(ey, k.y + 0.3, this.deadT);

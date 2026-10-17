@@ -91,20 +91,29 @@ export class Soldier {
     };
     this.idle = act('idle');
     this.run = act('run');
+    this.crouchA = act('crouch'); // legs/body pose; arms keep their weapon pose from the hold clip
+    this.crouch = false;
+    this.cw = 0; // crouch blend 0..1
     this.hold = WEAPON_IDS.map((id) => act('hold_' + (CLIP_OF[id] || id)));
     this.shootA = WEAPON_IDS.map((id) => act('shoot_' + (CLIP_OF[id] || id), THREE.LoopOnce));
     this.death = act('death', THREE.LoopOnce);
     this.death.clampWhenFinished = true;
     this.idle.play();
     this.run.play();
+    this.crouchA.play();
     this.idle.setEffectiveWeight(1);
     this.run.setEffectiveWeight(0);
+    this.crouchA.setEffectiveWeight(0);
     this.cur = -1;
     this.setWeapon(0);
     this.shootT = 0;
     this.dead = false;
     this.flashT = 0;
     this.shadow = true;
+  }
+
+  setCrouch(on) {
+    this.crouch = on;
   }
 
   // Distant characters stop casting shadows (cheap LOD for the shadow pass).
@@ -146,9 +155,11 @@ export class Soldier {
   // speed in m/s on the ground; dt seconds.
   update(dt, speed) {
     if (!this.dead) {
-      const w = Math.min(1, speed / 3.5);
+      this.cw += ((this.crouch ? 1 : 0) - this.cw) * Math.min(1, dt * 14);
+      const w = Math.min(1, speed / 3.5) * (1 - this.cw);
       this.run.setEffectiveWeight(w);
-      this.idle.setEffectiveWeight(1 - w);
+      this.idle.setEffectiveWeight((1 - w) * (1 - this.cw));
+      this.crouchA.setEffectiveWeight(this.cw);
       this.run.setEffectiveTimeScale(Math.min(1.35, Math.max(0.6, speed / 5.5)));
       const shooting = this.shootT > 0;
       this.shootT = Math.max(0, this.shootT - dt);
@@ -157,6 +168,7 @@ export class Soldier {
     } else {
       this.run.setEffectiveWeight(0);
       this.idle.setEffectiveWeight(0);
+      this.crouchA.setEffectiveWeight(0);
       this.hold[this.cur].setEffectiveWeight(0);
       this.shootA[this.cur].setEffectiveWeight(0);
     }

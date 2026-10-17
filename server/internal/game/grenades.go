@@ -49,7 +49,7 @@ func (w *World) throwNade(p *Player, g int) {
 	}
 	gs := &w.Spec.Grenades[g]
 	dir := AimDir(p.Yaw, p.Pitch)
-	eye := [3]float64{p.Kin.X, p.Kin.Y + w.Spec.Player.EyeHeight, p.Kin.Z}
+	eye := [3]float64{p.Kin.X, p.Kin.Y + w.Spec.EyeOf(&p.Kin), p.Kin.Z}
 	start := eye
 	if w.Map.RayWorld(eye, dir, 0.6) >= 0.6 { // not throwing at a wall right in front of the face
 		start = [3]float64{eye[0] + dir[0]*0.5, eye[1] + dir[1]*0.5, eye[2] + dir[2]*0.5}
@@ -194,7 +194,8 @@ func (w *World) explode(g *Grenade) {
 			if owner != nil && v != owner && v.Team == owner.Team {
 				continue // no friendly fire
 			}
-			c := [3]float64{v.Kin.X, v.Kin.Y + w.Spec.Player.Body.Y1/2, v.Kin.Z}
+			bs, _ := w.Spec.Boxes(v.Kin.Crouch)
+			c := [3]float64{v.Kin.X, v.Kin.Y + bs.Y1/2, v.Kin.Z}
 			d := math.Sqrt(sq(c[0]-at[0]) + sq(c[1]-at[1]) + sq(c[2]-at[2]))
 			if d > gs.Radius || !w.clearLine(at, c) {
 				continue
@@ -219,7 +220,7 @@ func (w *World) explode(g *Grenade) {
 			if !v.Alive {
 				continue
 			}
-			eye := [3]float64{v.Kin.X, v.Kin.Y + w.Spec.Player.EyeHeight, v.Kin.Z}
+			eye := [3]float64{v.Kin.X, v.Kin.Y + w.Spec.EyeOf(&v.Kin), v.Kin.Z}
 			d := math.Sqrt(sq(eye[0]-at[0]) + sq(eye[1]-at[1]) + sq(eye[2]-at[2]))
 			if d > gs.Radius || !w.clearLine(at, eye) {
 				continue

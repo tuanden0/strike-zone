@@ -7,21 +7,24 @@ type Kin struct {
 	X, Y, Z  float64
 	Vy       float64
 	OnGround bool
+	Crouch   bool // lowered stance; persists until there is room to stand
 }
 
 // MoveCmd is the movement part of an input.
 type MoveCmd struct {
-	F, S float64 // forward/strafe axes in [-1,1]
-	Yaw  float64
-	Jump bool
-	Walk bool
+	F, S   float64 // forward/strafe axes in [-1,1]
+	Yaw    float64
+	Jump   bool
+	Walk   bool
+	Crouch bool // Shift held
 }
 
 func (m *Map) overlaps(s *Spec, k *Kin) bool {
 	hw := s.Player.HalfWidth
+	h := s.HeightOf(k)
 	for i := range m.Boxes {
 		o := &m.Boxes[i]
-		if k.X+hw > o[0] && k.X-hw < o[3] && k.Y+s.Player.Height > o[1] && k.Y < o[4] && k.Z+hw > o[2] && k.Z-hw < o[5] {
+		if k.X+hw > o[0] && k.X-hw < o[3] && k.Y+h > o[1] && k.Y < o[4] && k.Z+hw > o[2] && k.Z-hw < o[5] {
 			return true
 		}
 	}
@@ -34,8 +37,22 @@ func Step(s *Spec, m *Map, k *Kin, c MoveCmd) float64 {
 	p := &s.Player
 	dt := 1 / float64(s.TickRate)
 	hw := p.HalfWidth
+	// stance: crouch only starts on the ground; standing up needs headroom at the current spot
+	if c.Crouch && k.OnGround {
+		k.Crouch = true
+	} else if !c.Crouch && k.Crouch {
+		probe := *k
+		probe.Crouch = false
+		if !m.overlaps(s, &probe) {
+			k.Crouch = false
+		}
+	}
+	height := s.HeightOf(k)
 	speed := p.RunSpeed
-	if c.Walk {
+	switch {
+	case k.Crouch:
+		speed = p.Crouch.Speed
+	case c.Walk:
 		speed = p.WalkSpeed
 	}
 	sy, cy := math.Sin(c.Yaw), math.Cos(c.Yaw)
@@ -47,7 +64,7 @@ func Step(s *Spec, m *Map, k *Kin, c MoveCmd) float64 {
 	}
 	vx, vz := wx*speed, wz*speed
 
-	if c.Jump && k.OnGround {
+	if c.Jump && k.OnGround && !k.Crouch {
 		k.Vy = p.JumpSpeed
 		k.OnGround = false
 	}
@@ -55,7 +72,7 @@ func Step(s *Spec, m *Map, k *Kin, c MoveCmd) float64 {
 
 	b := m.Boxes
 	hit := func(o *[6]float64) bool {
-		return k.X+hw > o[0] && k.X-hw < o[3] && k.Y+p.Height > o[1] && k.Y < o[4] && k.Z+hw > o[2] && k.Z-hw < o[5]
+		return k.X+hw > o[0] && k.X-hw < o[3] && k.Y+height > o[1] && k.Y < o[4] && k.Z+hw > o[2] && k.Z-hw < o[5]
 	}
 	k.X += vx * dt
 	for i := range b {
@@ -89,7 +106,7 @@ func Step(s *Spec, m *Map, k *Kin, c MoveCmd) float64 {
 	for i := range b {
 		if hit(&b[i]) {
 			if k.Vy > 0 {
-				k.Y = b[i][1] - p.Height
+				k.Y = b[i][1] - height
 				k.Vy = 0
 			} else {
 				k.Y = b[i][4]

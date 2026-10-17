@@ -15,7 +15,7 @@ func (w *World) resolveShots() {
 func (w *World) shoot(p *Player) {
 	ws := &w.Spec.Weapons[p.Cur]
 	pl := &w.Spec.Player
-	eye := [3]float64{p.Kin.X, p.Kin.Y + pl.EyeHeight, p.Kin.Z}
+	eye := [3]float64{p.Kin.X, p.Kin.Y + w.Spec.EyeOf(&p.Kin), p.Kin.Z}
 
 	// Spread grows with movement; airborne counts as full speed.
 	frac := 1.0
@@ -74,9 +74,9 @@ func (w *World) shoot(p *Player) {
 
 // rayPlayer returns the distance to the closer of head/body hitboxes (or -1) and whether it was the head.
 func (w *World) rayPlayer(o, d [3]float64, maxT float64, v *Player) (float64, bool) {
-	pl := &w.Spec.Player
-	body := [6]float64{v.Kin.X - pl.Body.HalfWidth, v.Kin.Y + pl.Body.Y0, v.Kin.Z - pl.Body.HalfWidth, v.Kin.X + pl.Body.HalfWidth, v.Kin.Y + pl.Body.Y1, v.Kin.Z + pl.Body.HalfWidth}
-	head := [6]float64{v.Kin.X - pl.Head.HalfWidth, v.Kin.Y + pl.Head.Y0, v.Kin.Z - pl.Head.HalfWidth, v.Kin.X + pl.Head.HalfWidth, v.Kin.Y + pl.Head.Y1, v.Kin.Z + pl.Head.HalfWidth}
+	bs, hs := w.Spec.Boxes(v.Kin.Crouch)
+	body := [6]float64{v.Kin.X - bs.HalfWidth, v.Kin.Y + bs.Y0, v.Kin.Z - bs.HalfWidth, v.Kin.X + bs.HalfWidth, v.Kin.Y + bs.Y1, v.Kin.Z + bs.HalfWidth}
+	head := [6]float64{v.Kin.X - hs.HalfWidth, v.Kin.Y + hs.Y0, v.Kin.Z - hs.HalfWidth, v.Kin.X + hs.HalfWidth, v.Kin.Y + hs.Y1, v.Kin.Z + hs.HalfWidth}
 	th := RayBox(o, d, head, maxT)
 	tb := RayBox(o, d, body, maxT)
 	switch {

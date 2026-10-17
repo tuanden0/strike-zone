@@ -12,15 +12,41 @@ export function prepareMap(json) {
 }
 
 export function createKin(x = 0, y = 0, z = 0) {
-  return { x, y, z, vy: 0, onGround: false };
+  return { x, y, z, vy: 0, onGround: false, crouch: false };
 }
 
-// Advance one fixed tick. cmd: {f, s, yaw, jump, walk}. dt = 1/tickRate.
+export function heightOf(spec, k) {
+  return k.crouch ? spec.player.crouch.height : spec.player.height;
+}
+
+export function eyeOf(spec, k) {
+  return k.crouch ? spec.player.crouch.eyeHeight : spec.player.eyeHeight;
+}
+
+function overlaps(spec, map, k) {
+  const hw = spec.player.halfWidth;
+  const h = heightOf(spec, k);
+  const b = map.boxes;
+  for (let i = 0; i < b.length; i++) {
+    const o = b[i];
+    if (k.x + hw > o[0] && k.x - hw < o[3] && k.y + h > o[1] && k.y < o[4] && k.z + hw > o[2] && k.z - hw < o[5]) return true;
+  }
+  return false;
+}
+
+// Advance one fixed tick. cmd: {f, s, yaw, jump, walk, crouch}. dt = 1/tickRate.
 export function stepMove(spec, map, k, cmd) {
   const p = spec.player;
   const dt = 1 / spec.tickRate;
   const hw = p.halfWidth;
-  const speed = cmd.walk ? p.walkSpeed : p.runSpeed;
+  // stance: crouch only starts on the ground; standing up needs headroom at the current spot
+  if (cmd.crouch && k.onGround) {
+    k.crouch = true;
+  } else if (!cmd.crouch && k.crouch) {
+    if (!overlaps(spec, map, { x: k.x, y: k.y, z: k.z, crouch: false })) k.crouch = false;
+  }
+  const height = heightOf(spec, k);
+  const speed = k.crouch ? p.crouch.speed : cmd.walk ? p.walkSpeed : p.runSpeed;
   const sy = Math.sin(cmd.yaw);
   const cy = Math.cos(cmd.yaw);
   let wx = -sy * cmd.f + cy * cmd.s;
@@ -33,7 +59,7 @@ export function stepMove(spec, map, k, cmd) {
   const vx = wx * speed;
   const vz = wz * speed;
 
-  if (cmd.jump && k.onGround) {
+  if (cmd.jump && k.onGround && !k.crouch) {
     k.vy = p.jumpSpeed;
     k.onGround = false;
   }
@@ -44,7 +70,7 @@ export function stepMove(spec, map, k, cmd) {
   k.x += vx * dt;
   for (let i = 0; i < b.length; i++) {
     const o = b[i];
-    if (k.x + hw > o[0] && k.x - hw < o[3] && k.y + p.height > o[1] && k.y < o[4] && k.z + hw > o[2] && k.z - hw < o[5]) {
+    if (k.x + hw > o[0] && k.x - hw < o[3] && k.y + height > o[1] && k.y < o[4] && k.z + hw > o[2] && k.z - hw < o[5]) {
       k.x = vx > 0 ? o[0] - hw : o[3] + hw;
     }
   }
@@ -52,7 +78,7 @@ export function stepMove(spec, map, k, cmd) {
   k.z += vz * dt;
   for (let i = 0; i < b.length; i++) {
     const o = b[i];
-    if (k.x + hw > o[0] && k.x - hw < o[3] && k.y + p.height > o[1] && k.y < o[4] && k.z + hw > o[2] && k.z - hw < o[5]) {
+    if (k.x + hw > o[0] && k.x - hw < o[3] && k.y + height > o[1] && k.y < o[4] && k.z + hw > o[2] && k.z - hw < o[5]) {
       k.z = vz > 0 ? o[2] - hw : o[5] + hw;
     }
   }
@@ -66,9 +92,9 @@ export function stepMove(spec, map, k, cmd) {
   }
   for (let i = 0; i < b.length; i++) {
     const o = b[i];
-    if (k.x + hw > o[0] && k.x - hw < o[3] && k.y + p.height > o[1] && k.y < o[4] && k.z + hw > o[2] && k.z - hw < o[5]) {
+    if (k.x + hw > o[0] && k.x - hw < o[3] && k.y + height > o[1] && k.y < o[4] && k.z + hw > o[2] && k.z - hw < o[5]) {
       if (k.vy > 0) {
-        k.y = o[1] - p.height;
+        k.y = o[1] - height;
         k.vy = 0;
       } else {
         k.y = o[4];
@@ -123,20 +149,20 @@ export function rayWorld(map, o, d, maxT) {
   return best;
 }
 
-// Hitboxes for a player standing at feet position (x,y,z).
-export function bodyBox(spec, x, y, z) {
-  const b = spec.player.body;
+// Hitboxes for a player at feet position (x,y,z), standing or crouched.
+export function bodyBox(spec, x, y, z, crouch = false) {
+  const b = crouch ? spec.player.crouch.body : spec.player.body;
   return [x - b.halfWidth, y + b.y0, z - b.halfWidth, x + b.halfWidth, y + b.y1, z + b.halfWidth];
 }
-export function headBox(spec, x, y, z) {
-  const h = spec.player.head;
+export function headBox(spec, x, y, z, crouch = false) {
+  const h = crouch ? spec.player.crouch.head : spec.player.head;
   return [x - h.halfWidth, y + h.y0, z - h.halfWidth, x + h.halfWidth, y + h.y1, z + h.halfWidth];
 }
 
 // Returns {t, head} for the closer of head/body hit, or null.
-export function rayPlayer(spec, o, d, maxT, x, y, z) {
-  const th = rayBox(o, d, headBox(spec, x, y, z), maxT);
-  const tb = rayBox(o, d, bodyBox(spec, x, y, z), maxT);
+export function rayPlayer(spec, o, d, maxT, x, y, z, crouch = false) {
+  const th = rayBox(o, d, headBox(spec, x, y, z, crouch), maxT);
+  const tb = rayBox(o, d, bodyBox(spec, x, y, z, crouch), maxT);
   if (th < 0 && tb < 0) return null;
   if (th >= 0 && (tb < 0 || th <= tb)) return { t: th, head: true };
   return { t: tb, head: false };

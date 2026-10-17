@@ -94,8 +94,8 @@ func (w *World) canSee(p, v *Player) bool {
 	if p.FlashUntil > w.Tick {
 		return false
 	}
-	eye := [3]float64{p.Kin.X, p.Kin.Y + w.Spec.Player.EyeHeight, p.Kin.Z}
-	tgt := [3]float64{v.Kin.X, v.Kin.Y + 1.2, v.Kin.Z}
+	eye := [3]float64{p.Kin.X, p.Kin.Y + w.Spec.EyeOf(&p.Kin), p.Kin.Z}
+	tgt := [3]float64{v.Kin.X, v.Kin.Y + bodyAim(v), v.Kin.Z}
 	dx, dy, dz := tgt[0]-eye[0], tgt[1]-eye[1], tgt[2]-eye[2]
 	d := math.Sqrt(dx*dx + dy*dy + dz*dz)
 	if d > 90 {
@@ -203,10 +203,10 @@ func (b *Bot) Think(w *World, p *Player) Input {
 
 func (w *World) botCombat(b *Bot, p, tgt *Player, ws *WeaponSpec, in *Input, wishX, wishZ *float64) {
 	tick := w.Tick
-	eye := [3]float64{p.Kin.X, p.Kin.Y + w.Spec.Player.EyeHeight, p.Kin.Z}
-	ty := 1.25
+	eye := [3]float64{p.Kin.X, p.Kin.Y + w.Spec.EyeOf(&p.Kin), p.Kin.Z}
+	ty := bodyAim(tgt)
 	if b.aimHead {
-		ty = 1.62
+		ty = w.Spec.EyeOf(&tgt.Kin) - 0.02
 	}
 	dx, dy, dz := tgt.Kin.X-eye[0], tgt.Kin.Y+ty-eye[1], tgt.Kin.Z-eye[2]
 	hd := math.Hypot(dx, dz)
@@ -313,4 +313,12 @@ func (b *Bot) pickGoal(w *World, p *Player) {
 	if len(b.path) == 0 {
 		b.goalUntil = tick + 10 // unreachable goal: try another soon
 	}
+}
+
+// bodyAim is the height above the feet bots aim at / look at: upper chest of a standing player, mid body when crouched.
+func bodyAim(v *Player) float64 {
+	if v.Kin.Crouch {
+		return 0.65
+	}
+	return 1.2
 }

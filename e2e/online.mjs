@@ -89,6 +89,26 @@ try {
   const feed = await b.textContent('#killfeed');
   check('killfeed shows killer, weapon, headshot and victim', feed.includes('Bob') && feed.includes('Alice') && feed.includes('HS'), feed);
   check('HUD shows ping', (await a.textContent('#ping')).includes('ping'));
+  // Crouch: Alice holds Shift; Bob must see her crouch (stance goes through the server), and prediction must still match
+  await a.keyboard.down('ShiftLeft');
+  await a.keyboard.down('KeyS');
+  await a.waitForFunction(() => window.__sz.game.mode.me.cr === true && window.__sz.game.kin.crouch === true);
+  await b.waitForFunction(() => { const r = [...window.__sz.game.remotes.values()][0]; return r.char.crouch === true && r.char.cw > 0.5; });
+  check('Bob sees Alice crouch (stance synced; crouch pose blended in)', true);
+  if (process.env.SHOTS_DIR) {
+    await b.evaluate(() => { const g = window.__sz.game; const r = [...g.remotes.values()][0]; const p = r.group.position; g.debugCam = { pos: [p.x + 2.2, 1.2, p.z + 2.2], look: [p.x, 0.7, p.z] }; });
+    await b.waitForFunction(() => new Promise((res) => { let k = 0; const f = () => (++k > 8 ? res(true) : requestAnimationFrame(f)); requestAnimationFrame(f); }));
+    await b.screenshot({ path: `${process.env.SHOTS_DIR}/crouch_remote.jpg`, type: 'jpeg', quality: 85 });
+    await b.evaluate(() => { window.__sz.game.debugCam = null; });
+  }
+  const t2 = await a.evaluate(() => window.__sz.game.tickNo);
+  await a.waitForFunction((t) => window.__sz.game.tickNo > t + 45, t2);
+  await a.keyboard.up('KeyS');
+  await a.keyboard.up('ShiftLeft');
+  await a.waitForFunction(() => window.__sz.game.mode.me.cr === false);
+  await b.waitForFunction(() => { const r = [...window.__sz.game.remotes.values()][0]; return r.char.crouch === false; });
+  const corr2 = await a.evaluate(() => window.__sz.game.mode.maxCorr);
+  check('crouching and standing up keep the prediction within 5 cm of the server', corr2 < 0.05, `max ${corr2.toFixed(4)} m`);
   check('no JS errors', errors.length === 0, errors.join(' | '));
 } catch (e) {
   check('online run', false, String(e));

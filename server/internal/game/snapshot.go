@@ -6,14 +6,15 @@ func r3(v float64) float64 { return math.Round(v*1000) / 1000 }
 
 // PlayerState is the public per-tick view of a player.
 type PlayerState struct {
-	ID    int     `json:"i"`
-	X     float64 `json:"x"`
-	Y     float64 `json:"y"`
-	Z     float64 `json:"z"`
-	Yaw   float64 `json:"yw"`
-	Pitch float64 `json:"pt"`
-	Alive bool    `json:"a"`
-	W     int     `json:"w"`
+	ID     int     `json:"i"`
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	Z      float64 `json:"z"`
+	Yaw    float64 `json:"yw"`
+	Pitch  float64 `json:"pt"`
+	Alive  bool    `json:"a"`
+	W      int     `json:"w"`
+	Crouch bool    `json:"c,omitempty"`
 }
 
 // Self is the private extra state sent only to the owning client (used for reconciliation + HUD).
@@ -37,6 +38,7 @@ type Self struct {
 	BX   int     `json:"bx"`   // ticks until the burst expires (0 = already expired)
 	Resp int     `json:"resp"` // ticks until respawn (0 = alive)
 	Prot bool    `json:"prot"`
+	Cr   bool    `json:"cr"` // crouching (client reconciliation needs the stance)
 	GN   []int   `json:"gn"` // grenades left per type
 	FL   int     `json:"fl"` // ticks of flashbang blindness left
 	Seq  uint32  `json:"ack"`
@@ -68,7 +70,7 @@ func (w *World) Snapshot() Snapshot {
 		p := w.players[id]
 		s.Players = append(s.Players, PlayerState{
 			ID: p.ID, X: r3(p.Kin.X), Y: r3(p.Kin.Y), Z: r3(p.Kin.Z),
-			Yaw: r3(p.Yaw), Pitch: r3(p.Pitch), Alive: p.Alive, W: p.Cur,
+			Yaw: r3(p.Yaw), Pitch: r3(p.Pitch), Alive: p.Alive, W: p.Cur, Crouch: p.Kin.Crouch,
 		})
 	}
 	for _, g := range w.grenades {
@@ -90,7 +92,7 @@ func (w *World) SelfFor(id int) *Self {
 		X: r3(p.Kin.X), Y: r3(p.Kin.Y), Z: r3(p.Kin.Z), Vy: r3(p.Kin.Vy), G: p.Kin.OnGround,
 		Yaw: r3(p.Yaw), HP: p.HP, A: p.Alive, W: p.Cur,
 		Has: append([]bool(nil), p.Has...), Mag: append([]int(nil), p.Mag...), Res: append([]int(nil), p.Res...),
-		Prot: w.Tick < p.ProtectUntil, Seq: p.LastSeq,
+		Prot: w.Tick < p.ProtectUntil, Seq: p.LastSeq, Cr: p.Kin.Crouch,
 	}
 	if p.ReloadDone > w.Tick {
 		s.RL = p.ReloadDone - w.Tick

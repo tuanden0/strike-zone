@@ -54,7 +54,7 @@ export class Online {
     this.seq++;
     this.net.send({
       t: 'in', seq: this.seq, f: cmd.f, s: cmd.s, yaw: cmd.yaw, pitch: cmd.pitch,
-      jump: cmd.jump, walk: cmd.walk, fire: cmd.fire, reload: cmd.reload, weapon: cmd.weapon, drop: cmd.drop, use: cmd.use, scope: cmd.scope, nade: cmd.nade,
+      jump: cmd.jump, walk: cmd.walk, fire: cmd.fire, reload: cmd.reload, weapon: cmd.weapon, drop: cmd.drop, use: cmd.use, scope: cmd.scope, nade: cmd.nade, crouch: cmd.crouch,
     });
     this.pending.push({ seq: this.seq, tick: game.tickNo, cmd: { ...cmd } });
     if (this.pending.length > MAX_PENDING) this.pending.shift();
@@ -118,7 +118,7 @@ export class Online {
         const r = this.nameOf(p.i);
         v = game.addRemote(p.i, r.nick, r.team || 'A', r.team === game.myTeam);
       }
-      v.push(now, { x: p.x, y: p.y, z: p.z, yaw: p.yw, alive: p.a, w: p.w });
+      v.push(now, { x: p.x, y: p.y, z: p.z, yaw: p.yw, alive: p.a, w: p.w, c: p.c });
     }
     game.grenades.setFlight(m.gr);
     game.grenades.setSmokes(m.sm);
@@ -166,6 +166,7 @@ export class Online {
       k.z = you.z;
       k.vy = you.vy;
       k.onGround = you.g;
+      k.crouch = !!you.cr;
       for (const p of this.pending) stepMove(this.spec, game.map, k, p.cmd);
       this.maxCorr = Math.max(this.maxCorr, Math.hypot(k.x - px, k.y - py, k.z - pz)); // prediction error, for diagnostics
       game.loadout.sync(you, tAck);

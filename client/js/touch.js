@@ -58,6 +58,10 @@ export class TouchControls {
     });
     this.bindHold('t-jump', (down) => input.setKey('Space', down));
     this.bindPress('t-reload', () => (input.reload = true));
+    this.bindPress('t-crouch', () => {
+      input.crouchHeld = !input.crouchHeld;
+      $('t-crouch').classList.toggle('down', input.crouchHeld);
+    });
     this.bindPress('t-use', () => (input.use = true));
     this.bindPress('t-nade', () => (input.nade = input.nadeSel + 1));
     this.bindPress('t-nadesel', () => {
@@ -89,6 +93,8 @@ export class TouchControls {
     this.input.mouseDown = false;
     this.input.keys.delete('Space');
     this.input.scopeHeld = false;
+    this.input.crouchHeld = false;
+    $('t-crouch').classList.remove('down');
     $('t-scope').classList.remove('down');
     this.boardOn = false;
     this.input.onScoreboard(false);

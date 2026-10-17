@@ -72,16 +72,50 @@ type BoxSpec struct {
 }
 
 type PlayerSpec struct {
-	HalfWidth float64 `json:"halfWidth"`
+	HalfWidth float64    `json:"halfWidth"`
+	Height    float64    `json:"height"`
+	EyeHeight float64    `json:"eyeHeight"`
+	RunSpeed  float64    `json:"runSpeed"`
+	WalkSpeed float64    `json:"walkSpeed"`
+	JumpSpeed float64    `json:"jumpSpeed"`
+	Gravity   float64    `json:"gravity"`
+	MaxHealth int        `json:"maxHealth"`
+	Body      BoxSpec    `json:"body"`
+	Head      BoxSpec    `json:"head"`
+	Crouch    CrouchSpec `json:"crouch"`
+}
+
+// CrouchSpec is the lowered stance (Shift): smaller body and hitboxes, slower, no jumping. Standing up needs headroom.
+type CrouchSpec struct {
 	Height    float64 `json:"height"`
 	EyeHeight float64 `json:"eyeHeight"`
-	RunSpeed  float64 `json:"runSpeed"`
-	WalkSpeed float64 `json:"walkSpeed"`
-	JumpSpeed float64 `json:"jumpSpeed"`
-	Gravity   float64 `json:"gravity"`
-	MaxHealth int     `json:"maxHealth"`
+	Speed     float64 `json:"speed"`
 	Body      BoxSpec `json:"body"`
 	Head      BoxSpec `json:"head"`
+}
+
+// HeightOf is the body height of a kinematic state (standing or crouched).
+func (s *Spec) HeightOf(k *Kin) float64 {
+	if k.Crouch {
+		return s.Player.Crouch.Height
+	}
+	return s.Player.Height
+}
+
+// EyeOf is the eye height above the feet.
+func (s *Spec) EyeOf(k *Kin) float64 {
+	if k.Crouch {
+		return s.Player.Crouch.EyeHeight
+	}
+	return s.Player.EyeHeight
+}
+
+// Boxes returns the body and head hitbox shapes for a stance.
+func (s *Spec) Boxes(crouch bool) (body, head BoxSpec) {
+	if crouch {
+		return s.Player.Crouch.Body, s.Player.Crouch.Head
+	}
+	return s.Player.Body, s.Player.Head
 }
 
 type MatchSpec struct {
@@ -287,6 +321,9 @@ func validateSpec(s *Spec) error {
 		return fmt.Errorf("spec: bad player dimensions")
 	case p.RunSpeed <= 0 || p.WalkSpeed <= 0 || p.JumpSpeed <= 0 || p.Gravity <= 0:
 		return fmt.Errorf("spec: bad player motion")
+	case p.Crouch.Height <= 0 || p.Crouch.Height >= p.Height || p.Crouch.EyeHeight <= 0 || p.Crouch.EyeHeight > p.Crouch.Height || p.Crouch.Speed <= 0 || p.Crouch.Speed > p.WalkSpeed ||
+		p.Crouch.Body.Y1 <= p.Crouch.Body.Y0 || p.Crouch.Head.Y1 <= p.Crouch.Head.Y0 || p.Crouch.Head.Y1 > p.Crouch.Height+1e-9 || p.Crouch.Body.HalfWidth > p.HalfWidth+1e-9:
+		return fmt.Errorf("spec: bad crouch stance")
 	case len(s.Weapons) < 1 || len(s.Weapons) > 8:
 		return fmt.Errorf("spec: need 1..8 weapons")
 	case s.Match.MaxPlayers < 2 || s.Match.MinTimeLimit < 1 || s.Match.MaxTimeLimit < s.Match.MinTimeLimit || s.Match.MinScoreLimit < 1 || s.Match.MaxScoreLimit < s.Match.MinScoreLimit:

@@ -22,6 +22,9 @@ async function phone() {
 }
 // force: skip Playwright's "element is stable" wait, which never settles on the pulsing USE button
 const tap = (page, sel) => page.tap(sel, { force: true });
+// menu buttons: under software GL a touch tap can be acknowledged late and then retried against an element that already hid
+// (the first tap worked); a DOM click is the same handler without that race
+const click = (page, sel) => page.evaluate((s) => document.querySelector(s).click(), sel);
 const sz = (page, fn, arg) => page.evaluate(fn, arg);
 
 try {
@@ -55,6 +58,13 @@ try {
   check('inputs are 16 px (no iOS focus zoom)', zoom.input === '16px', zoom.input);
   for (let i = 0; i < 12; i++) await p.tap('#t-fire', { force: true });
   check('12 rapid FIRE taps: page scale stays 1 and the HUD is still reachable', await p.evaluate(() => (!window.visualViewport || window.visualViewport.scale === 1) && window.__sz.input.locked && !document.getElementById('touch').hidden));
+
+  // DUCK button toggles the crouch stance
+  await tap(p, '#t-crouch');
+  await p.waitForFunction(() => window.__sz.input.crouchHeld === true && window.__sz.game.kin.crouch === true);
+  await tap(p, '#t-crouch');
+  await p.waitForFunction(() => window.__sz.game.kin.crouch === false);
+  check('DUCK button toggles crouch on and off', true);
 
   // Left thumb: drag the stick up -> walk forward.
   const z0 = await sz(p, () => ({ x: window.__sz.game.kin.x, z: window.__sz.game.kin.z }));
@@ -98,7 +108,7 @@ try {
   await tap(p, '#t-menu');
   await p.waitForSelector('#screen-pause:not([hidden])');
   check('menu button pauses', await sz(p, () => document.getElementById('touch').hidden && !window.__sz.input.locked));
-  await tap(p, '#btn-resume');
+  await click(p, '#btn-resume');
   await p.waitForFunction(() => window.__sz.input.locked);
   check('resume works again', true);
 
@@ -112,7 +122,7 @@ try {
   await q.tap('#create-form button[type=submit]');
   await q.waitForFunction(() => window.__sz.game && window.__sz.game.running && window.__sz.game.mapId === 'crossroads');
   check('joined a crossroads room', true);
-  await tap(q, '#btn-resume');
+  await click(q, '#btn-resume');
   await q.waitForFunction(() => window.__sz.input.locked && window.__sz.game.tickNo > 20 && window.__sz.game.mode.me);
   check('weapon pickups known on crossroads', await sz(q, () => window.__sz.game.pickups.items.size > 0));
   await tap(q, '#t-drop');
