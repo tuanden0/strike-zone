@@ -40,6 +40,7 @@ export class Input {
     this.enabled = false;
     this.touch = isTouch;
     this.touchLocked = false;
+    this.hudTap = null; // touch: (x, y) => true when a tap hit a HUD widget (the radar)
     this.mv = { f: 0, s: 0 }; // touch stick axes
     this.crouchHeld = false; // touch CROUCH toggle
     this.scopeHeld = false; // scope toggled on (right click / touch SCOPE button)

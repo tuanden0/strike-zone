@@ -9,6 +9,7 @@ import { Decals } from './decals.js';
 import { Grenades } from './grenades.js';
 import { PostFx } from './postfx.js';
 import { Footsteps } from './footsteps.js';
+import { Radar } from './radar.js';
 import { Soldier, nameSprite, applyAnisotropy, flashTexture } from './models.js';
 import { clone } from '../vendor/SkeletonUtils.js';
 
@@ -156,6 +157,7 @@ export class Game {
     this.pickups = new Pickups(this);
     this.grenades = new Grenades(this);
     this.shake = 0; // camera shake amount (explosions)
+    this.radar = new Radar(this); // minimap (before the first setMap: it pre-renders the map layer)
     this.setMap('yard', map, assets.map.scene);
     this.camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.05, 200);
     this.scene.add(this.camera);
@@ -290,6 +292,7 @@ export class Game {
     this.pickups.clear();
     this.grenades.clear();
     fitShadow(this.sun, map);
+    this.radar.setMap(map);
   }
 
   pixelRatio() {
@@ -507,6 +510,7 @@ export class Game {
     for (const r of this.remotes.values()) r.update(nowMs, dt);
     this.updateCamera(dt, alpha);
     this.updateEffects(dt);
+    this.radar.frame(dt);
 
     if (this.postfx) {
       this.postfx.render(dt);

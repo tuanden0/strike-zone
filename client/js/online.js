@@ -185,6 +185,7 @@ export class Online {
     switch (ev.e) {
       case 'shot': {
         const w = this.spec.weapons[ev.w];
+        if (ev.by !== me) game.radar.ping(ev.by); // the radar shows a shooter for 2 s
         if (ev.by !== me) {
           const v = game.remotes.get(ev.by);
           if (v) v.fire();

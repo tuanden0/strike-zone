@@ -267,6 +267,7 @@ export class TouchControls {
 
   // The HUD weapon list sits under the touch layer, so hit-test it by rectangle.
   tapSlot(x, y) {
+    if (this.input.hudTap && this.input.hudTap(x, y)) return true; // the radar
     const slots = [...$('weapon-slots').children];
     const i = slots.findIndex((el) => {
       const r = el.getBoundingClientRect();

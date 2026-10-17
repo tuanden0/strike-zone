@@ -54,7 +54,7 @@ td input { width: 120px; padding: 4px 6px; }
 #ammo { font-size: 34px; font-variant-numeric: tabular-nums; } #ammo small { font-size: 18px; color: #cfd6e2; }
 #weapon-slots { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; font-size: 12px; }
 #weapon-slots span { padding: 1px 8px; border-radius: 4px; background: rgba(0,0,0,.45); color: #aab; } #weapon-slots span.cur { background: var(--acc); color: #111; }
-#practice-stats { position: absolute; left: 20px; top: 40px; font-size: 14px; font-weight: 400; background: rgba(0,0,0,.4); padding: 6px 10px; border-radius: 6px; }
+#practice-stats { position: absolute; left: 50%; top: 54px; transform: translateX(-50%); white-space: nowrap; font-size: 14px; font-weight: 400; background: rgba(0,0,0,.4); padding: 6px 10px; border-radius: 6px; }
 #scoreboard { position: absolute; top: 14%; left: 50%; transform: translateX(-50%); width: min(720px, 94%); background: rgba(10,12,18,.88); border-radius: 8px; padding: 12px 16px; font-weight: 400; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 #scoreboard h4 { margin: 0 0 6px; } #scoreboard table { font-size: 14px; } #scoreboard tr.me td { background: rgba(255,255,255,.1); } #scoreboard td.n { text-align: right; width: 3.5ch; }
 /* short windows: tighter menus first (fit.js then zooms what is still too big) */
@@ -98,7 +98,7 @@ html.touch, body.touch, body.touch canvas#view { touch-action: none; -webkit-tex
 #t-knob, #t-lknob { position: absolute; left: 32px; top: 32px; width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.45); }
 #t-rotate { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; background: rgba(8,10,14,.9); font-size: 20px; text-align: center; padding: 24px; }
 @media (orientation: portrait) { #t-rotate { display: flex; } }
-body.touch #hud-bl { left: calc(10px + env(safe-area-inset-left)); bottom: auto; top: 30px; font-size: 16px; }
+body.touch #hud-bl { left: calc(10px + env(safe-area-inset-left)); bottom: auto; top: calc(30px + var(--rh, 0px)); font-size: 16px; }
 body.touch #hp-bar { width: 110px; }
 body.touch #hud-br { right: 50%; transform: translateX(50%); bottom: 6px; text-align: center; }
 body.touch #ammo { font-size: 24px; }
@@ -107,7 +107,7 @@ body.touch #weapon-slots span { padding: 6px 14px; font-size: 13px; }
 body.touch #killfeed { top: 52px; font-size: 12px; }
 body.touch #prompt { top: 48%; }
 body.touch #hud-top { font-size: 20px; }
-body.touch #practice-stats { top: 70px; }
+body.touch #practice-stats { top: 44px; }
 
 /* ---- sniper scope ---- */
 #scope { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 50% 50%, transparent 0, transparent 41vmin, #000 41.4vmin); }
@@ -150,3 +150,13 @@ body.touch #nades { justify-content: center; }
   body.touch #nades span { padding: 1px 4px; font-size: 10px; }
   body.touch #killfeed { top: 44px; font-size: 11px; }
 }
+
+/* ---- radar (radar.js) ---- */
+#radar { position: absolute; left: calc(10px + env(safe-area-inset-left)); top: 28px; width: 170px; height: 170px; border-radius: 50%; }
+body.touch #radar { width: 120px; height: 120px; }
+body.touch #hud { --rh: 126px; }
+body.touch #hud.radar-off { --rh: 0px; }
+#radar.off { display: none; }
+body.touch #radar.off { display: block; width: 54px; height: 24px; border-radius: 6px; }
+@media (max-height: 520px) { #radar { width: 120px; height: 120px; } }
+@media (max-height: 340px) { #radar, body.touch #radar { width: 90px; height: 90px; } body.touch #hud { --rh: 96px; } body.touch #hud.radar-off { --rh: 0px; } body.touch #radar.off { width: 50px; height: 22px; } }
