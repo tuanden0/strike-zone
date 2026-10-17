@@ -345,3 +345,151 @@ GENERATORS = dict(
     burlap=burlap, steel=steel, fabric_camo=fabric_camo, nylon=nylon, polymer=polymer, gunmetal=gunmetal,
     blade=blade, rubber=rubber, skin=skin, leather=leather,
 )
+
+
+# ---------------------------------------------------------------- extra map materials (stucco, terracotta, sandstone, sand, rock, cobble)
+# Appended for the five-maps feature; the generators above are unchanged.
+def stucco(n=256, seed=21):
+    """Warm lime plaster: trowel mottling, damp stains rising from the foot, hairline cracks, a few chipped patches."""
+    h = fbm(n, seed)
+    x, y = grid(n)
+    chips = dots(n, seed + 2, 26, 7)
+    stain = smooth01(pnoise(n, 2.4, seed + 5), 0.0, 1.8) * smooth01(1 - y, 0.2, 1.0)
+    crack = cracks(n, seed + 9, 4, 80)
+    v = 0.86 + 0.07 * h - 0.10 * stain - 0.28 * crack + 0.07 * chips
+    base = tint((1.0, 0.86, 0.62), v)
+    base = base * (1 - 0.35 * chips[..., None] * 0.5) + np.array((0.55, 0.40, 0.28)) * (0.35 * chips[..., None] * 0.5)
+    ht = 0.7 * h - 1.2 * chips - crack * 1.5
+    return dict(base=np.clip(base, 0, 1), normal=normal_from_height(ht, 2.2),
+                orm=np.stack([np.ones((n, n)), np.clip(0.90 + 0.05 * h, 0.5, 1), np.zeros((n, n))], -1))
+
+
+def terracotta(n=256, seed=22):
+    """Curved clay roof tiles: 8 columns x 6 overlapping rows, per-tile colour variation, moss/soot streaks."""
+    r = _rng(seed)
+    x, y = grid(n)
+    cols, rows = 8, 6
+    cx = (x * cols) % 1.0
+    ry = (y * rows) % 1.0
+    ci = np.floor(x * cols).astype(int)
+    ri = np.floor(y * rows).astype(int)
+    tone = r.uniform(0.78, 1.15, (rows, cols))[ri, ci]
+    prof = 0.5 + 0.5 * np.cos((cx - 0.5) * 2 * np.pi)       # convex tile
+    shade = 0.55 + 0.45 * ry                                  # lower edge of each row overlaps the next: dark line
+    h = fbm(n, seed + 1)
+    soot = smooth01(pnoise(n, 2.6, seed + 4), 0.2, 1.8)
+    v = (0.50 + 0.42 * prof) * shade * tone * (0.95 + 0.05 * h) * (1 - 0.25 * soot)
+    base = np.stack([v * 0.86, v * 0.38, v * 0.22], -1)
+    ht = prof * 1.5 + ry * 1.2 + 0.2 * h
+    return dict(base=np.clip(base, 0, 1), normal=normal_from_height(ht, 2.5),
+                orm=np.stack([np.ones((n, n)), np.full((n, n), 0.82), np.zeros((n, n))], -1))
+
+
+def sandstone(n=512, seed=23):
+    """Ashlar courses of uneven height, per-block tone, thin dark joints, wind-pitted faces."""
+    r = _rng(seed)
+    x, y = grid(n)
+    heights = np.array([0.22, 0.17, 0.25, 0.14, 0.22])
+    heights = heights / heights.sum()
+    edges = np.concatenate([[0], np.cumsum(heights)])
+    base = np.zeros((n, n, 3))
+    ht = np.zeros((n, n))
+    h = fbm(n, seed + 3)
+    pits = dots(n, seed + 5, 90, 3.0)
+    mortar = np.zeros((n, n), bool)
+    yy, xx = y, x
+    for k in range(len(heights)):
+        m = (yy >= edges[k]) & (yy < edges[k + 1] + (1e-9 if k == len(heights) - 1 else 0))
+        nb = int(r.integers(3, 5))
+        cuts = np.sort(r.uniform(0, 1, nb))
+        cuts = np.concatenate([[0], cuts, [1.0001]])
+        off = r.uniform(0, 1)
+        xo = (xx + off) % 1.0
+        for j in range(len(cuts) - 1):
+            bm = m & (xo >= cuts[j]) & (xo < cuts[j + 1])
+            tone = r.uniform(0.82, 1.1)
+            base[bm] = np.array((0.80, 0.64, 0.42)) * tone
+        ly = (yy - edges[k]) / heights[k]
+        mortar |= m & ((ly < 0.035) | (ly > 0.97))
+        for j in range(len(cuts) - 1):
+            mortar |= m & (np.abs(xo - cuts[j]) < 0.004)
+    base = base * (0.9 + 0.12 * h[..., None]) * (1 - 0.25 * pits[..., None])
+    base[mortar] *= 0.55
+    ht = 0.5 * h - 1.5 * pits - mortar * 2.2
+    return dict(base=np.clip(base, 0, 1), normal=normal_from_height(ht, 2.8),
+                orm=np.stack([np.ones((n, n)), np.full((n, n), 0.92), np.zeros((n, n))], -1))
+
+
+def sand(n=512, seed=24):
+    """Wind-rippled desert sand with fine grain and a few pebbles."""
+    h = fbm(n, seed)
+    x, y = grid(n)
+    warp = pnoise(n, 2.0, seed + 2)
+    rip = 0.5 + 0.5 * np.sin((x * 6 + y * 2.0 + 0.35 * warp) * 2 * np.pi)
+    grain = dots(n, seed + 3, 900, 1.5)
+    peb = dots(n, seed + 4, 40, 4.0)
+    v = 0.74 + 0.06 * h + 0.05 * rip + 0.05 * grain - 0.1 * peb
+    base = tint((1.0, 0.83, 0.58), v)
+    return dict(base=np.clip(base, 0, 1), normal=normal_from_height(rip * 0.7 + grain * 0.8 + peb * 1.5 + 0.3 * h, 2.0),
+                orm=np.stack([np.ones((n, n)), np.full((n, n), 0.97), np.zeros((n, n))], -1))
+
+
+def rock(n=512, seed=25):
+    """Canyon strata: chunky sedimentary beds (own tone each, dark undercut line, lit lip), vertical joints, pitting."""
+    r = _rng(seed)
+    h = fbm(n, seed)
+    x, y = grid(n)
+    beds = 7
+    warp = 0.22 * pnoise(n, 2.2, seed + 1, stretch=(1.0, 0.3))
+    yy = y * beds + warp
+    bi = np.floor(yy).astype(int)
+    fr = yy - np.floor(yy)
+    pal = np.array([(0.50, 0.32, 0.24), (0.68, 0.47, 0.32), (0.74, 0.58, 0.42), (0.58, 0.40, 0.30), (0.64, 0.44, 0.34), (0.78, 0.62, 0.46), (0.54, 0.36, 0.28)])
+    tone = pal[bi % beds] * (0.9 + 0.2 * r.random(beds))[bi % beds][..., None]
+    undercut = smooth01(0.10 - fr, 0.0, 0.10)                 # dark line at the foot of each bed
+    lip = smooth01(fr, 0.75, 1.0) * 0.18                       # light edge at the top
+    cell = np.floor(x * 5 + 0.15 * pnoise(n, 2.0, seed + 8, stretch=(1.0, 1.0)) + bi * 0.37).astype(int)
+    vj = ((x * 5 + bi * 0.37) % 1.0 < 0.012) | ((x * 5 + bi * 0.37) % 1.0 > 0.988)
+    grit = dots(n, seed + 3, 600, 2.0)
+    shade = (0.82 + 0.14 * h + lip - 0.45 * undercut - 0.30 * vj - 0.16 * grit)[..., None]
+    base = tone * shade
+    ht = 0.8 * fr + 0.5 * h + 0.5 * grit - 2.5 * undercut - 1.2 * vj
+    return dict(base=np.clip(base, 0, 1), normal=normal_from_height(ht, 3.2),
+                orm=np.stack([np.clip(1 - 0.5 * undercut, 0, 1), np.full((n, n), 0.95), np.zeros((n, n))], -1))
+
+
+def cobble(n=512, seed=26):
+    """Irregular stone setts (jittered periodic cells): dark joints, domed stones, per-stone grey/tan tone."""
+    r = _rng(seed)
+    k = 8
+    jx = r.uniform(0.15, 0.85, (k, k))
+    jy = r.uniform(0.15, 0.85, (k, k))
+    x, y = grid(n)
+    # vectorised nearest/second-nearest feature points on the torus
+    cell = np.array([(gy, gx) for gy in range(k) for gx in range(k)])
+    feats = np.stack([(cell[:, 1] + jx[cell[:, 0], cell[:, 1]]) / k, (cell[:, 0] + jy[cell[:, 0], cell[:, 1]]) / k], -1)
+    d_all = []
+    for f in feats:
+        dx = np.abs(x - f[0])
+        dy = np.abs(y - f[1])
+        dx = np.minimum(dx, 1 - dx)
+        dy = np.minimum(dy, 1 - dy)
+        d_all.append(np.sqrt(dx**2 + dy**2))
+    d_all = np.stack(d_all, 0)
+    order = np.argsort(d_all, 0)
+    d1 = np.take_along_axis(d_all, order[:1], 0)[0]
+    d2 = np.take_along_axis(d_all, order[1:2], 0)[0]
+    idx = order[0]
+    edge = (d2 - d1) * k                    # 0 on the joint, grows toward the stone centre
+    tone = r.uniform(0.7, 1.15, len(feats))[idx]
+    warm = r.uniform(0.0, 1.0, len(feats))[idx]
+    h = fbm(n, seed + 3)
+    dome = smooth01(edge, 0.0, 0.5)
+    v = (0.50 + 0.10 * h) * tone * (0.55 + 0.45 * dome)
+    base = np.stack([v * (0.95 + 0.12 * warm), v * (0.90 + 0.05 * warm), v * (0.82 - 0.05 * warm)], -1)
+    ht = dome * 1.4 + 0.3 * h
+    return dict(base=np.clip(base, 0, 1), normal=normal_from_height(ht, 3.0),
+                orm=np.stack([0.5 + 0.5 * dome, np.full((n, n), 0.93), np.zeros((n, n))], -1))
+
+
+GENERATORS.update(stucco=stucco, terracotta=terracotta, sandstone=sandstone, sand=sand, rock=rock, cobble=cobble)
