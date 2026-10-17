@@ -4,7 +4,7 @@ Standing height 1.80 m (feet z=0, top of helmet z=1.80), facing +Y in Blender (=
 sized to fit the shared hitbox spec (client/shared/spec.json: body 0..1.45 m x 0.6 m, head 1.45..1.80 m x 0.36 m).
 Rigid-bound parts (one bone per part, overlapping joints) so the rig stays tiny and the export is robust.
 
-Clips: idle, run, crouch, hold_rifle/hold_pistol/hold_knife (arm poses), shoot_rifle/shoot_pistol/shoot_knife, death.
+Clips: idle, run, crouch, hold_rifle/hold_pistol/hold_knife (arm poses), shoot_rifle/shoot_pistol/shoot_knife (+ slash_back_knife, stab_knife for the knife combo), death.
 Leg/body clips never key the arm bones and the arm clips never key legs, so the client can layer them.
 Weapons (low-poly versions) are children of bone hand.R: nodes w_rifle, w_pistol, w_knife (client toggles visibility).
 
@@ -432,6 +432,31 @@ def clips(rig):
         El, Wl = solve_arm(S_L, lh, -1)
         return arm_spec(dict(Er=Er, Wr=Wr, El=El, Wl=Wl))
     make_clip(rig, "shoot_knife", list(range(1, 15)), ARM_BONES, slash)
+
+    def arm_to(p):
+        Er, Wr = solve_arm(S_R, p, 1)
+        El, Wl = solve_arm(S_L, lh, -1)
+        return arm_spec(dict(Er=Er, Wr=Wr, El=El, Wl=Wl))
+
+    def keyed_path(t, keys):
+        """keys = [(t, offset)] ascending, eased between neighbours; offsets relative to the hold palm position."""
+        for (t0, o0), (t1, o1) in zip(keys, keys[1:]):
+            if t <= t1:
+                k = ease(min(1.0, max(0.0, (t - t0) / (t1 - t0))))
+                return rh + o0 * (1 - k) + o1 * k
+        return rh + keys[-1][1]
+
+    # backhand: starts across the body on the left and rises to the right (the reverse of the first slash)
+    def slash_back(i, n):
+        t = i / (n - 1)
+        return arm_to(keyed_path(t, [(0.0, Vector((0, 0, 0))), (0.3, Vector((-0.34, 0.08, -0.04))), (0.62, Vector((0.14, 0.08, 0.15))), (1.0, Vector((0, 0, 0)))]))
+    make_clip(rig, "slash_back_knife", list(range(1, 15)), ARM_BONES, slash_back)
+
+    # stab: pull the hand back and in, then thrust straight ahead
+    def stab(i, n):
+        t = i / (n - 1)
+        return arm_to(keyed_path(t, [(0.0, Vector((0, 0, 0))), (0.3, Vector((-0.03, -0.20, 0.05))), (0.48, Vector((-0.03, 0.16, 0.02))), (0.62, Vector((-0.03, 0.16, 0.02))), (1.0, Vector((0, 0, 0)))]))
+    make_clip(rig, "stab_knife", list(range(1, 15)), ARM_BONES, stab)
 
     # ---- death: topple backwards (root pivots at the feet), limbs go slack --------------------
     def death(i, n):

@@ -12,6 +12,26 @@ import { Soldier, nameSprite, applyAnisotropy, flashTexture } from './models.js'
 import { clone } from '../vendor/SkeletonUtils.js';
 
 export const INTERP_MS = 100; // remote players are drawn this far in the past (also what lag compensation rewinds to)
+// Knife swings as keyframes [progress, dx, dy, dz, rx, ry, rz] (offsets from the held pose, radians), eased between keys.
+const KNIFE_SWINGS = [
+  [[0, 0, 0, 0, 0, 0, 0], [0.28, 0.12, 0.1, 0.05, 0.5, 0.9, -0.6], [0.55, -0.13, -0.08, -0.08, -0.6, -0.8, 0.5], [1, 0, 0, 0, 0, 0, 0]], // slash, right to left
+  [[0, 0, 0, 0, 0, 0, 0], [0.28, -0.18, -0.02, 0.04, 0.2, -0.9, 0.7], [0.55, 0.16, 0.08, -0.1, -0.5, 0.9, -0.5], [1, 0, 0, 0, 0, 0, 0]], // backhand, left to right
+  [[0, 0, 0, 0, 0, 0, 0], [0.3, 0, -0.04, 0.12, 0.3, 0, 0], [0.48, 0, 0.02, -0.28, 1.0, 0, 0], [0.66, 0, 0.02, -0.28, 1.0, 0, 0], [1, 0, 0, 0, 0, 0, 0]], // stab
+];
+
+function knifePose(keys, t) {
+  for (let i = 1; i < keys.length; i++) {
+    if (t <= keys[i][0]) {
+      const a = keys[i - 1];
+      const b = keys[i];
+      const u = Math.min(1, Math.max(0, (t - a[0]) / (b[0] - a[0])));
+      const k = u * u * (3 - 2 * u);
+      return [1, 2, 3, 4, 5, 6].map((j) => a[j] + (b[j] - a[j]) * k);
+    }
+  }
+  return [0, 0, 0, 0, 0, 0];
+}
+
 const FP_WEAPONS = ['rifle', 'pistol', 'knife', 'sniper'];
 const BASE_FOV = 78;
 // first-person placement per weapon: camera-space position + scale + muzzle (model space) + ejection port
@@ -243,6 +263,8 @@ export class Game {
     this.sinceFire = 99;
     this.flashT = 0;
     this.swing = 0;
+    this.swingKind = 0; // knife combo step: 0 slash right-to-left, 1 backhand, 2 stab
+    this.swingTick = -1e9; // tick of the last knife swing; a pause of 27 ticks (0.9 s) restarts the combo
     this.switchT = 0;
     this.bob = 0;
     this.stepDist = 0;
@@ -479,7 +501,11 @@ export class Game {
       this.sfx.play(w.id);
       this.kick = 1;
       this.sinceFire = 0;
-      if (w.melee) this.swing = 1;
+      if (w.melee) {
+        this.swingKind = this.tickNo - this.swingTick > 27 ? 0 : (this.swingKind + 1) % KNIFE_SWINGS.length;
+        this.swingTick = this.tickNo;
+        this.swing = 1;
+      }
       else {
         this.flashT = 0.05;
         this.ejectCasing();
@@ -570,7 +596,12 @@ export class Game {
     this.vm.forEach((g, i) => (g.visible = this.alive && i === cur && !this.scoped));
     const g = this.vm[cur];
     this.kick = Math.max(0, this.kick - dt * 9);
-    this.swing = Math.max(0, this.swing - dt * 4.5);
+    this.swing = Math.max(0, this.swing - dt * 2.4); // a full swing takes ~0.42 s, about the knife's cooldown
+    if (this.debugSwing) {
+      // screenshots/tests: freeze a knife swing at {kind, t}
+      this.swingKind = this.debugSwing.kind;
+      this.swing = 1 - this.debugSwing.t;
+    }
     this.switchT = Math.max(0, this.switchT - dt);
     let drop = this.switchT * 1.6;
     let rotX = this.kick * 0.1;
@@ -584,19 +615,26 @@ export class Game {
       rotX -= s * 0.5;
       rotZ += s * 0.3;
     }
-    if (this.swing > 0) {
-      const s = Math.sin((1 - this.swing) * Math.PI);
-      rotY -= s * 0.9;
-      rotX -= s * 0.6;
+    let sx = 0;
+    let sy = 0;
+    let sz = 0;
+    if (this.swing > 0 && this.loadout.weapon.melee) {
+      const pose = knifePose(KNIFE_SWINGS[this.swingKind], 1 - this.swing);
+      [sx, sy, sz] = pose;
+      rotX += pose[3];
+      rotY += pose[4];
+      rotZ += pose[5];
     }
+    // breathing sway so a held weapon is never perfectly still
+    const sway = Math.sin(performance.now() / 1000 * 1.7);
     const fp = FP[FP_WEAPONS[cur]];
     g.scale.setScalar(fp.scale);
     g.position.set(
-      fp.pos[0] + Math.sin(this.bob) * 0.008,
-      fp.pos[1] - drop + Math.abs(Math.cos(this.bob)) * 0.006,
-      fp.pos[2] + this.kick * 0.05,
+      fp.pos[0] + Math.sin(this.bob) * 0.008 + sx,
+      fp.pos[1] - drop + Math.abs(Math.cos(this.bob)) * 0.006 + sway * 0.0015 + sy,
+      fp.pos[2] + this.kick * 0.05 + sz,
     );
-    g.rotation.set(rotX + (this.loadout.weapon.melee ? 0.25 : 0), rotY, rotZ);
+    g.rotation.set(rotX + (this.loadout.weapon.melee ? 0.25 : 0) + sway * 0.006, rotY + sway * 0.004, rotZ);
 
     // moving parts: pistol slide kicks back; rifle bolt + magazine move during a reload
     const u = g.userData;

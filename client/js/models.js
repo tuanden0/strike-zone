@@ -3,6 +3,7 @@ import * as THREE from '../vendor/three.module.js';
 import { clone } from '../vendor/SkeletonUtils.js';
 
 const WEAPON_IDS = ['rifle', 'pistol', 'knife', 'sniper'];
+const KNIFE = 2;
 // The character glb carries rifle/pistol/knife and their arm clips; the sniper is attached at runtime in the rifle's hand slot
 // (same grip origin by design) and shares the rifle's hold/shoot clips.
 const CLIP_OF = { sniper: 'rifle' };
@@ -96,6 +97,12 @@ export class Soldier {
     this.cw = 0; // crouch blend 0..1
     this.hold = WEAPON_IDS.map((id) => act('hold_' + (CLIP_OF[id] || id)));
     this.shootA = WEAPON_IDS.map((id) => act('shoot_' + (CLIP_OF[id] || id), THREE.LoopOnce));
+    // the knife alternates slash, backhand and stab (a pause restarts the combo)
+    this.combo = [this.shootA[KNIFE], act('slash_back_knife', THREE.LoopOnce), act('stab_knife', THREE.LoopOnce)];
+    this.comboI = 0;
+    this.shoots = [...this.shootA, this.combo[1], this.combo[2]];
+    this.comboGap = 9; // seconds since the last knife swing
+    this.shootAct = this.shootA[0];
     this.death = act('death', THREE.LoopOnce);
     this.death.clampWhenFinished = true;
     this.idle.play();
@@ -135,7 +142,13 @@ export class Soldier {
 
   // Third-person fire: arm recoil clip + muzzle flash.
   fire() {
-    const a = this.shootA[this.cur];
+    let a = this.shootA[this.cur];
+    if (this.cur === KNIFE) {
+      this.comboI = this.comboGap > 0.9 ? 0 : (this.comboI + 1) % this.combo.length;
+      this.comboGap = 0;
+      a = this.combo[this.comboI];
+    }
+    this.shootAct = a;
     a.reset().play();
     this.shootT = a.getClip().duration;
     this.flashT = 0.05;
@@ -162,15 +175,16 @@ export class Soldier {
       this.crouchA.setEffectiveWeight(this.cw);
       this.run.setEffectiveTimeScale(Math.min(1.35, Math.max(0.6, speed / 5.5)));
       const shooting = this.shootT > 0;
+      this.comboGap += dt;
       this.shootT = Math.max(0, this.shootT - dt);
       this.hold[this.cur].setEffectiveWeight(shooting ? 0 : 1);
-      this.shootA[this.cur].setEffectiveWeight(shooting ? 1 : 0);
+      for (const s of this.shoots) s.setEffectiveWeight(shooting && s === this.shootAct ? 1 : 0);
     } else {
       this.run.setEffectiveWeight(0);
       this.idle.setEffectiveWeight(0);
       this.crouchA.setEffectiveWeight(0);
       this.hold[this.cur].setEffectiveWeight(0);
-      this.shootA[this.cur].setEffectiveWeight(0);
+      for (const s of this.shoots) s.setEffectiveWeight(0);
     }
     this.mixer.update(dt);
     this.flashT -= dt;
