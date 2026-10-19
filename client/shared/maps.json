@@ -47,5 +47,12 @@
   "file": "map_bunker.json",
   "model": "map_bunker.glb",
   "floor": "concrete"
+ },
+ {
+  "id": "office",
+  "label": "Office (floor 3)",
+  "file": "map_office.json",
+  "model": "map_office.glb",
+  "floor": "concrete"
  }
 ]

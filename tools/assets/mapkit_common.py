@@ -71,7 +71,10 @@ class ThemeKit:
         ph = plinth[1] if has_p else 0.0
         ch = cap[1] if has_c else 0.0
         top_h = st["top"][1] if st.get("top") else 0.0
-        self.cub(x0 + ins, x1 - ins, z0 + ins, z1 - ins, y0, y1 - (0.02 if has_c else 0.0) - top_h, st["mat"], uv, bevel=st.get("bevel", 0.0))
+        # thin boxes get no inset: then the body must stop at the bands, or its faces overlap theirs (z-fighting)
+        b0 = y0 if ins else y0 + ph
+        b1 = y1 - (0.02 if has_c and ins else ch) - top_h
+        self.cub(x0 + ins, x1 - ins, z0 + ins, z1 - ins, b0, b1, st["mat"], uv, bevel=st.get("bevel", 0.0))
         if has_p:
             self.cub(x0, x1, z0, z1, y0, y0 + ph, plinth[0], st.get("plinth_uv", (0.5, 0.5)))
         if has_c:
@@ -249,9 +252,10 @@ class ThemeKit:
         return self.b.build()
 
 
-def run(mid, theme, previews=()):
-    """Build, export map_<mid>.glb and (unless --no-preview) render previews: [(label, az, el, focus, dist)]."""
-    k = ThemeKit(mid, theme)
+def run(mid, theme, previews=(), kit=ThemeKit):
+    """Build, export map_<mid>.glb and (unless --no-preview) render previews: [(label, az, el, focus, dist)].
+    kit: a ThemeKit subclass that adds box styles of its own (a method per style kind)."""
+    k = kit(mid, theme)
     ob = k.build()
     path, size = export_glb(f"map_{mid}", [ob])
     print(f"RESULT map_{mid}.glb tris={tri_count([ob])} bytes={size} ({size / 1048576:.2f} MB)")

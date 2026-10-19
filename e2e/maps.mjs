@@ -1,4 +1,4 @@
-// The five maps added with the "five maps" feature (piazza, pyramid, canyon, harbor, bunker) in Practice mode: the map loads on
+// The five maps added with the "five maps" feature (piazza, pyramid, canyon, harbor, bunker) and the office map in Practice mode: the map loads on
 // demand, the player spawns inside the bounds on free floor, the practice dummies stand on free floor, and two screenshots per map
 // (overview + street level, free camera via game.debugCam) are saved. Needs a running server.
 //   BASE_URL=http://localhost:18080 node maps.mjs [outDir]      (default outDir: ../docs/screenshots)
@@ -18,6 +18,7 @@ const MAPS = {
   canyon: { half: 30, overview: [[-38, 38, 44], [0, 0, 2]], street: [[0, 1.7, 13.5], [0, 1.5, -10]] },
   harbor: { half: 30, overview: [[-38, 38, 44], [0, 0, 2]], street: [[-27.5, 1.7, 5.5], [20, 1.6, 5.5]] },
   bunker: { half: 28, overview: [[-36, 36, 42], [0, 0, 2]], street: [[-11.5, 1.7, 19.5], [-11.5, 1.6, -18]] },
+  office: { half: 26, overview: [[-30, 34, 36], [0, 0, 2]], street: [[-17.2, 1.7, 6.1], [17, 1.6, 6.1]] },
 };
 
 const browser = await launch();

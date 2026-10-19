@@ -32,6 +32,11 @@ const SPOTS_BY_MAP = {
     { x: 0, z: 8.5 }, { x: 0, z: 14 },
     { x: 0, z: 8.5, mx: 6, sp: 1.6 }, { x: -11.5, z: 10 },
   ],
+  office: [
+    { x: -17.4, z: -1.1 }, { x: -11.9, z: -0.6 }, { x: 6, z: -0.4 }, { x: -15.4, z: 6.1 },
+    { x: 17.8, z: -0.4 }, { x: -9.1, z: -4.5 },
+    { x: -2.2, z: 6.1, mx: 5, sp: 1.6 }, { x: 6, z: 6.1, mx: 4, sp: 2.2 }, // the long corridor in front of VP02
+  ],
 };
 const SPOTS = [
   { x: 0, z: -14 },

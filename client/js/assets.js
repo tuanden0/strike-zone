@@ -5,7 +5,7 @@ import { GLTFLoader } from '../vendor/GLTFLoader.js';
 const BASE = 'assets/models/';
 // Needed for every match; other maps are loaded on demand (see main.js ensureMap).
 export const CORE_FILES = ['map', 'character_a', 'character_b', 'rifle_fp', 'pistol_fp', 'knife_fp', 'sniper_fp', 'rifle', 'pistol', 'sniper'];
-export const MODEL_FILES = [...CORE_FILES, 'knife', 'map_crossroads', 'map_piazza', 'map_pyramid', 'map_canyon', 'map_harbor', 'map_bunker'];
+export const MODEL_FILES = [...CORE_FILES, 'knife', 'map_crossroads', 'map_piazza', 'map_pyramid', 'map_canyon', 'map_harbor', 'map_bunker', 'map_office'];
 
 function loadOne(loader, name, onBytes) {
   return new Promise((resolve, reject) => {

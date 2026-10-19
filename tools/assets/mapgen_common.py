@@ -74,14 +74,19 @@ def rects_of(cells):
 
 
 class Grid:
-    def __init__(self, hx, rows):
+    def __init__(self, hx, rows, rotate=True):
         self.hx = hx
-        self.hz = len(rows)
+        self.hz = len(rows) if rotate else len(rows) // 2
         self.W = 2 * hx
         self.R = 2 * self.hz
         for i, r in enumerate(rows):
             if len(r) != self.W:
                 raise SystemExit(f"row {i} has {len(r)} columns, expected {self.W}:\n{r}")
+        if not rotate:  # rows already cover the whole map (z -hz..hz); 'B' marks team B spawns
+            if len(rows) != self.R:
+                raise SystemExit(f"rotate=False needs an even number of rows, got {len(rows)}")
+            self.full = [list(r) for r in rows]
+            return
         bottom = [list(r) for r in rows]
         full = [[" "] * self.W for _ in range(self.R)]
         for i, r in enumerate(bottom):
@@ -132,8 +137,12 @@ class Canvas:
         print("\n".join(f"z{z:>3} " + "".join(r) for z, r in enumerate(self.c)))
 
 
-def build_map(mid, name, hx, rows, legend, patches=(), outer_mat="outer", outer_h=WALL_H, write=True, png=None, facade_cap=None):
-    g = Grid(hx, rows)
+def build_map(mid, name, hx, rows, legend, patches=(), outer_mat="outer", outer_h=WALL_H, write=True, png=None, facade_cap=None,
+              rotate=True, extra=(), spawn_yaw=(0.0, math.pi), points=()):
+    """rotate=False: `rows` is the whole map (no 180-degree copy). extra: [(mat, x0, x1, z0, z1, y0, y1)] free-size boxes in
+    world metres (furniture that does not fit the 1 m grid), added after the grid boxes. spawn_yaw: facing of team A / B.
+    points: [(ch, x, z)] spawns ('A'/'B') and pickups ('R'/'P'/'S') at free positions, like grid cells with that character."""
+    g = Grid(hx, rows, rotate)
     hz = g.hz
     for ch in {c for r in g.full for c in r}:
         if ch not in SPECIAL and ch not in legend:
@@ -163,6 +172,8 @@ def build_map(mid, name, hx, rows, legend, patches=(), outer_mat="outer", outer_
         for x0, x1, z0, z1 in rects_of(groups[key]):
             for mat, y0, y1 in key:
                 add_box(mat, x0 - hx, x1 - hx, z0 - hz, z1 - hz, y0, y1)
+    for mat, x0, x1, z0, z1, y0, y1 in extra:
+        add_box(mat, x0, x1, z0, z1, y0, y1)
 
     # ---- decor: door / window frames
     def wallish(ch):
@@ -254,11 +265,16 @@ def build_map(mid, name, hx, rows, legend, patches=(), outer_mat="outer", outer_
             ox, oz = g.xz(ix, iz)
             c = (ox + 0.5, oz + 0.5)
             if ch == "A":
-                spawns["A"].append({"x": c[0], "z": c[1], "yaw": 0.0})
+                spawns["A"].append({"x": c[0], "z": c[1], "yaw": round(spawn_yaw[0], 6)})
             elif ch == "B":
-                spawns["B"].append({"x": c[0], "z": c[1], "yaw": round(math.pi, 6)})
+                spawns["B"].append({"x": c[0], "z": c[1], "yaw": round(spawn_yaw[1], 6)})
             elif ch in "RPS":
                 pickups.append({"w": {"R": 0, "P": 1, "S": 3}[ch], "x": c[0], "z": c[1]})
+    for ch, x, z in points:
+        if ch in "AB":
+            spawns[ch].append({"x": x, "z": z, "yaw": round(spawn_yaw["AB".index(ch)], 6)})
+        else:
+            pickups.append({"w": {"R": 0, "P": 1, "S": 3}[ch], "x": x, "z": z})
     spawns["A"].sort(key=lambda s: (s["z"], s["x"]))
     spawns["B"].sort(key=lambda s: (-s["z"], -s["x"]))
 
