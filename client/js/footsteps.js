@@ -9,6 +9,7 @@ const MAT_SURFACE = {
   cont_a: 'metal', cont_b: 'metal', cont_c: 'metal', steelpillar: 'metal', warehouse: 'metal',
   tier: 'stone', block: 'stone', rubble: 'stone', obelisk: 'stone', pillar: 'stone', fountain: 'stone', fountain_col: 'stone', lowwall: 'stone', boulder: 'stone',
   concrete: 'concrete', wall: 'concrete', building: 'concrete', barrier: 'concrete', lowcover: 'concrete',
+  desk: 'wood', counter: 'wood', cabinet: 'wood', table: 'wood', planter: 'wood', sofa: 'wood', elevator: 'metal', printer: 'metal',
 };
 
 const MIN_SPEED = 3.4; // m/s: slower than this is a walk (silent, as is Alt-walk and crouching)
